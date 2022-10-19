@@ -5,3 +5,4 @@
 .lock
 .tmp
 .Thumbs
+.Rproj.user/
