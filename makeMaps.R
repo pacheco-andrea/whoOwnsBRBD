@@ -63,4 +63,4 @@ pdf(file = "tenure_map.pdf", width = 1500, height = 1500, units = "px", res = 30
 tenure_plot
 dev.off()
 
-# i make changes
+# i make changes and some more changes
