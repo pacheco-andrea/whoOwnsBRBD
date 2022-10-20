@@ -6,7 +6,7 @@
 library(dplyr)
 library(ggplot2)
 
-wdmain <- "N:/eslu/priv/pacheco/biodivTenureBR"
+wdmain <- "N:/eslu/priv/pacheco/whoOwnsBRBD"
 
 setwd(paste0(wdmain, "/data/processed/BDTen_areaCount"))
 tables <- lapply(list.files(), read.csv)
@@ -65,8 +65,15 @@ table[grep("^8", table$value),]$BDCateg <- BDcategs[8]
 # keep only rows for which there was BD to count
 table <- table[!is.na(table$value),]
 
-table$BDCateg <- as.factor(table$BDCateg)
-levels(table$BDCateg) <- c( "high priority high knowledge continuous",
+table2 <- table
+
+table2[which(table2$tenCateg == "Indigenous H"),]$tenCateg <- "Indigenous"
+table2[which(table2$tenCateg == "Indigenous NH"),]$tenCateg <- "Indigenous"
+table2[which(table2$tenCateg == "Comunitaria"),]$tenCateg <- "Communal/Quilombo"
+table2[which(table2$tenCateg == "Quilombola"),]$tenCateg <- "Communal/Quilombo"
+
+table2$BDCateg <- as.factor(table2$BDCateg)
+levels(table2$BDCateg) <- c( "high priority high knowledge continuous",
                             "high priority high knowledge fragmented",
                             "high priority low knowledge continuous",
                             "high priority low knowledge fragmented",
@@ -80,12 +87,12 @@ myCols <- c("insufficient knowledge fragmented" = "#e0e0e0",
             "insufficient knowledge continuous" = "#878787",
             "low priority good knowledge fragmented" = "#7fbc41",
             "low priority good knowledge continuous" = "#b8e186",
-            "high priority low knowledge fragmented" = "#fde0ef",
-            "high priority low knowledge continuous" = "#f1b6da",
+            "high priority low knowledge fragmented" = "#dfc27d",
+            "high priority low knowledge continuous" = "#f6e8c3",
             "high priority high knowledge fragmented" = "#de77ae",
             "high priority high knowledge continuous" = "#c51b7d")
 
-whoOwnsPlot <- ggplot(table, aes(tenCateg, (sum), fill = BDCateg))+
+whoOwnsPlot <- ggplot(table2, aes(tenCateg, (sum), fill = BDCateg))+
   geom_col() +
   scale_colour_manual(values = myCols, aesthetics = c("color", "fill"))+
   scale_y_continuous(labels = function(x) format(x, scientific = FALSE), expand = c(0,0))+
@@ -99,8 +106,8 @@ whoOwnsPlot + guides(col = guide_legend(ncol=2))
 
 # write out information
 setwd(paste0(wdmain, "/output/"))
-write.csv(table[,c(8,1,9,2:7)], "whoOwnsBR-BDinKm2.csv", row.names = FALSE)
-ggsave("whoOwnsBR-BDinKm2_plot.png", whoOwnsPlot, width = 9, height = 4.5)
+write.csv(table2[,c(8,1,9,2:7)], "whoOwnsBR-BDinKm2.csv", row.names = FALSE)
+ggsave("whoOwnsBR-BDinKm2_barplot.png", whoOwnsPlot, width = 9, height = 4.5)
 
 # to-do:
 # recreate teure map 

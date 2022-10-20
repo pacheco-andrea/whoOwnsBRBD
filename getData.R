@@ -23,7 +23,7 @@ library(fasterize)
 library(ggplot2)
 library(dplyr)
 
-wdmain <- "N:/eslu/priv/pacheco/biodivTenureBR"
+wdmain <- "N:/eslu/priv/pacheco/whoOwnsBRBD"
 rasterOptions(tmpdir = "N:/eslu/priv/pacheco/biodivTenureBR/tmp", chunksize = 524288, maxmemory = 134217728)
 mode <- function(x, na.rm = FALSE) {
   if(na.rm){
