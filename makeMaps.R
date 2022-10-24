@@ -9,9 +9,12 @@
 library(raster)
 library(rgdal)
 library(rasterVis)
+library(sf)
 # install.packages("rasterVis")
+# install.packages("remotes")
+remotes::install_github("oscarperpinan/rasterVis")
 
-wdmain <- "N:/eslu/priv/pacheco/biodivTenureBR"
+wdmain <- "N:/eslu/priv/pacheco/whoOwnsBRBD"
 rasterOptions(tmpdir = "N:/eslu/priv/pacheco/biodivTenureBR/tmp", chunksize = 524288, maxmemory = 134217728)
 mode <- function(x, na.rm = FALSE) {
   if(na.rm){
@@ -48,18 +51,26 @@ tenureBR <- reclassify(r, myReclass)
 tenure_raster <- ratify(tenureBR)
 rat <- levels(tenure_raster)[[1]]
 rat$tenure <- c("other", "sustUse_PA", "strict_PA", "Indigenous", "Comm_Qui", "Undesignated", "Private", "RurSettlmt") 
-levels(tenure_raster) <- rat
-
-tenure_plot <- levelplot(tenure_raster,
-         xlab = NULL, ylab = NULL,
-         scales = list(draw = F), 
-         par.settings = list(axis.line = list(col = "transparent")),
-         colorkey = F,
-         col.regions = c("#f0f0f0", "#8C7E5B", "#1b9e77", "#e78ac3", "#ffd700", "#1c9099", "#8da0cb", "#fc8d62 " ))# other options: #d8b365 #b88340 #a19f63
-tenure_plot
 
 setwd(paste0(wdmain, "/output/"))
-pdf(file = "tenure_map.pdf", width = 1500, height = 1500, units = "px", res = 300)
+writeRaster(tenure_raster, "tenure_data_BR.tif")
+tenure_raster <- raster("tenure_data_BR.tif")
+levels(tenure_raster) <- rat
+
+setwd(paste0(wdmain, "/data/brazil_biomes_shp/"))
+biomshp <- readOGR("Brazil_biomes.shp")
+biomshp <- spTransform(biomshp, proj4string(tenure_raster))
+
+tenure_plot <- rasterVis::levelplot(tenure_raster,
+                     xlab = NULL, ylab = NULL,
+                     scales = list(draw = F), 
+                     par.settings = list(axis.line = list(col = "transparent")),
+                     colorkey = F,
+                     col.regions = c("#F0F0F0", "#8C7E5B", "#1B9E77", "#E78AC3", "#FFD700", "#1d6c7d", "#8DA0CB", "#FC8D62" )) + latticeExtra::layer(sp.polygons(biomshp, col = "gray20", lwd = 1))
+tenure_plot 
+
+setwd(paste0(wdmain, "/output/"))
+png(file = "tenure_map.png", width = 1500, height = 1500, units = "px", res = 300)
 tenure_plot
 dev.off()
 
