@@ -19,8 +19,6 @@ mode <- function(x, na.rm = FALSE) {
 }
 
 
-
-
 # read raster data ----
 # biodiversity
 setwd(paste0(wdmain,"/data/raw/"))
@@ -42,7 +40,7 @@ for(i in 2:length(tenureList))
   # reclassify raster
   rasterreg <- reclassify(rasterreg, myReclass)
   # join with biodiv
-  bd2 <- crop(bd, extent(rasterreg)) # its not cropping!
+  bd2 <- crop(bd, extent(rasterreg)) 
   tenureBD <- (bd2*10) + rasterreg
   # get pixel counts
   countBDTen <- as.data.frame(freq(tenureBD))
@@ -52,8 +50,6 @@ for(i in 2:length(tenureList))
   
   print(i)
 }
-
-
 
 
 
