@@ -6,6 +6,7 @@
 library(dplyr)
 library(ggplot2)
 library(sf)
+library(stringr)
 
 wdmain <- "N:/eslu/priv/pacheco/whoOwnsBRBD"
 
@@ -112,7 +113,7 @@ whoOwnsPlot
 setwd(paste0(wdmain, "/output/"))
 write.csv(table2[,c(8,1,9,2:7)], "whoOwnsBR-BDinKm2.csv", row.names = FALSE)
 # save plot
-ggsave("whoOwnsBR-BDinKm2_barplot.png", whoOwnsPlot, width = 9, height = 4.5)
+ggsave("whoOwnsBR-BDinKm2_barplot.png", whoOwnsPlot, width = 11, height = 4)
 
 
 # how much area does each category cover? ----
@@ -174,7 +175,8 @@ whoOwnsPlot2
 
 round((table3$sum/table3$sumAT)*100, digits=2)
 
-# okay this doesn't make sense and does not provide much different information. 
+# okay ----
+# this doesn't make sense and does not provide much different information. 
 # i'm assuming there's something wrong with the total calculation of area per tenure category which could be traced back to the parcels themselves
 # but i'm very annoyed at how slow the server is right now
 
@@ -195,13 +197,16 @@ percentTotalAreas <- ggplot(table3, aes(tenCateg, (sum/sumAT)*100, fill = BDCate
   scale_colour_manual(values = myCols, aesthetics = c("color", "fill"))+
   scale_y_continuous(labels = function(x) format(x, scientific = FALSE), expand = c(0,0))+
   ylab("% total area") +
-  xlab("Land tenure category") + 
-  theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,2,2), "mm"),
-        legend.position = "none", legend.title = element_blank())+
-  coord_flip()
+  xlab("Land tenure category") +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  theme(panel.background = element_blank(), 
+        plot.margin=grid::unit(c(2,2,2,2), "mm"),
+        legend.position = "none", 
+        legend.title = element_blank())
+
 percentTotalAreas
 setwd(paste0(wdmain, "/output/"))
-ggsave("BRBD_percentTotalTenureArea.png", percentTotalAreas, width = 9, height = 4.5)
+ggsave("BRBD_percentTotalTenureArea.png", percentTotalAreas, width = 6, height = 4.5)
 
 # % of total BD category areas
 # this should answer: out of all the highly biodiverse areas, what percent is in x lands?
@@ -215,16 +220,24 @@ myTenCols <- c("Other"= "#F0F0F0",
                "Private farms" = "#8DA0CB",
                "Rural settlements" = "#FC8D62")
 
-percentBDareas <- ggplot(table3, aes(BDCateg, (sum/sumBD)*100, fill = tenCateg))+
+# wrap labels of bd but keep factor levels
+table3$BDCateg_str <- as.factor(str_wrap(table3$BDCateg, width = 18))
+levels(table3$BDCateg)
+x <- unique(table3$BDCateg_str)
+levels(table3$BDCateg_str) <- x[c(7,8,3,4,1,2,5,6)]
+
+percentBDareas <- ggplot(table3, aes(table3$BDCateg_str,(sum/sumBD)*100, fill = tenCateg)) +
   geom_col() +
   scale_colour_manual(values = myTenCols, aesthetics = c("color", "fill"))+
   scale_y_continuous(labels = function(x) format(x, scientific = FALSE), expand = c(0,0))+
   ylab("% total area") +
   xlab("Biodiversity relevance") + 
+  scale_x_discrete(guide = guide_axis(angle = 55)) +
   theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,2,2), "mm"),
-        legend.position = "none", legend.title = element_blank())+
-  coord_flip()
+        legend.position = "none", legend.title = element_blank())
+
 percentBDareas
+
 setwd(paste0(wdmain, "/output/"))
-ggsave("BRBD_percentTotalBDArea.png", percentBDareas, width = 9, height = 4.5)
+ggsave("BRBD_percentTotalBDArea.png", percentBDareas, width = 6, height = 4.5)
 
