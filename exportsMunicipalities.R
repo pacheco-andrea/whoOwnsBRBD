@@ -34,7 +34,7 @@ myComex <- read.csv("comex-biomassExports_1997-2022.csv")
 
 
 # create function for plotting different exports ----
-
+# to check: is the average, the monthly average or the annual??
 plotCommodityExports <- function(data, year, commodity, munYear, title, plotFUN){
   
   if(munYear>2020){stop("maximum year available from municipality data is 2020")}
@@ -158,21 +158,64 @@ mywoodpulpplot <- plotCommodityExports(data = myComex, commodity = "beef",
                                        year = c(2006,2022), munYear = 2020, title = "Average wood pulp exports 2006-2022 (kg)", plotFUN = "mean")
 
 plotCommodityExports(data = myComex, commodity = "soy", 
-                     year = c(1997,2022), munYear = 2020, title = "Sum of soy exports 1997-2022 (kg)", plotFUN = "sum")
+                     year = c(2012,2022), munYear = 2020, title = "sum of soy exports 2012-2022 (kg)", plotFUN = "mean")
 
 plot_grid(mysoyplot, mywoodpulpplot)
 
 
 
+# Trase deforestation exposure and exports maybe? ----
+setwd(paste0(wdmain, "/data/raw/soy_production_exports/trase"))
+trase <- read.csv("BRAZIL_SOY_2.6.0_pc/BRAZIL_SOY_2.6.0_pc.2020.csv")
+head(trase)
+trase$expDest <- NA
+trase$expDest[which(trase$ECONOMIC.BLOC == "BRAZIL")] <- "domestic"
+trase$expDest[which(trase$ECONOMIC.BLOC != "BRAZIL")] <- "foreign"
+
+# summarize the total values per municipality
+# because right now it's disaggregated by 1) logistics hub 2) port of export 3) exporter
+# i might just distinguish bt what's domestic and what's exported
+trase2 <- as.data.frame(trase %>%
+                          group_by(BIOME, STATE, MUNICIPALITY.OF.PRODUCTION, TRASE_GEOCODE) %>%
+                          summarize(yr5exp = sum(BR_SOY_DEFORESTATION_5_YEAR_TOTAL_EXPOSURE), 
+                                    soyprod = sum(SOY_EQUIVALENT_TONNES)))
+
+trase_domestic <- trase2[which(trase2$expDest == "domestic"),] 
+trase_foreign <- trase2[which(trase2$expDest == "foreign"),] 
 
 
 
+# 1. see if i can bind these geocodes to my ibge geocode. 
+# but, i will also have to 
+# because right now it's disaggregated by 1) logistics hub 2) port of export 3) exporter
+# i might just distinguish bt what's domestic and what's exported
+mun <- read_municipality(code_muni = "all", year = 2020)
+trase2$code_muni <- as.numeric(gsub("BR-", "", trase2$TRASE_GEOCODE))
+trase_domestic$code_muni <- as.numeric(gsub("BR-", "", trase_domestic$TRASE_GEOCODE)) # remember that for some export information we don't know where it was produced
+trase_foreign$code_muni <- as.numeric(gsub("BR-", "", trase_domestic$TRASE_GEOCODE)) # remember that for some export information we don't know where it was produced
 
+comexTrase <- full_join(trase2, mun, by = "code_muni")
+nrow(comexTrase)
 
+# how much deforestation risk total?
+exposure <- ggplot(comexTrase) +
+  geom_sf(data = comexTrase, 
+          aes(fill = (yr5exp), geometry = geom),
+          color = "transparent") +
+  scale_fill_continuous(low="#ffffe5", high="#662506", guide="colorbar", na.value="gray90", labels = scales::comma) +
+  theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,2,2), "mm"),
+        legend.position = c(.2,.2), legend.title = element_blank(), legend.background = element_rect(colour = "transparent")) +
+  labs(title = paste0("Soy deforestation exposure 2020 (domestic)"))
+exposure
 
-
-
-
-
-
+# but for production i don't want to distinguish between foreign and domestic
+production <- ggplot(comexTrase) +
+  geom_sf(data = comexTrase, 
+          aes(fill = (soyprod), geometry = geom),
+          color = "transparent") +
+  scale_fill_continuous(low="#ffffe5", high="#662506", guide="colorbar", na.value="gray90", labels = scales::comma) +
+  theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,2,2), "mm"),
+        legend.position = c(.2,.2), legend.title = element_blank(), legend.background = element_rect(colour = "transparent")) +
+  labs(title = paste0("Soy production 2020"))
+production
 

@@ -1,8 +1,9 @@
 #### Biodiversity and Tenure in Brazil ####
 # script that makes maps: 
 # new version land tenure in Brazil
-# homologated and nonhomologated indigenous lands
-# communal and quilombola lands
+  # homologated and nonhomologated indigenous lands
+  # communal and quilombola lands
+# plots tenure
 # author: Andrea Pacheco
 # first run: 18.10.2022
 
