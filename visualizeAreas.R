@@ -75,30 +75,27 @@ table2[which(table2$tenCateg == "Indigenous NH"),]$tenCateg <- "Indigenous"
 table2[which(table2$tenCateg == "Comunitaria"),]$tenCateg <- "Communal/Quilombo"
 table2[which(table2$tenCateg == "Quilombola"),]$tenCateg <- "Communal/Quilombo"
 
-table2$BDCateg <- as.factor(table2$BDCateg)
-levels(table2$BDCateg) <- c( "high priority high knowledge continuous",
-                            "high priority high knowledge fragmented",
-                            "high priority low knowledge continuous",
-                            "high priority low knowledge fragmented",
-                            "low priority good knowledge continuous",
-                            "low priority good knowledge fragmented",
-                            "insufficient knowledge fragmented",
-                            "insufficient knowledge continuous")
-
+table2$BDCateg <- factor(table2$BDCateg, levels = c("high priority high knowledge fragmented",
+                                                                       "high priority high knowledge continuous", 
+                                                                       "high priority low knowledge fragmented",
+                                                                       "high priority low knowledge continuous",
+                                                                       "low priority good knowledge fragmented",
+                                                                       "low priority good knowledge continuous",
+                                                                       "insufficient knowledge fragmented",
+                                                                       "insufficient knowledge continuous"))
 # create bar plot
-myCols <- c("insufficient knowledge fragmented" = "#e0e0e0",
-            "insufficient knowledge continuous" = "#878787",
-            "low priority good knowledge fragmented" = "#7fbc41",
-            "low priority good knowledge continuous" = "#b8e186",
-            "high priority low knowledge fragmented" = "#dfc27d",
-            "high priority low knowledge continuous" = "#f6e8c3",
-            "high priority high knowledge fragmented" = "#de77ae",
-            "high priority high knowledge continuous" = "#c51b7d")
+myCols <- c("insufficient knowledge continuous" = "#e0e0e0",
+            "insufficient knowledge fragmented" = "#878787",
+            "high priority low knowledge continuous" = "#fde0ef",
+            "high priority low knowledge fragmented" = "#f1b6da",  
+            "low priority good knowledge continuous" = "#e6f5d0",
+            "low priority good knowledge fragmented" = "#7fbc41", 
+            "high priority high knowledge continuous" = "#de77ae",  
+            "high priority high knowledge fragmented" = "#c51b7d")
 
 # convert area to 1000 km2
-table2$sum2 <- (table2$sum)/1000
 
-whoOwnsPlot <- ggplot(table2, aes(tenCateg, sum2, fill = BDCateg))+
+whoOwnsPlot <- ggplot(table2, aes(tenCateg, (sum/1000), fill = BDCateg))+
   geom_col() +
   scale_colour_manual(values = myCols, aesthetics = c("color", "fill"))+
   scale_y_continuous(labels = function(x) format(x, scientific = FALSE), expand = c(0,0))+
@@ -179,14 +176,14 @@ round((table3$sum/table3$sumAT)*100, digits=2)
 # this doesn't make sense and does not provide much different information. 
 # i'm assuming there's something wrong with the total calculation of area per tenure category which could be traced back to the parcels themselves
 # but i'm very annoyed at how slow the server is right now
-
-mySumsByTenure <- table2 %>%
-  group_by(tenCateg) %>%
-  summarize(sumAT = sum(sum))
-
-mySumsbyBD <- table2%>%
-  group_by(BDCateg) %>%
-  summarize(sumBD = sum(sum))
+# 
+# mySumsByTenure <- table2 %>%
+#   group_by(tenCateg) %>%
+#   summarize(sumAT = sum(sum))
+# 
+# mySumsbyBD <- table2%>%
+#   group_by(BDCateg) %>%
+#   summarize(sumBD = sum(sum))
 
 table3 <- left_join(table2, mySumsByTenure, by = "tenCateg")
 table3 <- left_join(table3, mySumsbyBD, by = "BDCateg")

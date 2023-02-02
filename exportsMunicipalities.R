@@ -17,21 +17,9 @@ library(cowplot)
 
 wdmain <- "N:/eslu/priv/pacheco/whoOwnsBRBD"
 
-# get soy export data ----
+# get Comex stat soy export data ----
 setwd(paste0(wdmain, "/data/processed/soyExports"))
 myComex <- read.csv("comex-biomassExports_1997-2022.csv")
-# soyplace <- grep("soy", myComex$name, ignore.case = TRUE)
-# myComexSoy <- myComex[soyplace,]
-
-# # get municipalities data from the IBGE package ----
-# this is now incorporated in the function below
-# mun <- read_municipality(code_muni = "all", year = 2020)
-# nrow(mun)
-# ggplot(mun)+
-#   geom_sf()
-# mun$CO_MUN <- mun$code_muni
-
-
 
 # create function for plotting different exports ----
 # to check: is the average, the monthly average or the annual??
@@ -164,58 +152,130 @@ plot_grid(mysoyplot, mywoodpulpplot)
 
 
 
-# Trase deforestation exposure and exports maybe? ----
+# Trase data ----
 setwd(paste0(wdmain, "/data/raw/soy_production_exports/trase"))
 trase <- read.csv("BRAZIL_SOY_2.6.0_pc/BRAZIL_SOY_2.6.0_pc.2020.csv")
 head(trase)
-trase$expDest <- NA
-trase$expDest[which(trase$ECONOMIC.BLOC == "BRAZIL")] <- "domestic"
-trase$expDest[which(trase$ECONOMIC.BLOC != "BRAZIL")] <- "foreign"
 
-# summarize the total values per municipality
-# because right now it's disaggregated by 1) logistics hub 2) port of export 3) exporter
-# i might just distinguish bt what's domestic and what's exported
+# because currently values are disaggregated by the company and country they export to, 
+# i need to summarize the total values of soy trade per municipality
 trase2 <- as.data.frame(trase %>%
                           group_by(BIOME, STATE, MUNICIPALITY.OF.PRODUCTION, TRASE_GEOCODE) %>%
                           summarize(yr5exp = sum(BR_SOY_DEFORESTATION_5_YEAR_TOTAL_EXPOSURE), 
                                     soyprod = sum(SOY_EQUIVALENT_TONNES)))
 
-trase_domestic <- trase2[which(trase2$expDest == "domestic"),] 
-trase_foreign <- trase2[which(trase2$expDest == "foreign"),] 
-
-
-
-# 1. see if i can bind these geocodes to my ibge geocode. 
-# but, i will also have to 
-# because right now it's disaggregated by 1) logistics hub 2) port of export 3) exporter
-# i might just distinguish bt what's domestic and what's exported
+# bind trase geocodes to IBGE geocode using package
 mun <- read_municipality(code_muni = "all", year = 2020)
 trase2$code_muni <- as.numeric(gsub("BR-", "", trase2$TRASE_GEOCODE))
-trase_domestic$code_muni <- as.numeric(gsub("BR-", "", trase_domestic$TRASE_GEOCODE)) # remember that for some export information we don't know where it was produced
-trase_foreign$code_muni <- as.numeric(gsub("BR-", "", trase_domestic$TRASE_GEOCODE)) # remember that for some export information we don't know where it was produced
+trase_sf <- full_join(mun, trase2, by = "code_muni")
+summary(trase_sf)
 
-comexTrase <- full_join(trase2, mun, by = "code_muni")
-nrow(comexTrase)
+# how much deforestation exposure in 2020?
 
-# how much deforestation risk total?
-exposure <- ggplot(comexTrase) +
-  geom_sf(data = comexTrase, 
-          aes(fill = (yr5exp), geometry = geom),
+exposure <- ggplot(trase_sf) +
+  geom_sf(data = trase_sf, 
+          aes(fill = yr5exp),
           color = "transparent") +
-  scale_fill_continuous(low="#ffffe5", high="#662506", guide="colorbar", na.value="gray90", labels = scales::comma) +
+  scale_fill_continuous(low="#f6e8c3", high="#543005", guide="colorbar", na.value="gray90", labels = scales::comma) +
   theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,2,2), "mm"),
         legend.position = c(.2,.2), legend.title = element_blank(), legend.background = element_rect(colour = "transparent")) +
-  labs(title = paste0("Soy deforestation exposure 2020 (domestic)"))
+  labs(title = paste0("Soy deforestation exposure 2020 (ha)"))
 exposure
 
-# but for production i don't want to distinguish between foreign and domestic
-production <- ggplot(comexTrase) +
-  geom_sf(data = comexTrase, 
-          aes(fill = (soyprod), geometry = geom),
+# total soy production 2020
+
+# version with continuous data
+production <- ggplot(trase_sf) +
+  geom_sf(data = trase_sf, 
+          aes(fill = (soyprod)),
           color = "transparent") +
-  scale_fill_continuous(low="#ffffe5", high="#662506", guide="colorbar", na.value="gray90", labels = scales::comma) +
+  scale_fill_gradient(na.value="gray90", 
+                        low="#f6e8c3", high="#543005", guide="colorbar", 
+                      aesthetics = "fill",
+                        labels = scales::comma,) +
   theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,2,2), "mm"),
         legend.position = c(.2,.2), legend.title = element_blank(), legend.background = element_rect(colour = "transparent")) +
   labs(title = paste0("Soy production 2020"))
 production
 
+# version with discrete data (this maps categories exactly as Trase has on their site)
+trase_sf$soyprod_disc <- NA
+trase_sf$soyprod_disc[which(trase_sf$soyprod <= 5000)] <- "<5000"
+trase_sf$soyprod_disc[which(trase_sf$soyprod > 5000 & trase_sf$soyprod <= 100000)] <- "<100K"
+trase_sf$soyprod_disc[which(trase_sf$soyprod > 100000 & trase_sf$soyprod <= 300000)] <- "<300K"
+trase_sf$soyprod_disc[which(trase_sf$soyprod > 300000 & trase_sf$soyprod <= 1000000)] <- "<1M"
+trase_sf$soyprod_disc[which(trase_sf$soyprod > 1000000)] <- ">1M"
+
+mycols <- c("<5000" = "#f6e8c3",
+            "<100K" = "#dfc27d", 
+            "<300K" = "#bf812d",
+            "<1M" = "#8c510a",
+            ">1M" = "#543005")
+production <- (trase_sf) +
+  geom_sf(data = trase_sf, 
+          aes(fill = (soyprod_disc)),
+          color = "transparent") +
+  scale_fill_manual(values = mycols, na.value="gray90") +
+  theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,2,2), "mm"),
+        legend.position = c(.2,.2), legend.title = element_blank(), legend.background = element_rect(colour = "transparent")) +
+  labs(title = paste0("Soy production 2020"))
+production
+
+# however, if I do use production as my final variable, I believe this should be an average (of at least 2015-2020)
+# read in new soy produciton data time series ----
+setwd(paste0(wdmain, "/data/raw/soy_production_exports/trase/BRAZIL_SOY_2.6.0_pc"))
+l <- list.files()
+traseSoy <- lapply(l[13:17], read.csv)
+colnames(traseSoy[[1]])
+# keep only the columns i need
+for(i in 1:length(traseSoy))
+{
+  traseSoy[[i]] <- traseSoy[[i]][,c(1,4,5,20,22)]
+}
+traseSoy <- do.call(rbind, traseSoy)
+
+#summarize sou production from 2016-2020 using geometric mean
+traseSoy2 <- as.data.frame(traseSoy %>%
+                          group_by(STATE, MUNICIPALITY.OF.PRODUCTION, TRASE_GEOCODE) %>%
+                          summarize(gmean_soyprod = exp(mean(log(SOY_EQUIVALENT_TONNES))),
+                                    mean_soyprod = mean(SOY_EQUIVALENT_TONNES),
+                                    sum_soyprod = sum(SOY_EQUIVALENT_TONNES)))
+# bind to geocode
+traseSoy2$code_muni <- as.numeric(gsub("BR-", "", traseSoy2$TRASE_GEOCODE))
+traseSoy2[which(is.na(traseSoy2$code_muni)),]
+traseSoy_sf <- left_join(mun, traseSoy2, by = "code_muni")
+nrow(traseSoy_sf)
+
+# plots
+
+meanSoy20162020 <- ggplot(traseSoy_sf) +
+  geom_sf(data = traseSoy_sf, 
+          aes(fill = mean_soyprod),
+          color = "transparent") +
+  scale_fill_gradient(na.value="gray90", 
+                      low="#f6e8c3", high="#543005", guide="colorbar", 
+                      aesthetics = "fill",
+                      labels = scales::comma,) +
+  theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,2,2), "mm"),
+        legend.position = c(.2,.2), legend.title = element_blank(), legend.background = element_rect(colour = "transparent")) +
+  labs(title = paste0("Mean Annual Soy Production 2016-2020 (t)"))
+meanSoy20162020
+
+sumSoy20162020 <- ggplot(traseSoy_sf) +
+  geom_sf(data = traseSoy_sf, 
+          aes(fill = sum_soyprod),
+          color = "transparent") +
+  scale_fill_gradient(na.value="gray90", 
+                      low="#f6e8c3", high="#543005", guide="colorbar", 
+                      aesthetics = "fill",
+                      labels = scales::comma,) +
+  theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,2,2), "mm"),
+        legend.position = c(.2,.2), legend.title = element_blank(), legend.background = element_rect(colour = "transparent")) +
+  labs(title = paste0("Sum of Soy Production 2016-2020 (t)"))
+sumSoy20162020
+
+plot_grid(meanSoy20162020, sumSoy20162020)
+
+# write out this data!!!!!
+setwd(paste0(wdmain, "/data/processed/soyExports/"))
+write.csv(traseSoy_sf, "trase_soyProduction_2016-2020.csv", row.names = FALSE)
