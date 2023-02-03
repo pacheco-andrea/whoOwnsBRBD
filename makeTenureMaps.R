@@ -39,7 +39,7 @@ mode <- function(x, na.rm = FALSE) {
 setwd(paste0(wdmain, "/data/processed/"))
 r <- raster("tenure_data_reclassified_1km_BR.tif")
 
-# test to reclassify and check the difference bt homologated and nonhomologated indigenous
+# reclassify and check the difference bt homologated and nonhomologated indigenous
 myReclass <- data.frame("orig" = 1:18)
 myReclass$new <- c(0,0,0,0,0,0,0,0,0,0,5,10,0,0,0,0,0,0)
 

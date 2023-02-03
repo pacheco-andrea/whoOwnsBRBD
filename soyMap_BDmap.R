@@ -12,6 +12,7 @@ library(ggplot2)
 library(geobr)
 library(rasterVis)
 library(sf)
+library(fasterize)
 # library(rgdal)
 
 # directory
@@ -41,16 +42,25 @@ myCols <- c("insufficient knowledge continuous" = "#e0e0e0",
             "high priority low knowledge fragmented" = "#f1b6da",  
             "high priority high knowledge continuous" = "#de77ae",  
             "high priority high knowledge fragmented" = "#c51b7d")
+
+# don't plot the "other category bc its confusing people
+who <- who[which(who$tenCateg != "Other"),]
+
 whoOwnsPlot <- ggplot(who, aes(tenCateg, (sum), fill = BDCateg))+
   geom_col() +
   scale_colour_manual(values = myCols, aesthetics = c("color", "fill"))+
-  scale_y_continuous(labels = function(x) format(x, scientific = FALSE), expand = c(0,0))+
+  scale_y_continuous(labels = scales::comma, expand = c(0,0))+
   ylab(bquote("Area in 10,000 km"^2)) +
   xlab("Land tenure category") + 
-  theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,2,2), "mm"),
-        legend.position = c(.8,.3), legend.title = element_blank())+ # probably REMOVE LEGEND
+  theme(panel.background = element_blank(), plot.margin=grid::unit(c(5,5,5,5), "mm"),
+        legend.position = "none", legend.title = element_blank())+ # probably REMOVE LEGEND
   coord_flip()
 whoOwnsPlot 
+
+setwd(paste0(wdmain, "/output"))
+svg("whoOwnsBRBD_barplot.svg", width = 8.3, height = 2.5)
+whoOwnsPlot
+dev.off()
 
 # plots where disagg categories by percentages ----
 
@@ -59,7 +69,7 @@ whoOwnsPlot
 
 # MAPS ----
 
-# biodiversity map
+# biodiversity map ----
 setwd(paste0(wdmain, "/data/raw/Biodiversity_model"))
 bd <- raster("Model_biodiverisity.tif")
 bd # maybe should recategorize eventually? bc i want just priority categories...?
@@ -89,26 +99,122 @@ bdplot <- levelplot(bd,
                     scales = list(draw=F),
                     par.settings = list(axis.line = list(col = "transparent")),
                     margin = FALSE,
-                    #colorkey = FALSE,
+                    colorkey = FALSE,
                     col.regions = c("#e0e0e0", "#878787", "#fde0ef","#f1b6da",
                                     "#e6f5d0","#7fbc41","#de77ae","#c51b7d"))
 bdplot + latticeExtra::layer(sp.lines(biome_outline, col = "gray20", lwd = 1))
 
 
-# soy map!
+setwd(paste0(wdmain, "/output"))
+png("mapBRBiodiversity.png", width = 1500, height = 1500, units = "px", res = 300, bg = "transparent")
+bdplot + latticeExtra::layer(sp.lines(biome_outline, col = "gray20", lwd = 1))
+dev.off()
+
+
+
+# soy map ----
 setwd(paste0(wdmain, "/data/processed/soyExports"))
+soy <- st_read("trase_soyProduction_2016-2020.shp")
+head(soy)
+
+biomshp <- read_biomes()
+biomshp <- biomshp[1:6,]
+
+
+meanSoy20162020 <- ggplot(soy) +
+  geom_sf(data = soy, 
+          aes(fill = mn_sypr),
+          color = "transparent") +
+  scale_fill_gradient(na.value="gray90", 
+                      low="#f6e8c3", high="#543005", guide="colorbar", 
+                      aesthetics = "fill",
+                      labels = scales::comma,) +
+  geom_sf(data = biomshp, fill = "transparent", color = "gray20")+
+  theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,2,2), "mm"),
+        legend.position = c(.2,.2), legend.title = element_blank(), legend.background = element_rect(colour = "transparent")) +
+  labs(title = paste0("Mean Annual Soy Production 2016-2020 (t)"))
+meanSoy20162020
+
+sumSoy20162020 <- ggplot(soy) +
+  geom_sf(data = soy, 
+          aes(fill = sm_sypr),
+          color = "transparent") +
+  scale_fill_gradient(na.value="gray90", 
+                      low="#f6e8c3", high="#543005", guide="colorbar", 
+                      aesthetics = "fill",
+                      labels = scales::comma,) +
+  theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,2,2), "mm"),
+        legend.position = c(.2,.2), legend.title = element_blank(), legend.background = element_rect(colour = "transparent")) +
+  labs(title = paste0("Sum of Soy Production 2016-2020 (t)"))
+sumSoy20162020
+
+plot_grid(meanSoy20162020, sumSoy20162020)
+
+# try one to categorize to low and high
 
 
 # plot all together ----
-# Reclassify bd priority map so that they're fewer categories:
+
+# 1 Reclassify bd priority map so that they're fewer categories:
+bd
 # high priority
 # high priority low knowledge
 # low priority
 # insufficient knowledge
+myReclass <- data.frame("bdo" = 1:8)
+myReclass$bdn <- c(1,1,3,3,2,2,4,4)
+bd2 <- reclassify(bd, myReclass)
+plot(bd2)
 
-# discretize soy production data
+# 2 discretize soy production data
 # no threat (everything NA)
 # low threat (everything around 0?)
 # middle threat
 # high threat
+soy$pcat <- NA
+soy$pcat[which(soy$mn_sypr >= 1181.33)] <- 2
+soy$pcat[which(soy$mn_sypr < 1181.33)] <- 1
+soy$pcat[which(is.na(soy$mn_sypr))] <- 0
+# create mask
+mask <- bd2*0
+# rasterize this sf
+soyR <- st_transform(soy, crs = crs(mask))
+soyR <- fasterize(soyR, mask, field = "pcat")
+
+# sum rasters
+bd2 <- bd2*10
+soybd <- bd2+soyR
+
+
+# plot 2 maps overlayed
+ratify(bd2)
+rat <- levels(bd2)[[1]]
+rat$bdcateg <- c("insufficient knowledge",
+                 "low priority good knowledge", 
+                 "high priority low knowledge",  
+                 "high priority high knowledge")
+levels(bd2) <- rat
+
+bdcols <- c("#feebe2", "#fbb4b9", "#f768a1", "#ae017e")
+soycols <- c("#ece2f0", "#a6bddb", "#1c9099")
+
+
+a <- levelplot(bd2,
+          xlab=NULL, ylab=NULL,
+          scales = list(draw=F),
+          par.settings = list(axis.line = list(col = "transparent")),
+          margin = FALSE,
+          #colorkey = FALSE,
+          col.regions = c("#feebe2", "#fbb4b9", "#f768a1", "#ae017e"))
+a
+#problem not plotting right
+b <- levelplot(soyR,
+               xlab=NULL, ylab=NULL,
+               scales = list(draw=F),
+               par.settings = list(axis.line = list(col = "transparent")),
+               margin = FALSE,
+               #colorkey = FALSE,
+               col.regions = c("#ece2f0", "#a6bddb", "#1c9099"),
+               alpha.regions =0.6)
+a + b + latticeExtra::layer(sp.lines(biome_outline, col = "gray20", lwd = 1))
  

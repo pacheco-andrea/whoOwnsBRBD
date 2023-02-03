@@ -234,7 +234,7 @@ for(i in 1:length(traseSoy))
 }
 traseSoy <- do.call(rbind, traseSoy)
 
-#summarize sou production from 2016-2020 using geometric mean
+#summarize soy production from 2016-2020 using geometric mean, mean, and sum
 traseSoy2 <- as.data.frame(traseSoy %>%
                           group_by(STATE, MUNICIPALITY.OF.PRODUCTION, TRASE_GEOCODE) %>%
                           summarize(gmean_soyprod = exp(mean(log(SOY_EQUIVALENT_TONNES))),
@@ -278,4 +278,4 @@ plot_grid(meanSoy20162020, sumSoy20162020)
 
 # write out this data!!!!!
 setwd(paste0(wdmain, "/data/processed/soyExports/"))
-write.csv(traseSoy_sf, "trase_soyProduction_2016-2020.csv", row.names = FALSE)
+st_write(traseSoy_sf, "trase_soyProduction_2016-2020.shp")
