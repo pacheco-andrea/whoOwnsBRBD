@@ -13,6 +13,7 @@ library(geobr)
 library(rasterVis)
 library(sf)
 library(fasterize)
+library(cowplot)
 # library(rgdal)
 
 # directory
@@ -22,8 +23,6 @@ wdmain <- "N:/eslu/priv/pacheco/whoOwnsBRBD"
 # main plot who owns in km2 ----
 setwd(paste0(wdmain, "/output/"))
 who <- read.csv("whoOwnsBR-BDinKm2.csv")
-
-# MAKE FONT SIZE BIGGER
 
 who$BDCateg <- factor(who$BDCateg, levels = c("high priority high knowledge fragmented",
                                                "high priority high knowledge continuous", 
@@ -57,10 +56,10 @@ whoOwnsPlot <- ggplot(who, aes(tenCateg, (sum), fill = BDCateg))+
   coord_flip()
 whoOwnsPlot 
 
-setwd(paste0(wdmain, "/output"))
-svg("whoOwnsBRBD_barplot.svg", width = 8.3, height = 2.5)
-whoOwnsPlot
-dev.off()
+# setwd(paste0(wdmain, "/output"))
+# svg("whoOwnsBRBD_barplot.svg", width = 8.3, height = 2.5)
+# whoOwnsPlot
+# dev.off()
 
 # plots where disagg categories by percentages ----
 
@@ -129,7 +128,7 @@ meanSoy20162020 <- ggplot(soy) +
                       low="#f6e8c3", high="#543005", guide="colorbar", 
                       aesthetics = "fill",
                       labels = scales::comma,) +
-  geom_sf(data = biomshp, fill = "transparent", color = "gray20")+
+  geom_sf(data = biomshp, fill = "transparent", color = "gray20") +
   theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,2,2), "mm"),
         legend.position = c(.2,.2), legend.title = element_blank(), legend.background = element_rect(colour = "transparent")) +
   labs(title = paste0("Mean Annual Soy Production 2016-2020 (t)"))
@@ -143,6 +142,7 @@ sumSoy20162020 <- ggplot(soy) +
                       low="#f6e8c3", high="#543005", guide="colorbar", 
                       aesthetics = "fill",
                       labels = scales::comma,) +
+  geom_sf(data = biomshp, fill = "transparent", color = "gray20") +
   theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,2,2), "mm"),
         legend.position = c(.2,.2), legend.title = element_blank(), legend.background = element_rect(colour = "transparent")) +
   labs(title = paste0("Sum of Soy Production 2016-2020 (t)"))
@@ -150,21 +150,28 @@ sumSoy20162020
 
 plot_grid(meanSoy20162020, sumSoy20162020)
 
-# try one to categorize to low and high
-
-
 # plot all together ----
 
 # 1 Reclassify bd priority map so that they're fewer categories:
 bd
-# high priority
-# high priority low knowledge
-# low priority
-# insufficient knowledge
 myReclass <- data.frame("bdo" = 1:8)
-myReclass$bdn <- c(1,1,3,3,2,2,4,4)
+myReclass$bdn <- c(10,10,30,30,20,20,40,40)
 bd2 <- reclassify(bd, myReclass)
-plot(bd2)
+bd2
+
+# 4 = high priority
+# 3 = high priority low knowledge
+# 2 = low priority
+# 1 = insufficient knowledge
+# ratify this bd map
+bd2 <- ratify(bd2)
+rat <- levels(bd2)[[1]]
+rat$bdcateg <- c("insufficient knowledge",
+                 "low priority good knowledge", 
+                 "high priority low knowledge",  
+                 "high priority high knowledge")
+levels(bd2) <- rat
+
 
 # 2 discretize soy production data
 # no threat (everything NA)
@@ -180,41 +187,65 @@ mask <- bd2*0
 # rasterize this sf
 soyR <- st_transform(soy, crs = crs(mask))
 soyR <- fasterize(soyR, mask, field = "pcat")
-
-# sum rasters
-bd2 <- bd2*10
-soybd <- bd2+soyR
-
-
+# now ratify this raster as well
+soyR <- ratify(soyR)
+rat <- levels(soyR)[[1]]
+rat$scateg <- c("no soy production",
+                "low soy production",
+                "high soy production")
+levels(soyR) <- rat
 # plot 2 maps overlayed
-ratify(bd2)
-rat <- levels(bd2)[[1]]
-rat$bdcateg <- c("insufficient knowledge",
-                 "low priority good knowledge", 
-                 "high priority low knowledge",  
-                 "high priority high knowledge")
-levels(bd2) <- rat
-
-bdcols <- c("#feebe2", "#fbb4b9", "#f768a1", "#ae017e")
-soycols <- c("#ece2f0", "#a6bddb", "#1c9099")
 
 
+# bdcols <- c("#feebe2", "#fbb4b9", "#f768a1", "#ae017e")
+# soycols <- c("#ece2f0", "#a6bddb", "#1c9099")
+
+# biodiversity simplified
 a <- levelplot(bd2,
           xlab=NULL, ylab=NULL,
           scales = list(draw=F),
           par.settings = list(axis.line = list(col = "transparent")),
           margin = FALSE,
-          #colorkey = FALSE,
+          colorkey = FALSE,
+          alpha.regions =0.6,
           col.regions = c("#feebe2", "#fbb4b9", "#f768a1", "#ae017e"))
 a
-#problem not plotting right
+# soy categorized
 b <- levelplot(soyR,
                xlab=NULL, ylab=NULL,
                scales = list(draw=F),
                par.settings = list(axis.line = list(col = "transparent")),
                margin = FALSE,
-               #colorkey = FALSE,
-               col.regions = c("#ece2f0", "#a6bddb", "#1c9099"),
-               alpha.regions =0.6)
-a + b + latticeExtra::layer(sp.lines(biome_outline, col = "gray20", lwd = 1))
- 
+               colorkey = FALSE,
+               # alpha.regions =0.6,
+               col.regions = c("#ece2f0", "#a6bddb", "#1c9099"))
+
+plot_grid(a, b)
+
+b + a + latticeExtra::layer(sp.lines(biome_outline, col = "gray20", lwd = 1))
+# a + b + latticeExtra::layer(sp.lines(biome_outline, col = "gray20", lwd = 1))
+
+
+
+setwd(paste0(wdmain, "/output"))
+png("mapBRBDxSoy.png", width = 1500, height = 1500, units = "px", res = 500, bg = "transparent")
+b + a + latticeExtra::layer(sp.lines(biome_outline, col = "gray20", lwd = .1))
+dev.off()
+
+# now, quantify how much this is in area x TENURE ----
+soyR2 <- soyR*10
+bd3 <- bd2*10
+
+setwd(paste0(wdmain, "/output"))
+ten <- raster("tenure_data_BR.tif")
+
+all <- bd3+soyR2+ten
+plot(all)
+
+countAll <- as.data.frame(freq(all))
+
+setwd(paste0(wdmain, "/output"))
+write.csv(countAll, "countBD-tenure-soyProd.csv", row.names = F)
+
+
+

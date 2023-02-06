@@ -32,7 +32,7 @@ myReclass <- data.frame("orig" = 1:18)
 myReclass$new <- c(0,9,8,8,6,0,7,7,5,8,4,3,7,8,0,2,1,0)
 
 # join biodiversity and tenure data
-for(i in 2:length(tenureList))
+for(i in 1:length(tenureList))
 {
   setwd(paste0(wdmain,"/data/processed/landTenureCategsRaster/"))
   
