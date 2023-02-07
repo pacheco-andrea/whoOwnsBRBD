@@ -1,9 +1,6 @@
-# script for fine tuning plots
-# output is final figures
-# who owns
-# bd map
-# soy map
-# join map: where is most BD threatened?
+# Master script for all final figures
+# plots barplots of biodiversity ownership in Brazil
+# plots maps of biodiversity and soy threat (seen from different metrics)
 
 # libraries
 library(raster)
@@ -150,7 +147,38 @@ sumSoy20162020
 
 plot_grid(meanSoy20162020, sumSoy20162020)
 
-# plot all together ----
+# plot also deforestation exposure
+setwd(paste0(wdmain, "/data/raw/soy_production_exports/trase"))
+defexp <- read.csv("BRAZIL_SOY_2.6.0_pc/BRAZIL_SOY_2.6.0_pc.2020.csv")
+defexp <- as.data.frame(defexp %>%
+                          group_by(BIOME, STATE, MUNICIPALITY.OF.PRODUCTION, TRASE_GEOCODE) %>%
+                          summarize(yr5exp = sum(BR_SOY_DEFORESTATION_5_YEAR_TOTAL_EXPOSURE), 
+                                    soyprod = sum(SOY_EQUIVALENT_TONNES)))
+head(defexp)
+# bind trase geocodes to IBGE geocode using package
+mun <- read_municipality(code_muni = "all", year = 2020)
+defexp$code_muni <- as.numeric(gsub("BR-", "", defexp$TRASE_GEOCODE))
+defexp_sf <- full_join(mun, defexp, by = "code_muni")
+summary(defexp_sf)
+
+soyDefExp2020 <- ggplot(defexp_sf) +
+  geom_sf(data = defexp_sf, 
+          aes(fill = yr5exp),
+          color = "transparent") +
+  scale_fill_gradient(na.value="gray90", 
+                      low="#f6e8c3", high="#543005", guide="colorbar", 
+                      aesthetics = "fill",
+                      labels = scales::comma,) +
+  geom_sf(data = biomshp, fill = "transparent", color = "gray20") +
+  theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,2,2), "mm"),
+        legend.position = c(.2,.2), legend.title = element_blank(), legend.background = element_rect(colour = "transparent")) +
+  labs(title = paste0("Soy deforestation exposure 2020 (ha)"))
+soyDefExp2020
+
+plot_grid(meanSoy20162020, sumSoy20162020, soyDefExp2020, nrow = 1)
+
+
+# plot soy, biodiversity, and tenure all together ----
 
 # 1 Reclassify bd priority map so that they're fewer categories:
 bd
@@ -173,26 +201,40 @@ rat$bdcateg <- c("insufficient knowledge",
 levels(bd2) <- rat
 
 
-# 2 discretize soy production data
+# 2 discretize soy production data 
 # no threat (everything NA)
 # low threat (everything around 0?)
-# middle threat
 # high threat
+# version using mean soy production
+head(soy)
 soy$pcat <- NA
 soy$pcat[which(soy$mn_sypr >= 1181.33)] <- 2
 soy$pcat[which(soy$mn_sypr < 1181.33)] <- 1
 soy$pcat[which(is.na(soy$mn_sypr))] <- 0
+
+head(defexp_sf)
+summary(defexp_sf$yr5exp)
+defexp_sf$deCat <- NA
+defexp_sf$deCat[which(defexp_sf$yr5exp >= 0.084)] <- 2
+defexp_sf$deCat[which(defexp_sf$yr5exp < 0.084)] <- 1
+defexp_sf$deCat[which(is.na(defexp_sf$yr5exp))] <- 0
+summary(defexp_sf$deCat)
+
 # create mask
 mask <- bd2*0
 # rasterize this sf
 soyR <- st_transform(soy, crs = crs(mask))
-soyR <- fasterize(soyR, mask, field = "pcat")
+soyR <- st_transform(defexp_sf, crs = crs(mask))
+soyR <- fasterize(soyR, mask, field = "deCat")
 # now ratify this raster as well
 soyR <- ratify(soyR)
 rat <- levels(soyR)[[1]]
 rat$scateg <- c("no soy production",
                 "low soy production",
                 "high soy production")
+rat$scateg <- c("no soy deforestation exposure",
+                "low soy deforestation exposure",
+                "high soy deforestation exposure")
 levels(soyR) <- rat
 # plot 2 maps overlayed
 
@@ -228,7 +270,7 @@ b + a + latticeExtra::layer(sp.lines(biome_outline, col = "gray20", lwd = 1))
 
 
 setwd(paste0(wdmain, "/output"))
-png("mapBRBDxSoy.png", width = 1500, height = 1500, units = "px", res = 500, bg = "transparent")
+png("mapBRBDxSoy_vDeforeExposure.png", width = 1500, height = 1500, units = "px", res = 500, bg = "transparent")
 b + a + latticeExtra::layer(sp.lines(biome_outline, col = "gray20", lwd = .1))
 dev.off()
 

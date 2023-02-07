@@ -225,7 +225,7 @@ production
 # read in new soy produciton data time series ----
 setwd(paste0(wdmain, "/data/raw/soy_production_exports/trase/BRAZIL_SOY_2.6.0_pc"))
 l <- list.files()
-traseSoy <- lapply(l[13:17], read.csv)
+traseSoy <- lapply(l[13:17], read.csv) # read only last 5 years
 colnames(traseSoy[[1]])
 # keep only the columns i need
 for(i in 1:length(traseSoy))
