@@ -33,6 +33,7 @@ BDcategs <- c("insufficient knowledge continuous",
               "low priority good knowledge fragmented",
               "high priority high knowledge continuous",
               "high priority high knowledge fragmented")
+
 TenCategs <- c("PA sustainable use",
                "PA strict protection",
                "Indigenous H",
@@ -40,7 +41,7 @@ TenCategs <- c("PA sustainable use",
                "Quilombola",
                "Comunitaria",
                "Undesignated",
-               "Private farms",
+               "Private lands",
                "Rural settlements")
 # manually categorize tenure categories
 table$tenCateg <- NA
@@ -75,14 +76,16 @@ table2[which(table2$tenCateg == "Indigenous NH"),]$tenCateg <- "Indigenous"
 table2[which(table2$tenCateg == "Comunitaria"),]$tenCateg <- "Communal/Quilombo"
 table2[which(table2$tenCateg == "Quilombola"),]$tenCateg <- "Communal/Quilombo"
 
+
 table2$BDCateg <- factor(table2$BDCateg, levels = c("high priority high knowledge fragmented",
-                                                                       "high priority high knowledge continuous", 
-                                                                       "high priority low knowledge fragmented",
-                                                                       "high priority low knowledge continuous",
-                                                                       "low priority good knowledge fragmented",
-                                                                       "low priority good knowledge continuous",
-                                                                       "insufficient knowledge fragmented",
-                                                                       "insufficient knowledge continuous"))
+                                              "high priority high knowledge continuous", 
+                                              "high priority low knowledge fragmented",
+                                              "high priority low knowledge continuous",
+                                              "low priority good knowledge fragmented",
+                                              "low priority good knowledge continuous",
+                                              "insufficient knowledge fragmented",
+                                              "insufficient knowledge continuous"))
+
 # create bar plot
 myCols <- c("insufficient knowledge continuous" = "#e0e0e0",
             "insufficient knowledge fragmented" = "#878787",
@@ -93,117 +96,75 @@ myCols <- c("insufficient knowledge continuous" = "#e0e0e0",
             "high priority high knowledge continuous" = "#de77ae",  
             "high priority high knowledge fragmented" = "#c51b7d")
 
-# convert area to 1000 km2
+# make sure repeated indigenous/communal categories are summed
 
-whoOwnsPlot <- ggplot(table2, aes(tenCateg, (sum/1000), fill = BDCateg))+
+table2 <- table2[which(table2$tenCateg != "Other"),]
+table2.2 <- as.data.frame(table2 %>%
+  group_by(tenCateg, BDCateg) %>%
+  summarize(sum = sum(sum)))
+
+# who owns plot ----
+
+whoOwnsPlot <- ggplot(table2.2, aes(tenCateg, (sum), fill = BDCateg))+
   geom_col() +
   scale_colour_manual(values = myCols, aesthetics = c("color", "fill"))+
-  scale_y_continuous(labels = function(x) format(x, scientific = FALSE), expand = c(0,0))+
+  scale_y_continuous(labels = scales::comma, expand = c(0,0))+
   ylab(bquote("Area in 10,000 km"^2)) +
   xlab("Land tenure category") + 
-  theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,2,2), "mm"),
-        legend.position = c(.8,.3), legend.title = element_blank())+
+  theme(panel.background = element_blank(), plot.margin=grid::unit(c(5,5,5,5), "mm"),
+        legend.position = "none", legend.title = element_blank())+ # probably REMOVE LEGEND
   coord_flip()
 whoOwnsPlot 
 
+# setwd(paste0(wdmain, "/output"))
+# svg("whoOwnsBRBD_barplot.svg", width = 8.3, height = 2.5)
+# whoOwnsPlot
+# dev.off()
+
 # write out information
 setwd(paste0(wdmain, "/output/"))
-write.csv(table2[,c(8,1,9,2:7)], "whoOwnsBR-BDinKm2.csv", row.names = FALSE)
-# save plot
-ggsave("whoOwnsBR-BDinKm2_barplot.png", whoOwnsPlot, width = 11, height = 4)
+write.csv(table2.2, "whoOwnsBR-BDinKm2.csv", row.names = FALSE)
 
+# create subplots of percentages of total areas per category ----
 
-# how much area does each category cover? ----
-setwd(paste0(wdmain, "/data/processed/landTenureCategs"))
-l <- list.files()
-grep(".shp", l)
-files <- lapply(l[grep(".shp", l)], st_read)
-head(files[[1]])
+# sum all areas by total of tenure category
+mySumsByTenure <- table2.2 %>%
+  group_by(tenCateg) %>%
+  summarize(sumAT = sum(sum))
+# sum all areas by total of biodiversity category
+mySumsbyBD <- table2.2 %>%
+  group_by(BDCateg) %>%
+  summarize(sumBD = sum(sum))
 
-areas <- list()
-for(i in 1:length(files)){
-  areas[[i]] <- aggregate(files[[i]]$area, by=list(tenure=files[[i]]$sub_class), FUN=sum)
-}
-a <- left_join(areas[[1]], areas[[2]], by = "tenure")
-b <- left_join(a, areas[[3]], by = "tenure")
-c <- left_join(b, areas[[4]], by = "tenure")
-d <- left_join(c, areas[[5]], by = "tenure")
-d$sumAT <- (rowSums(d[2:6], na.rm = T))/10 # to make ha into km2
-
-# now repeat barplot by percentage of total area owned per tenure category
-d <- d %>% mutate(tenCateg=recode(tenure,
-                                     "AG"="Other",
-                                     "ARU"= "Rural settlements",
-                                     "CARpr"= "Private farms",
-                                     "CARpo"= "Private farms",
-                                     "COM"="Communal/Quilombo",
-                                     "ML"="Other",
-                                     "ND_B" = "Undesignated",
-                                     "ND_I" = "Undesignated",
-                                     "QL"= "Communal/Quilombo",
-                                     "SIGEF"= "Private farms",
-                                     "TI_H"= "Indigenous",
-                                     "TI_N"= "Indigenous",
-                                     "TLPC"= "Undesignated",
-                                     "TLPL"= "Private farms",
-                                     "TRANS"= "Other",
-                                     "UCPI"= "PA strict protection",
-                                     "UCUS"= "PA sustainable use",
-                                     "URB"= "Other"))
-
-d2 <- as.data.frame(d %>% 
-                      group_by(tenCateg) %>%
-                      summarize(sumAT = sum(sumAT)))
-
-table3 <- left_join(table2, d2, by = "tenCateg")
-
-
-# remake plot
-whoOwnsPlot2 <- ggplot(table3, aes(tenCateg, (sum/sumAT), fill = BDCateg))+
-  geom_col() +
-  scale_colour_manual(values = myCols, aesthetics = c("color", "fill"))+
-  scale_y_continuous(labels = function(x) format(x, scientific = FALSE), expand = c(0,0))+
-  ylab("% total area") +
-  xlab("Land tenure category") + 
-  theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,2,2), "mm"),
-        legend.position = c(.8,.3), legend.title = element_blank())+
-  coord_flip()
-whoOwnsPlot2
-
-round((table3$sum/table3$sumAT)*100, digits=2)
-
-# okay ----
-# this doesn't make sense and does not provide much different information. 
-# i'm assuming there's something wrong with the total calculation of area per tenure category which could be traced back to the parcels themselves
-# but i'm very annoyed at how slow the server is right now
-# 
-# mySumsByTenure <- table2 %>%
-#   group_by(tenCateg) %>%
-#   summarize(sumAT = sum(sum))
-# 
-# mySumsbyBD <- table2%>%
-#   group_by(BDCateg) %>%
-#   summarize(sumBD = sum(sum))
-
-table3 <- left_join(table2, mySumsByTenure, by = "tenCateg")
+table3 <- left_join(table2.2, mySumsByTenure, by = "tenCateg")
 table3 <- left_join(table3, mySumsbyBD, by = "BDCateg")
 
+
+table3$tenCateg <- factor(table3$tenCateg, levels = c("Undesignated",
+                                   "Rural settlements", 
+                                   "Private lands",
+                                   "PA strict protection",
+                                   "PA sustainable use",
+                                   "Indigenous",
+                                   "Communal/Quilombo"))
 # % of total tenure's areas
 percentTotalAreas <- ggplot(table3, aes(tenCateg, (sum/sumAT)*100, fill = BDCateg))+
   geom_col() +
   scale_colour_manual(values = myCols, aesthetics = c("color", "fill"))+
   scale_y_continuous(labels = function(x) format(x, scientific = FALSE), expand = c(0,0))+
   ylab("% total area") +
-  xlab("Land tenure category") +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  xlab(element_blank()) +
+  scale_x_discrete(guide = guide_axis(angle = 55)) +
   theme(panel.background = element_blank(), 
         plot.margin=grid::unit(c(2,2,2,2), "mm"),
         legend.position = "none", 
         legend.title = element_blank())
 
 percentTotalAreas
-setwd(paste0(wdmain, "/output/"))
-ggsave("BRBD_percentTotalTenureArea.png", percentTotalAreas, width = 6, height = 4.5)
+setwd(paste0(wdmain, "/output"))
+svg("BRBD_percentTotalTenureArea.svg", width = 4.15, height = 3)
+percentTotalAreas
+dev.off()
 
 # % of total BD category areas
 # this should answer: out of all the highly biodiverse areas, what percent is in x lands?
@@ -214,27 +175,39 @@ myTenCols <- c("Other"= "#F0F0F0",
                "Indigenous" = "#E78AC3",
                "Communal/Quilombo" = "#FFD700",
                "Undesignated" = "#1d6c7d",
-               "Private farms" = "#8DA0CB",
+               "Private lands" = "#8DA0CB",
                "Rural settlements" = "#FC8D62")
 
 # wrap labels of bd but keep factor levels
-table3$BDCateg_str <- as.factor(str_wrap(table3$BDCateg, width = 18))
+table3$BDCateg_str <- factor(str_wrap(table3$BDCateg, width = 18), 
+                             levels = c("high priority\nhigh knowledge\nfragmented",
+                                        "high priority\nhigh knowledge\ncontinuous",
+                                        "high priority\nlow knowledge\nfragmented",
+                                        "high priority\nlow knowledge\ncontinuous",
+                                        "low priority\ngood knowledge\nfragmented",
+                                        "low priority\ngood knowledge\ncontinuous",
+                                        "insufficient\nknowledge\nfragmented",
+                                        "insufficient\nknowledge\ncontinuous"))
 levels(table3$BDCateg)
-x <- unique(table3$BDCateg_str)
-levels(table3$BDCateg_str) <- x[c(7,8,3,4,1,2,5,6)]
+levels(table3$BDCateg_str)
+# x <- unique(table3$BDCateg_str)
+# levels(table3$BDCateg_str) <- x[c(8,7,4,3,6,5,2,1,2)]
 
-percentBDareas <- ggplot(table3, aes(table3$BDCateg_str,(sum/sumBD)*100, fill = tenCateg)) +
+percentBDareas <- ggplot(table3, aes(BDCateg_str,(sum/sumBD)*100, fill = tenCateg)) +
   geom_col() +
   scale_colour_manual(values = myTenCols, aesthetics = c("color", "fill"))+
   scale_y_continuous(labels = function(x) format(x, scientific = FALSE), expand = c(0,0))+
   ylab("% total area") +
-  xlab("Biodiversity relevance") + 
+  xlab(element_blank()) + 
   scale_x_discrete(guide = guide_axis(angle = 55)) +
-  theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,2,2), "mm"),
+  theme(panel.background = element_blank(), plot.margin=grid::unit(c(2,2,0,2), "mm"),
         legend.position = "none", legend.title = element_blank())
 
 percentBDareas
 
 setwd(paste0(wdmain, "/output/"))
-ggsave("BRBD_percentTotalBDArea.png", percentBDareas, width = 6, height = 4.5)
+png("BRBD_percentTotalBDArea.png", width = 4.15, height = 3, units = "in", res = 300, bg = "transparent")
+percentBDareas
+dev.off()
+
 

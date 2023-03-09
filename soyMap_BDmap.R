@@ -58,11 +58,6 @@ whoOwnsPlot
 # whoOwnsPlot
 # dev.off()
 
-# plots where disagg categories by percentages ----
-
-
-
-
 # MAPS ----
 
 # biodiversity map ----
