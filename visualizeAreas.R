@@ -102,24 +102,25 @@ table2 <- table2[which(table2$tenCateg != "Other"),]
 table2.2 <- as.data.frame(table2 %>%
   group_by(tenCateg, BDCateg) %>%
   summarize(sum = sum(sum)))
-
+# TRANSFORM PIXEL COUNT TO KM2 BY DIVIDING BY 4
+table2.2$sum <- table2.2$sum/4
 # who owns plot ----
 
-whoOwnsPlot <- ggplot(table2.2, aes(tenCateg, (sum), fill = BDCateg))+
+whoOwnsPlot <- ggplot(table2.2, aes(tenCateg, (sum/1000), fill = BDCateg))+
   geom_col() +
   scale_colour_manual(values = myCols, aesthetics = c("color", "fill"))+
-  scale_y_continuous(labels = scales::comma, expand = c(0,0))+
-  ylab(bquote("Area in 10,000 km"^2)) +
+  scale_y_continuous(labels = scales::comma, expand = c(0,0), breaks = seq(0,4000, by = 500))+
+  ylab(bquote("Area in 1000 km"^2)) +
   xlab("Land tenure category") + 
   theme(panel.background = element_blank(), plot.margin=grid::unit(c(5,5,5,5), "mm"),
         legend.position = "none", legend.title = element_blank())+ # probably REMOVE LEGEND
   coord_flip()
 whoOwnsPlot 
 
-# setwd(paste0(wdmain, "/output"))
-# svg("whoOwnsBRBD_barplot.svg", width = 8.3, height = 2.5)
-# whoOwnsPlot
-# dev.off()
+setwd(paste0(wdmain, "/output"))
+svg("whoOwnsBRBD_barplot.svg", width = 8.3, height = 2.5)
+whoOwnsPlot
+dev.off()
 
 # write out information
 setwd(paste0(wdmain, "/output/"))
