@@ -10,18 +10,14 @@
 # libraries
 library(terra)
 library(sf)
-library(ggplot2)
 library(dplyr)
-# 
-# library(exactextractr)
-# library(cowplot)
-# library(rasterVis)
 
 
 # load directories and etc.
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 # Tenure data ----
+# (STILL MISSING OTHER CATEGORIES OF LAND TENURE)
 # data is split into a .shp for each state. These were sourced from CSR UFMG and downloaded manually
 
 setwd(paste0(wdmain,"/data/raw/LandTenure_v20231009/"))
@@ -76,6 +72,7 @@ for(i in 1:length(rastFiles))
 
 # rasterize tenure data ----
 # THIS SHOULD BE FOR PLOTTING MAPS - NOT FOR CALCULATIONS!
+# EDIT HERE WHEN ADDING NEW TENURE CATEGORIES
 # make mask
 mask <- r2*0
 
@@ -94,5 +91,4 @@ plot(br) # it's fine that is numerizes categories because categories will be num
 setwd(paste0(wdmain,"/data/processed/landTenureCategsRaster/"))
 writeRaster(br, filename = "landTenure_AST-IRU-PCT_SAalbers_1km.tif")
 
-# next script: extract biodiversity values per property
 

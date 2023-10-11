@@ -2,13 +2,19 @@
 # script that graphs how much each tenure categ has of BD
 # author: Andrea Pacheco
 # first run: 17.10.2022
+# last run: 11.10.2022
 
 library(dplyr)
 library(ggplot2)
 library(sf)
 library(stringr)
 
-wdmain <- "N:/eslu/priv/pacheco/whoOwnsBRBD"
+# this looks like it will be completely re-written: no longer categorical counts of how much per category
+# but instead, how do i summarize how much richness, endemism, etc. is in each tenure category?
+# i can start with barplots - yes! which will likely show outliers
+# how to show these by total area? could do barplots...
+# also need to relate all of this to the deficit information
+# so, e.g., how much with deficit has high rich, high endem, or has potential to be higher?
 
 # read data on frequency counts (land tenure + biodiversity) ----
 setwd(paste0(wdmain, "/data/processed/BDTen_areaCount"))

@@ -6,6 +6,7 @@
 # plots tenure
 # author: Andrea Pacheco
 # first run: 18.10.2022
+# last run: 11.10.2022
 
 # libraries
 library(raster)
@@ -16,15 +17,6 @@ library(sf)
 # install.packages("remotes")
 remotes::install_github("oscarperpinan/rasterVis")
 
-wdmain <- "N:/eslu/priv/pacheco/whoOwnsBRBD"
-rasterOptions(tmpdir = "N:/eslu/priv/pacheco/biodivTenureBR/tmp", chunksize = 524288, maxmemory = 134217728)
-mode <- function(x, na.rm = FALSE) {
-  if(na.rm){
-    x = x[!is.na(x)]
-  }
-  ux <- unique(x)
-  return(ux[which.max(tabulate(match(x, ux)))])
-}
 
 # upon first run, get tenure rasters and merge them into one:
 # setwd(paste0(wdmain, "/data/processed/landTenureCategsRaster/"))
