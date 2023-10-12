@@ -1,5 +1,6 @@
 #### Biodiversity and Tenure in Brazil ####
-# script that graphs how much each tenure categ has of BD
+# script that visualizes biodiversity indicators per tenure categ
+# Output: TBD (likely barplot)
 # author: Andrea Pacheco
 # first run: 17.10.2022
 # last run: 11.10.2022

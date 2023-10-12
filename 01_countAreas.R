@@ -1,6 +1,7 @@
 #### Biodiversity and Tenure in Brazil ####
 # script that counts the biodiversity indicators per different tenure regimes
-# CHECK THIS output is tables that count how many km2 (equal area pixels) of each tenure category have BD categories
+# output: tables per state in br of the mean biodiversity indicator (richness, endemism) per polygon (by the X id) 
+# note run time of the extraction should be ~50m on my cpu
 # author: Andrea Pacheco
 # first run: 17.10.2022
 # last run: 11.10.2023
@@ -13,8 +14,6 @@ library(exactextractr)
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 # things to consider:
-# will i need different functions for different biodiversity vars?
-# how to count values per polygon with the most information possible?
 # what is the best solution for polygons with an area <1km?
 
 # biodiversity data ----

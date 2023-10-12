@@ -1,55 +1,50 @@
 #### Biodiversity and Tenure in Brazil ####
-# script that makes maps: 
-# new version land tenure in Brazil
-  # homologated and nonhomologated indigenous lands
-  # communal and quilombola lands
-# plots tenure
+# script that makes maps of land tenure categs in Brazil and biodiv indicators
 # author: Andrea Pacheco
 # first run: 18.10.2022
-# last run: 11.10.2022
+# last run: 12.10.2023
 
 # libraries
-library(raster)
-library(rgdal)
-library(rasterVis)
+library(terra)
+library(ggplot2)
+library(tidyterra)
 library(sf)
-# install.packages("rasterVis")
-# install.packages("remotes")
-remotes::install_github("oscarperpinan/rasterVis")
-
+library(geodata)
+source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 # upon first run, get tenure rasters and merge them into one:
-# setwd(paste0(wdmain, "/data/processed/landTenureCategsRaster/"))
-# l <- grep(".gri", list.files())
-# r <- lapply(list.files()[l], raster)
-# r$fun <- mode
-# r2 <- do.call(mosaic, r)
-# plot(r2)
-# setwd(paste0(wdmain, "/data/processed/"))
-# writeRaster(r2, "tenure_data_reclassified_1km_BR.tif")
-
-setwd(paste0(wdmain, "/data/processed/"))
-r <- raster("tenure_data_reclassified_1km_BR.tif")
-
-# reclassify and check the difference bt homologated and nonhomologated indigenous
-myReclass <- data.frame("orig" = 1:18)
-myReclass$new <- c(0,0,0,0,0,0,0,0,0,0,5,10,0,0,0,0,0,0)
-
-indi <- reclassify(r, myReclass)
-plot(indi) # homologated should be 5, non homologated should be 10
+setwd(paste0(wdmain, "/data/processed/landTenureCategsRaster/"))
+t <- rast("landTenure_AST-IRU-PCT_SAalbers_1km.tif")
+plot(t)
+# make categorical
+t <- as.factor(t)
+levels(t)[[1]]$tipo <- c("AST", "IRU", "PCT")
 
 # make tenure map
-myReclass <- data.frame("orig" = 1:18)
-myReclass$new <- c(0,9,8,8,6,0,7,7,6,8,3,3,7,8,0,2,1,0)
-tenureBR <- reclassify(r, myReclass)
-tenure_raster <- ratify(tenureBR)
-rat <- levels(tenure_raster)[[1]]
-rat$tenure <- c("other", "sustUse_PA", "strict_PA", "Indigenous", "Comm_Qui", "Undesignated", "Private", "RurSettlmt") 
+plot(t)
+
+# bra <- gadm(country = "BRA", level = 1, path = tempdir())
+cols <- c("#FFD700","#8DA0CB", "#FC8D62","#F0F0F0")
+
+ggplot() +
+geom_spatraster(mapping = aes(fill = tipo), 
+                data = t,
+                na.rm = F,
+                scale_fill_manual(values = cols),
+                show.legend = T)
+
+ggplot(t) +
+  geom_rect(data = t, 
+              mapping = aes(fill = tipo),
+              na.rm = F, 
+              show.legend = T)
+
+plot(t, col=cols)
 
 setwd(paste0(wdmain, "/output/"))
 writeRaster(tenure_raster, "tenure_data_BR.tif")
 tenure_raster <- raster("tenure_data_BR.tif")
-levels(tenure_raster) <- rat
+
 
 setwd(paste0(wdmain, "/data/brazil_biomes_shp/"))
 biomshp <- readOGR("Brazil_biomes.shp")

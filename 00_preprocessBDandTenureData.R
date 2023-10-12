@@ -1,8 +1,8 @@
 #### Biodiversity and Tenure in Brazil ####
-# script that reads updated version of land tenure data
-# and ubirajara's new biodiversity indicator data
-# output is simplified column versions of land tenure
-# and raster versions of the land tenure data in the projection of the biodiv data (this should only be used for mapping, not for accounting)
+# script that reads updated version of land tenure data (data is from 2022, but we've received the processed version in 10.2023)
+# and ubirajara's new biodiversity indicator data (version 10.2023)
+# output is simplified and harmonized versions of these data: simple columns of land tenure, and reprojected rasters to south america albers equal area
+# I rasterize the tenure polygons, but only for mapping, not for accounting of areas
 # author: Andrea Pacheco
 # first run: 23.09.2022
 # last run: 10.10.2023
@@ -17,7 +17,7 @@ library(dplyr)
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 # Tenure data ----
-# (STILL MISSING OTHER CATEGORIES OF LAND TENURE)
+# (STILL MISSING OTHER CATEGORIES OF LAND TENURE?)
 # data is split into a .shp for each state. These were sourced from CSR UFMG and downloaded manually
 
 setwd(paste0(wdmain,"/data/raw/LandTenure_v20231009/"))

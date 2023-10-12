@@ -1,7 +1,8 @@
 #### Getting started analyzing Biodiversity and Tenure in Brazil ####
 
 # this script should be run before the others to load packages, etc.
-# there should be no outputs, but maybe objects like masks loaded? we'll see
+# there should be no outputs, but should only load objects and functions
+# packages should be loaded in each script
 # author: Andrea Pacheco
 # first run: 25.09.2023
 
@@ -17,6 +18,8 @@
 # install.packages("exactextractr")
 # install.packages("cowplot")
 # install.packages("blogdown")
+# install.packages("tidyterra")
+# install.packages("rspatial/geodata")
 
 
 
@@ -28,14 +31,6 @@ read_my_shp = function(f){
   return(s[,c("X_uid_","tipo","uf", "geometry")]) # choose specific columns to keep lighter versions of these data: an identifier, the state, and the geometry
 }
 
-#rasterOptions(tmpdir = "N:/eslu/priv/pacheco/biodivTenureBR/tmp", chunksize = 524288, maxmemory = 134217728)
-# mode <- function(x, na.rm = FALSE) { # i dont think i need these anymore because the terra package is managing
-#   if(na.rm){
-#     x = x[!is.na(x)]
-#   }
-#   ux <- unique(x)
-#   return(ux[which.max(tabulate(match(x, ux)))])
-# }
 
 # LEARNING TO USE TERRA INSTEAD OF RASTER ----
 # x <- rast()
@@ -89,8 +84,6 @@ read_my_shp = function(f){
 # x[x==0] <- NA
 # values(m) <- x
 # mr <- mask(r,m) # so, this shows the mask function basically punches holes from the mask to the desired raster
-
-
 
 # rasterize Polygons
 # f <- system.file("ex/lux.shp", package="terra")
