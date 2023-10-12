@@ -3,6 +3,7 @@
 # and ubirajara's new biodiversity indicator data (version 10.2023)
 # output is simplified and harmonized versions of these data: simple columns of land tenure, and reprojected rasters to south america albers equal area
 # I rasterize the tenure polygons, but only for mapping, not for accounting of areas
+# sourced conservation units and indigenous lands from the geobr package
 # author: Andrea Pacheco
 # first run: 23.09.2022
 # last run: 10.10.2023
@@ -11,13 +12,13 @@
 library(terra)
 library(sf)
 library(dplyr)
+library(geobr)
 
 
 # load directories and etc.
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 # Tenure data ----
-# (STILL MISSING OTHER CATEGORIES OF LAND TENURE?)
 # data is split into a .shp for each state. These were sourced from CSR UFMG and downloaded manually
 
 setwd(paste0(wdmain,"/data/raw/LandTenure_v20231009/"))
@@ -50,12 +51,11 @@ richness <- rast("Species_Richness_All_groups_MARS.tif")
 richness
 plot(richness)
 res(richness) # .01*.01degrees - which means at ~1km. Now it's in WGS84. 
+
 # transform to south america albers equal area for making calculations 
-# test first with one:
 my_crs <- terra::crs(stateShp, proj = TRUE)
 # richness_eq <- project(richness, my_crs)
 # plot(richness_eq)
-
 setwd(paste0(wdmain,"/data/raw/Biodiversity_v20231009"))
 rastFiles <- grep(".tif$", list.files())
 list.files()[rastFiles]
@@ -90,5 +90,39 @@ br <- merge(sprc(rlist)) # needs to be a SpatRaster Collection first
 plot(br) # it's fine that is numerizes categories because categories will be numbered alphabetically.
 setwd(paste0(wdmain,"/data/processed/landTenureCategsRaster/"))
 writeRaster(br, filename = "landTenure_AST-IRU-PCT_SAalbers_1km.tif")
+
+
+
+# other tenure categories ----
+# 1. get conservation units
+uc <- read_conservation_units(date = 201909) # latest update
+plot(uc$geom)
+# need to crop these to only the extent of terrestrial brazil
+head(uc)
+table(uc$group)
+uc2 <- st_transform(uc, crs = my_crs)
+uc_r <- rasterize(uc2, mask, "group")
+mask2 <- trim(mask, value=100)
+plot(mask2)
+ucr2 <- crop(uc_r, trim(mask, value=1))
+plot(ucr2)
+test <- crop(uc_r, br)
+
+# maybe just crop with brazil shape?
+br <- read_biomes()
+br <- st_transform(br, crs = my_crs)
+# 2. get indigenous lands
+ind <- read_indigenous_land(date = 202103) # latest available
+table(ind$fase_ti)
+table(ind$modalidade)
+ind <- st_transform(ind, crs = my_crs)
+ind_r <- rasterize(ind, mask, "fase_ti")
+# according to this https://www.gov.br/funai/pt-br/atuacao/terras-indigenas/demarcacao-de-terras-indigenas
+# the following indigenous lands categories
+# Terras Indígenas Tradicionalmente Ocupadas: São as terras habitadas pelos indígenas em caráter permanente, utilizadas para atividades produtivas, culturais, bem-estar e reprodução física, segundo seus usos, costumes e tradições.
+# Reservas Indígenas: São terras doadas por terceiros, adquiridas ou desapropriadas pela União, que se destinam à posse permanente dos indígenas. São terras que também pertencem ao patrimônio da União, mas que não se confundem com as terras de ocupação tradicional.
+# Terras Dominiais: São as terras de propriedade das comunidades indígenas, havidas por qualquer das formas de aquisição do domínio, nos termos da legislação civil.
+# Interditadas: weren't found on this official site, but these refer to tribes in isolation
+# rasterize these so that I can make one whole map of brazil
 
 

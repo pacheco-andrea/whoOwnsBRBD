@@ -10,6 +10,7 @@ library(ggplot2)
 library(tidyterra)
 library(sf)
 library(geodata)
+library(geobr)
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 # upon first run, get tenure rasters and merge them into one:
@@ -21,46 +22,28 @@ t <- as.factor(t)
 levels(t)[[1]]$tipo <- c("AST", "IRU", "PCT")
 
 # make tenure map
+tenureColors = c("#F0F0F0", "#8C7E5B", "#1B9E77", "#E78AC3", "#FFD700", "#1d6c7d", "#8DA0CB", "#FC8D62" ))
 plot(t)
 
 # bra <- gadm(country = "BRA", level = 1, path = tempdir())
-cols <- c("#FFD700","#8DA0CB", "#FC8D62","#F0F0F0")
+cols <- c("#FFD700","#8DA0CB", "#FC8D62")
 
-ggplot() +
-geom_spatraster(mapping = aes(fill = tipo), 
-                data = t,
-                na.rm = F,
-                scale_fill_manual(values = cols),
-                show.legend = T)
+terra::plot(t, col=cols)
 
-ggplot(t) +
-  geom_rect(data = t, 
-              mapping = aes(fill = tipo),
-              na.rm = F, 
-              show.legend = T)
-
-plot(t, col=cols)
-
-setwd(paste0(wdmain, "/output/"))
-writeRaster(tenure_raster, "tenure_data_BR.tif")
-tenure_raster <- raster("tenure_data_BR.tif")
+# add biomes 
+biomes <- read_biomes(year=2019)
+# br <- br[-7,]$geom
+biomes <- st_transform(biomes, crs = crs(t, proj = T))
+plot(biomes)
+v <- vect(biomes)
+terra::plot(t, col=cols)
+terra::lines(v, lwd=1)
 
 
-setwd(paste0(wdmain, "/data/brazil_biomes_shp/"))
-biomshp <- readOGR("Brazil_biomes.shp")
-biomshp <- spTransform(biomshp, proj4string(tenure_raster))
 
-tenure_plot <- rasterVis::levelplot(tenure_raster,
-                     xlab = NULL, ylab = NULL,
-                     scales = list(draw = F), 
-                     par.settings = list(axis.line = list(col = "transparent")),
-                     colorkey = F,
-                     col.regions = c("#F0F0F0", "#8C7E5B", "#1B9E77", "#E78AC3", "#FFD700", "#1d6c7d", "#8DA0CB", "#FC8D62" )) + latticeExtra::layer(sp.polygons(biomshp, col = "gray20", lwd = 1))
-tenure_plot 
-
-setwd(paste0(wdmain, "/output/"))
-png(file = "tenure_map.png", width = 1500, height = 1500, units = "px", res = 300)
-tenure_plot
-dev.off()
+# setwd(paste0(wdmain, "/output/"))
+# png(file = "tenure_map.png", width = 1500, height = 1500, units = "px", res = 300)
+# tenure_plot
+# dev.off()
 
 
