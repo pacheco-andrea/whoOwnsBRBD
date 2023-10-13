@@ -8,6 +8,10 @@
 # first run: 23.09.2022
 # last run: 10.10.2023
 
+# issues:
+# it seems as though the entire state of espiritu santo is the category AST - is this a mistake?
+# this seems to be a rasterizing mistake because it's actually the opposite in the original data (only IRU and PCT in ES shape)
+
 # libraries
 library(terra)
 library(sf)
@@ -25,7 +29,7 @@ setwd(paste0(wdmain,"/data/raw/LandTenure_v20231009/"))
 l <- list.files()
 files <- l[-c(grep(".toml", l))]
 
-# 1. read and write out simpler files # HERE FIGURE OUT IF I SHOULD WRITE OUT AS JSON OR SQLITE????
+# 1. read and write out simpler files 
 # make sure to keep state-by-state structure in order to facilitate future parallelization 
 
 
@@ -72,25 +76,38 @@ for(i in 1:length(rastFiles))
 
 # rasterize tenure data ----
 # THIS SHOULD BE FOR PLOTTING MAPS - NOT FOR CALCULATIONS!
-# EDIT HERE WHEN ADDING NEW TENURE CATEGORIES
 # make mask
 mask <- r2*0
 
 setwd(paste0(wdmain,"/data/processed/landTenureCategs_v2023/"))
 # make a raster for each of the shapes
-rlist <- list()
+# or rather, bind all the sfs into one
+s <- list()
 for (i in 1:length(grep(".shp",list.files()))) 
 {
+  setwd(paste0(wdmain,"/data/processed/landTenureCategs_v2023/"))
   shps <- grep(".shp", list.files())  
   stateShp <- read_my_shp(list.files()[shps[i]])
-  rlist[[i]] <- rasterize(stateShp, mask, "tipo")
+  s[[i]] <- stateShp
+  # name <- gsub(".shp",".tif", list.files()[shps[i]])
+  # stateShp$ten <- NA
+  # # create manual categories to prevent merge from changing categories
+  # stateShp[stateShp$tipo == "AST",]$ten <- 1
+  # stateShp[stateShp$tipo == "IRU",]$ten <- 2
+  # stateShp[stateShp$tipo == "PCT",]$ten <- 3
+  # r <- terra::rasterize(stateShp, mask, "ten")
+  # setwd(paste0(wdmain, "data/processed/landTenureCategsRaster/stateRasters"))
+  # writeRaster(r, filename = name)
+  # print(i)
 }
 # merge individual states into one whole map of brazil
-br <- merge(sprc(rlist)) # needs to be a SpatRaster Collection first 
-plot(br) # it's fine that is numerizes categories because categories will be numbered alphabetically.
+s2 <- do.call(rbind, s)
+nrow(s2)
+r <- terra::rasterize(s2, mask, "tipo")
+cols <- c("#FFD700","#8DA0CB", "#FC8D62")
+plot(r, col=cols) 
 setwd(paste0(wdmain,"/data/processed/landTenureCategsRaster/"))
-writeRaster(br, filename = "landTenure_AST-IRU-PCT_SAalbers_1km.tif")
-
+writeRaster(r, filename = "landTenure_AST-IRU-PCT_SAalbers_1km.tif")
 
 
 # other tenure categories ----
@@ -101,22 +118,19 @@ plot(uc$geom)
 head(uc)
 table(uc$group)
 uc2 <- st_transform(uc, crs = my_crs)
+uc2 <- uc2[-grep("TRINDADE", uc2$name_conservation_unit),] # manually removed marine PAs that I wasn't able to crop with raster
 uc_r <- rasterize(uc2, mask, "group")
-mask2 <- trim(mask, value=100)
-plot(mask2)
-ucr2 <- crop(uc_r, trim(mask, value=1))
-plot(ucr2)
-test <- crop(uc_r, br)
+plot(uc_r)
+setwd(paste0(wdmain,"/data/processed/landTenureCategsRaster/"))
+writeRaster(uc_r, filename = "landTenure_PAs_SAalbers_1km.tif")
 
-# maybe just crop with brazil shape?
-br <- read_biomes()
-br <- st_transform(br, crs = my_crs)
 # 2. get indigenous lands
 ind <- read_indigenous_land(date = 202103) # latest available
 table(ind$fase_ti)
 table(ind$modalidade)
 ind <- st_transform(ind, crs = my_crs)
-ind_r <- rasterize(ind, mask, "fase_ti")
+ind_r <- rasterize(ind, mask, "modalidade")
+plot(ind_r)
 # according to this https://www.gov.br/funai/pt-br/atuacao/terras-indigenas/demarcacao-de-terras-indigenas
 # the following indigenous lands categories
 # Terras Indígenas Tradicionalmente Ocupadas: São as terras habitadas pelos indígenas em caráter permanente, utilizadas para atividades produtivas, culturais, bem-estar e reprodução física, segundo seus usos, costumes e tradições.
@@ -124,5 +138,5 @@ ind_r <- rasterize(ind, mask, "fase_ti")
 # Terras Dominiais: São as terras de propriedade das comunidades indígenas, havidas por qualquer das formas de aquisição do domínio, nos termos da legislação civil.
 # Interditadas: weren't found on this official site, but these refer to tribes in isolation
 # rasterize these so that I can make one whole map of brazil
-
-
+setwd(paste0(wdmain,"/data/processed/landTenureCategsRaster/"))
+writeRaster(ind_r, filename = "landTenure_indigenous_SAalbers_1km.tif")
