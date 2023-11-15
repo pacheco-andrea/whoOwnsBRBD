@@ -17,14 +17,18 @@ library(stringr)
 # also need to relate all of this to the deficit information
 # so, e.g., how much with deficit has high rich, high endem, or has potential to be higher?
 
-# read data on frequency counts (land tenure + biodiversity) ----
-setwd(paste0(wdmain, "/data/processed/BDTen_areaCount"))
-tables <- lapply(list.files(), read.csv)
+# read data on biodiversity extractions (land tenure + biodiversity) ----
+setwd(paste0(wdmain, "/data/processed/bdExtractions-perPolygon"))
+l <- list.files()
+tables <- lapply(l, read.csv)
+tab <- do.call(rbind, tables)
+head(tab)
+# ok, clearly an issue that i have 6x more rows than unique id's - which just means that it was never a unique id. 
+# and i can't use the id column to join with the sfs. -__-
+# i am generating a unique gid - does this mean i need to re-run the extraction? YES. 
 
-t1 <- full_join(tables[[1]], tables[[2]], by="value")
-t2 <- full_join(t1, tables[[3]], by="value")
-t3 <- full_join(t2, tables[[4]], by="value")
-t4 <- full_join(t3, tables[[5]], by="value")
+# also i can see the biggest overlap is PCT and US Pas
+
 
 # make table nice
 table <- t4

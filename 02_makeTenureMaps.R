@@ -16,9 +16,8 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 # upon first run, get tenure rasters and merge them into one:
 setwd(paste0(wdmain, "/data/processed/landTenureCategsRaster/"))
 l <- grep(".tif$", list.files())
-test <- rast(l)
-t <- rast("landTenure_AST-IRU-PCT_SAalbers_1km.tif")
-plot(t)
+t <- rast(list.files()[l])
+terra::plot(t)
 
 # make tenure map
 tenureColors = c("#FC8D62", "#8DA0CB", "#8C7E5B", "#1B9E77", "#E78AC3", "#FFD700", "#1d6c7d") #, "#F0F0F0")
@@ -30,21 +29,60 @@ biomes <- st_transform(biomes, crs = crs(t, proj = T))
 plot(biomes)
 v <- vect(biomes)
 # add indigenous
-ind <- rast("landTenure_indigenous_SAalbers_1km.tif")
 
-# add PAs
-pas <- rast("landTenure_PAs_SAalbers_1km.tif")
+plot(t$tipo, 
+            col = c("#FC8D62", "#8DA0CB", "#FFD700"), 
+            type = "classes", 
+            mar=NA,
+            box = F,
+            axes = F,
+            plg = list(legend = c("AST","IRU", "PCT"), x="left", y=-5))
+plot(t$group, 
+     # add = T, 
+     col = c("#1B9E77","#8C7E5B"), alpha = 0.5,
+     type = "classes", 
+     mar=NA,
+     box = F,
+     axes = F,
+     plg = list(legend = c("PI","US"), x = "bottomleft"))
 
-terra::plot(t, col = c("#FC8D62", "#8DA0CB", "#1d6c7d"), plg = list(legend = c("AST","IRU", "PCT"), x = "left"))
-plot(pas, add = T, col = c("#8C7E5B", "#1B9E77"), plg = list(legend = c(0,0), x = "left"))
-plot(ind, add = T, col = "#E78AC3", plg = list(legend = c(0,0,0,0), x = "bottomleft"))
+plot(t$modalidade, 
+     # add = T, 
+     col = "#E78AC3", alpha = .9,
+     type = "classes", 
+     mar=NA,
+     box = F,
+     axes = F,
+     plg = list(legend = c("Indigenous"), x = "bottomright"))
 terra::lines(v, lwd=.1)
 
+setwd(paste0(wdmain, "/output/"))
+png(file = "tenure_map_20231016.png", width = 2000, height = 2000, units = "px", res = 300)
+plot(t$tipo, 
+     col = c("#FC8D62", "#8DA0CB", "#FFD700"), 
+     type = "classes", 
+     mar=NA,
+     box = F,
+     axes = F,
+     plg = list(legend = c("AST","IRU", "PCT"), x="left", y=-5))
+plot(t$group, 
+     add = T, 
+     col = c("#1B9E77","#8C7E5B"), alpha = 0.5,
+     type = "classes", 
+     mar=NA,
+     box = F,
+     axes = F,
+     plg = list(legend = c("PI","US"), x = "bottomleft"))
 
-
-# setwd(paste0(wdmain, "/output/"))
-# png(file = "tenure_map.png", width = 1500, height = 1500, units = "px", res = 300)
-# tenure_plot
-# dev.off()
+plot(t$modalidade, 
+     add = T, 
+     col = "#E78AC3", alpha = .9,
+     type = "classes", 
+     mar=NA,
+     box = F,
+     axes = F,
+     plg = list(legend = c("Indigenous"), x = "bottomright"))
+terra::lines(v, lwd=.1)
+dev.off()
 
 
