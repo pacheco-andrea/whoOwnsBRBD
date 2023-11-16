@@ -1,3 +1,10 @@
+
+# load directories and etc.
+source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
+
+
+# establish projection to be used 
+
 # Biodiversity indicator data ----
 setwd(paste0(wdmain,"/data/raw/Biodiversity_v20231009"))
 list.files()

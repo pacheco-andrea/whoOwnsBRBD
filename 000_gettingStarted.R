@@ -31,7 +31,7 @@ read_my_shp = function(f){
   return(s[,c("X_uid_","tipo","uf", "geometry")]) # choose specific columns to keep lighter versions of these data: an identifier, the state, and the geometry
 }
 
-
+my_crs_SAaea <- "+proj=aea +lat_0=-32 +lon_0=-60 +lat_1=-5 +lat_2=-42 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs"
 # LEARNING TO USE TERRA INSTEAD OF RASTER ----
 # x <- rast()
 # plot(x)
