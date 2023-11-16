@@ -2,30 +2,18 @@
 
 # this script brings together different sources of (updated) land tenure data and preprocesses them for use in analyses
 # outputs are:
-  # folders with parcel-level tenure data for brazil, all harmonized 
-  # is simplified versions of the above with the minimum information of an identifier, a category, and the geometry
-  # rasterized versions of all these polygon categories (which is used for mapping not for accounting areas)
+# folders with parcel-level tenure data for brazil, all harmonized in same projection 
+# these are also simplified versions of the above with the minimum information of an identifier, a category, and the geometry
 
 # author: Andrea Pacheco
 # first run: 23.09.2022
 # last run: 15.11.2023
-
-# issues:
-# resolving the overlaps in data!
-# i suggest:
-# one script to put together all tenure data
-  # need to decide which public forests to keep
-  # export these to have a look at overlaps in qgis
-  # decide how to prioritize hierarqies of categories
-  # describe overlaps (how to quantify these % wise?)
-
 
 # libraries
 library(terra)
 library(sf)
 library(dplyr)
 library(geobr)
-
 
 # load directories and other settings
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
@@ -90,7 +78,6 @@ setwd(paste0(wdmain,"data/raw/landTenure/florestasPublicas/CNFP 2020 Shapefiles 
 l <- grep(".shp", list.files())
 flp <- lapply(list.files()[l], st_read)
 flp <- do.call(rbind, flp)
-flp
 # select relevant columns
 flp2 <- select(flp, c("estagio", "ano", "anocriacao", "uf", "protecao", "tipo", "comunitari",  "categoria", "sobreposic", "atolegal")) # note only keep category instead of class, which is similar
 # "other uses" in category are indeed various uses from unis to other institutes it seems
@@ -99,74 +86,14 @@ flp2 <- flp2[which(flp2$protecao != "PROTECAO INTEGRAL" & flp2$protecao != "USO 
 # the challenge will likely be seeing the overlap between glebas and other assentamentos, etc. 
 # NOTE: according to the map from the cadaster of public forests: "As florestas não destinadas ocorrem em glebas arrecadadas pela União ou Estados"
 # which means these are essentially the undesignated lands
-undesignated <- flp[which(flp$categoria == "GLEBA ARRECADADA"),]
 flp2 <- st_transform(flp2, crs = my_crs_SAaea)
-plot(flp2$geometry)
+flp2 <- st_zm(flp2, drop = T, what = "ZM") # remove Z dimension which doesn't work with sf package
+setwd(paste0(wdmain,"/data/processed/landTenure_UND-OTH/"))
+st_write(flp2, "landTenure_Undesignated-Other-Military_SAalbers.shp", append=FALSE)
 
-
-# rasterize tenure data ----
-# THIS SHOULD BE FOR PLOTTING MAPS - NOT FOR CALCULATIONS!
-
-# make mask
-setwd(paste0(wdmain,"/data/raw/Biodiversity_v20231009"))
-r <- rast(list.files()[grep("Richness", list.files())[1]])
-r <- project(r, my_crs_SAaea)
-mask <- r*0
-
-setwd(paste0(wdmain,"/data/processed/landTenure_IRU-AST-PCT/"))
-# bind all the state sfs into one in order to:
-# 1. rasterize without raster changing categories across states
-# 2. generate a unique ID for each polygon
-s <- list()
-for (i in 1:length(grep(".shp",list.files()))) 
-{
-  setwd(paste0(wdmain,"/data/processed/landTenure_IRU-AST-PCT/"))
-  shps <- grep(".shp", list.files())  
-  stateShp <- read_my_shp(list.files()[shps[i]])
-  name <- list.files()[shps[i]]
-  s[[i]] <- stateShp
-  # also writing out shapefiles only of PCT because I want to more easily compare these against sustainable use PAs
-  setwd(paste0(wdmain,"/data/processed/landTenureCategs_v2023_PCT/"))
-  st_write(stateShp[which(stateShp$tipo == "PCT"),], name)
-}
-# merge individual states into one whole map of brazil
-s2 <- do.call(rbind, s)
-s2$g_id <- 1:nrow(s2)
-nrow(s2)
-setwd(paste0(wdmain,"/data/processed/landTenureCategs_v2023_allBR"))
-write.csv(s2, "landTenureCategs_v2023_allBR.csv", row.names = F)
-
-# rasterize and write out raster for map
-r <- terra::rasterize(s2, mask, "tipo")
-cols <- c("#FFD700","#8DA0CB", "#FC8D62")
-plot(r, col=cols) 
-setwd(paste0(wdmain,"/data/processed/landTenureCategsRaster/"))
-writeRaster(r, filename = "landTenure_AST-IRU-PCT_SAalbers_1km.tif")
-
-# figure out the deal with PCT lands 
-setwd(paste0(wdmain,"/data/processed/landTenureCategs_v2023_PCT/"))
-l <- list.files()
-grep(".shp", l)
-pct <- lapply(l[grep(".shp", l)], st_read)
-pct <- do.call(rbind, pct)
-nrow(pct)
-setwd(paste0(wdmain,"/data/processed/pct_lands"))
-st_write(pct, "pct_BR.shp")
-# so, importing this shapefile into qgis i can tell there's a lot, but not 100% overlap of PCTs and sustainable use areas. many are within SUs
-
-# rasterize ucs and inds 
-uc_r <- rasterize(uc2, mask, "group")
-plot(uc_r)
-setwd(paste0(wdmain,"/data/processed/landTenureCategsRaster/"))
-writeRaster(uc_r, filename = "landTenure_PAs_SAalbers_1km.tif")
-
-ind_r <- rasterize(ind2, mask, "modalidade") # CHECK what exactly i want to rasterize
-plot(ind_r)
-
-# public forests 
-flp_r <- rasterize(flp2, mask, "categoria")
-plot(flp_r)
-setwd(paste0(wdmain,"/data/processed/landTenureCategsRaster/"))
-writeRaster(und, filename = "landTenure_Undes_SAalbers_1km.tif")
-
+# synthesis of these data: ----
+nrow(uc2) # 1932
+nrow(ind2)# 624
+nrow(flp2) # 1841
+# = 4397 observations + 6797557 properties from CSR = 6,801,954 (or, nearly 7 million parcels, which, btw is 3 million more than i had in the 2018 version of imaflora)
 
