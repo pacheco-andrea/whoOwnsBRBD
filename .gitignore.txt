@@ -7,3 +7,5 @@
 .Thumbs
 .Rproj.user/
 .Rproj
+.pptx
+.ppt

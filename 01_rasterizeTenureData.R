@@ -22,7 +22,7 @@ r <- rast(list.files()[grep("Richness", list.files())[1]])
 r <- project(r, my_crs_SAaea)
 mask <- r*0
 
-# rasterize IRU-AST-PCT
+# rasterize IRU-AST-PCT ----
 setwd(paste0(wdmain,"/data/processed/landTenure_IRU-AST-PCT/"))
 # need to bind all the state sfs into one in order to:
 # 1. rasterize without raster changing categories across states
@@ -52,30 +52,142 @@ r <- terra::rasterize(s2, mask, "tipo")
 cols <- c("#FFD700","#8DA0CB", "#FC8D62")
 plot(r, col=cols) 
 setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
-writeRaster(r, filename = "landTenure_AST-IRU-PCT_SAalbers_1km.tif")
+writeRaster(r, filename = "landTenure_AST-IRU-PCT_SAalbers_1km.tif", overwrite = TRUE)
 
-# figure out the deal with PCT lands 
-setwd(paste0(wdmain,"/data/processed/landTenureCategs_v2023_PCT/"))
-l <- list.files()
-grep(".shp", l)
-pct <- lapply(l[grep(".shp", l)], st_read)
-pct <- do.call(rbind, pct)
-nrow(pct)
-setwd(paste0(wdmain,"/data/processed/pct_lands"))
-st_write(pct, "pct_BR.shp")
-# so, importing this shapefile into qgis i can tell there's a lot, but not 100% overlap of PCTs and sustainable use areas. many are within SUs
+# # figure out the deal with PCT lands 
+# setwd(paste0(wdmain,"/data/processed/landTenureCategs_v2023_PCT/"))
+# l <- list.files()
+# grep(".shp", l)
+# pct <- lapply(l[grep(".shp", l)], st_read)
+# pct <- do.call(rbind, pct)
+# nrow(pct)
+# setwd(paste0(wdmain,"/data/processed/pct_lands"))
+# st_write(pct, "pct_BR.shp")
+# # so, importing this shapefile into qgis i can tell there's a lot, but not 100% overlap of PCTs and sustainable use areas. many are within SUs
 
-# rasterize ucs and inds 
-uc_r <- rasterize(uc2, mask, "group")
-plot(uc_r)
-setwd(paste0(wdmain,"/data/processed/landTenureCategsRaster/"))
-writeRaster(uc_r, filename = "landTenure_PAs_SAalbers_1km.tif")
+# rasterize Conservation units (PAs) ----
+setwd(paste0(wdmain, "data/processed/landTenure_UC/"))
+uc <- st_read("landTenure_ConservationUnits_201909_SAalbers.shp")
 
-ind_r <- rasterize(ind2, mask, "modalidade") # CHECK what exactly i want to rasterize
-plot(ind_r)
+# when mapping, i want to distinguish correct PAs from approximate and outlined
+uc_outl <- uc[which(uc$quality == "outlined"),]
+uc_approx <- uc[which(uc$quality == "approximate"),]
+uc_correct <- uc[which(uc$quality == "correct"),]
 
-# public forests 
-flp_r <- rasterize(flp2, mask, "categoria")
-plot(flp_r)
-setwd(paste0(wdmain,"/data/processed/landTenureCategsRaster/"))
-writeRaster(und, filename = "landTenure_Undes_SAalbers_1km.tif")
+uc_r <- rasterize(uc, mask, "group")
+uc_out_r <- rasterize(uc_outl, mask, "group")
+uc_app_r <- rasterize(uc_approx, mask, "group")
+uc_corr_r <- rasterize(uc_correct, mask, "group")
+
+setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
+writeRaster(uc_r, filename = "landTenure_PAs_SAalbers_1km.tif", overwrite = TRUE)
+writeRaster(uc_out_r, filename = "landTenure_PAs_outlined_SAalbers_1km.tif", overwrite = TRUE)
+writeRaster(uc_app_r, filename = "landTenure_PAs_approximate_SAalbers_1km.tif", overwrite = TRUE)
+writeRaster(uc_corr_r, filename = "landTenure_PAs_correct_SAalbers_1km.tif", overwrite = TRUE)
+
+# rasterize indigenous lands----
+setwd(paste0(wdmain, "data/processed/landTenure_IPLC/"))
+ind <- st_read("landTenure_IPLCS_202103_SAalbers.shp")
+ind_r <- rasterize(ind, mask, "modaldd") # one version for the category
+setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
+writeRaster(ind_r, filename = "landTenure_IND_categories_SAalbers_1km.tif", overwrite = TRUE)
+ind_r <- rasterize(ind, mask, "fase_ti") # one version of the phase of regularization
+writeRaster(ind_r, filename = "landTenure_IND_phase-regul_SAalbers_1km.tif", overwrite = TRUE)
+
+# public forests ----
+setwd(paste0(wdmain, "data/processed/landTenure_UND-OTH/"))
+flp <- st_read("landTenure_Undesignated-Other-Military_SAalbers.shp")
+flp_r <- rasterize(flp, mask, "protecao")
+setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
+writeRaster(flp_r, filename = "landTenure_undesignated-military-other_SAalbers_1km.tif")
+
+
+# make map ----
+tenureColors = c("#FC8D62", "#8DA0CB", "#8C7E5B", "#1B9E77", "#E78AC3", "#FFD700", "#1d6c7d") #, "#F0F0F0")
+
+# upon first run, get tenure rasters and merge them into one:
+setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
+l <- grep(".tif$", list.files())
+t <- rast(list.files()[l]) 
+terra::plot(t)
+names(t) <- gsub("_SAalbers_1km.tif","", list.files()[l])
+
+# add biomes 
+biomes <- read_biomes(year=2019)
+biomes <- biomes[-7,]$geom
+biomes <- st_transform(biomes, crs = crs(t, proj = T))
+plot(biomes)
+v <- vect(biomes)
+# add indigenous
+
+# plot maps one at a time, one on top of the other
+names(t)
+
+par(mfrow = c(1,1))
+plot(t$landTenure_PAs_correct, 
+     col = c("#8C7E5B", "#1B9E77"), 
+     type = "classes", 
+     mar=NA,
+     box = F,
+     axes = F,
+     plg = list(legend = c("proteçao integral","uso sustentavel"), x="left", y=-5))
+
+plot(t$`landTenure_IND_phase-regul`, 
+     add = T, 
+     col = c("#f7dbed","#ffffff","#ffffff", "#ffffff", "#E78AC3", "#E78AC3"), alpha = .8,
+     type = "classes", 
+     mar=NA,
+     box = F,
+     axes = F,
+     plg = list(legend = c("declared","delimited", "under study", "encaminhada","homologated", "regularized"), x = "bottomleft"))
+# terra::lines(v, lwd=.1)
+
+plot(t$`landTenure_AST-IRU-PCT`, 
+     add = T, 
+     col = c("#FC8D62", "#8DA0CB", "#FFD700"), alpha = .8,
+     type = "classes", 
+     mar=NA,
+     box = F,
+     axes = F,
+     plg = list(legend = c("rural property", "rural settlement", "Other PLCs"), x = "bottomright"))
+
+plot(t$`landTenure_undesignated-military-other`, 
+     add = T, 
+     col = c("magenta", "#1d6c7d", "#ffffff"), alpha = .8,
+     type = "classes", 
+     mar=NA,
+     box = F,
+     axes = F,
+     plg = list(legend = c("other uses", "undesignated public lands", "military"), x = "topright"))
+
+terra::lines(v, lwd=.1)
+
+setwd(paste0(wdmain, "/output/"))
+png(file = "tenure_map_20231016.png", width = 2000, height = 2000, units = "px", res = 300)
+plot(t$tipo, 
+     col = c("#FC8D62", "#8DA0CB", "#FFD700"), 
+     type = "classes", 
+     mar=NA,
+     box = F,
+     axes = F,
+     plg = list(legend = c("AST","IRU", "PCT"), x="left", y=-5))
+plot(t$group, 
+     add = T, 
+     col = c("#1B9E77","#8C7E5B"), alpha = 0.5,
+     type = "classes", 
+     mar=NA,
+     box = F,
+     axes = F,
+     plg = list(legend = c("PI","US"), x = "bottomleft"))
+
+plot(t$modalidade, 
+     add = T, 
+     col = "#E78AC3", alpha = .9,
+     type = "classes", 
+     mar=NA,
+     box = F,
+     axes = F,
+     plg = list(legend = c("Indigenous"), x = "bottomright"))
+terra::lines(v, lwd=.1)
+dev.off()
+

@@ -79,8 +79,9 @@ l <- grep(".shp", list.files())
 flp <- lapply(list.files()[l], st_read)
 flp <- do.call(rbind, flp)
 # select relevant columns
-flp2 <- select(flp, c("estagio", "ano", "anocriacao", "uf", "protecao", "tipo", "comunitari",  "categoria", "sobreposic", "atolegal")) # note only keep category instead of class, which is similar
+flp2 <- select(flp, c("estagio", "ano", "anocriacao", "uf", "protecao", "tipo", "comunitari",  "categoria", "sobreposic")) # note only keep category instead of class, which is similar
 # "other uses" in category are indeed various uses from unis to other institutes it seems
+# the "atolegal" column was also pretty useless as a proxy of legality, it was only for military areas
 # determine which categories to keep from the protection, class, and category 
 flp2 <- flp2[which(flp2$protecao != "PROTECAO INTEGRAL" & flp2$protecao != "USO SUSTENTAVEL"),] # these categories are better covered by the UC data above
 # the challenge will likely be seeing the overlap between glebas and other assentamentos, etc. 
