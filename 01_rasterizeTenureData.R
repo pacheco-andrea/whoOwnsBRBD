@@ -41,7 +41,7 @@ for (i in 1:length(grep(".shp",list.files()))) # approx runtime on the server = 
 }
 # merge individual states into one whole map of brazil
 s2 <- do.call(rbind, s)
-# need to create a new id column because
+# need to create a new id column 
 length(unique(s2$X_uid_)) == nrow(s2)
 s2$id <- 1:nrow(s2)
 setwd(paste0(wdmain,"/data/processed/landTenureCategs_v2023_allBR"))
@@ -88,11 +88,12 @@ writeRaster(uc_corr_r, filename = "landTenure_PAs_correct_SAalbers_1km.tif", ove
 # rasterize indigenous lands----
 setwd(paste0(wdmain, "data/processed/landTenure_IPLC/"))
 ind <- st_read("landTenure_IPLCS_202103_SAalbers.shp")
+ind <- st_read("landTenure_IPLCS_201909_SAalbers.shp")
 ind_r <- rasterize(ind, mask, "modaldd") # one version for the category
 setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
-writeRaster(ind_r, filename = "landTenure_IND_categories_SAalbers_1km.tif", overwrite = TRUE)
+writeRaster(ind_r, filename = "landTenure_IND_categories_201909_SAalbers_1km.tif", overwrite = TRUE)
 ind_r <- rasterize(ind, mask, "fase_ti") # one version of the phase of regularization
-writeRaster(ind_r, filename = "landTenure_IND_phase-regul_SAalbers_1km.tif", overwrite = TRUE)
+writeRaster(ind_r, filename = "landTenure_IND_phase-regul_201909_SAalbers_1km.tif", overwrite = TRUE)
 
 # public forests ----
 setwd(paste0(wdmain, "data/processed/landTenure_UND-OTH/"))
@@ -105,7 +106,7 @@ writeRaster(flp_r, filename = "landTenure_undesignated-military-other_SAalbers_1
 # make map ----
 tenureColors = c("#FC8D62", "#8DA0CB", "#8C7E5B", "#1B9E77", "#E78AC3", "#FFD700", "#1d6c7d") #, "#F0F0F0")
 
-# upon first run, get tenure rasters and merge them into one:
+# get tenure rasters:
 setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
 l <- grep(".tif$", list.files())
 t <- rast(list.files()[l]) 
@@ -118,7 +119,25 @@ biomes <- biomes[-7,]$geom
 biomes <- st_transform(biomes, crs = crs(t, proj = T))
 plot(biomes)
 v <- vect(biomes)
-# add indigenous
+
+# # compare versions of indigenous datasets from 2019 to 2021
+# par(mfrow = c(1,2))
+# plot(t$`landTenure_IND_phase-regul`,
+#      col = c("#f7dbed","yellow","red", "orange", "#E78AC3", "#E78AC3"), alpha = .8,
+#      type = "classes",
+#      mar=NA,
+#      box = F,
+#      axes = F,
+#      plg = list(legend = c("declared","delimited", "under study", "encaminhada","homologated", "regularized"), x = "bottomleft"))
+# terra::lines(v, lwd=.1)
+# plot(t$`landTenure_IND_phase-regul_201909`, 
+#      col = c("#f7dbed","yellow","red", "orange", "#E78AC3", "#E78AC3"), alpha = .8,
+#      type = "classes", 
+#      mar=NA,
+#      box = F,
+#      axes = F,
+#      plg = list(legend = c("declared","delimited", "under study", "encaminhada","homologated", "regularized"), x = "bottomleft"))
+# terra::lines(v, lwd=.1)
 
 # plot maps one at a time, one on top of the other
 names(t)
@@ -132,28 +151,28 @@ plot(t$landTenure_PAs_correct,
      axes = F,
      plg = list(legend = c("proteçao integral","uso sustentavel"), x="left", y=-5))
 
-plot(t$`landTenure_IND_phase-regul`, 
-     add = T, 
+plot(t$`landTenure_IND_phase-regul`,
+     add = T,
      col = c("#f7dbed","#ffffff","#ffffff", "#ffffff", "#E78AC3", "#E78AC3"), alpha = .8,
-     type = "classes", 
+     type = "classes",
      mar=NA,
      box = F,
      axes = F,
      plg = list(legend = c("declared","delimited", "under study", "encaminhada","homologated", "regularized"), x = "bottomleft"))
-# terra::lines(v, lwd=.1)
+
 
 plot(t$`landTenure_AST-IRU-PCT`, 
-     add = T, 
+     # add = T,
      col = c("#FC8D62", "#8DA0CB", "#FFD700"), alpha = .8,
      type = "classes", 
      mar=NA,
      box = F,
      axes = F,
-     plg = list(legend = c("rural property", "rural settlement", "Other PLCs"), x = "bottomright"))
+     plg = list(legend = c("rural settlement", "rural property", "Other TPLCs"), x = "bottomright"))
 
 plot(t$`landTenure_undesignated-military-other`, 
-     add = T, 
-     col = c("magenta", "#1d6c7d", "#ffffff"), alpha = .8,
+     add = T,
+     col = c("black", "#1d6c7d", "gray80"), alpha = .8,
      type = "classes", 
      mar=NA,
      box = F,
@@ -162,32 +181,4 @@ plot(t$`landTenure_undesignated-military-other`,
 
 terra::lines(v, lwd=.1)
 
-setwd(paste0(wdmain, "/output/"))
-png(file = "tenure_map_20231016.png", width = 2000, height = 2000, units = "px", res = 300)
-plot(t$tipo, 
-     col = c("#FC8D62", "#8DA0CB", "#FFD700"), 
-     type = "classes", 
-     mar=NA,
-     box = F,
-     axes = F,
-     plg = list(legend = c("AST","IRU", "PCT"), x="left", y=-5))
-plot(t$group, 
-     add = T, 
-     col = c("#1B9E77","#8C7E5B"), alpha = 0.5,
-     type = "classes", 
-     mar=NA,
-     box = F,
-     axes = F,
-     plg = list(legend = c("PI","US"), x = "bottomleft"))
-
-plot(t$modalidade, 
-     add = T, 
-     col = "#E78AC3", alpha = .9,
-     type = "classes", 
-     mar=NA,
-     box = F,
-     axes = F,
-     plg = list(legend = c("Indigenous"), x = "bottomright"))
-terra::lines(v, lwd=.1)
-dev.off()
 

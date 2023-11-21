@@ -47,7 +47,7 @@ for (i in 1:length(files))
 # 2. Conservation units and indigenous lands ----
 
 # conservation units
-uc <- read_conservation_units(date = 201909, simplified = FALSE) # latest update
+uc <- read_conservation_units(date = 201909, simplified = FALSE) # latest update 201909
 # need to crop these to only the extent of terrestrial brazil
 uc <- st_transform(uc, crs = my_crs_SAaea)
 uc <- uc[-grep("TRINDADE", uc$name_conservation_unit),] # manually removed marine PAs that I wasn't able to crop with raster
@@ -60,11 +60,11 @@ setwd(paste0(wdmain,"/data/processed/landTenure_UC/"))
 st_write(uc2, "landTenure_ConservationUnits_201909_SAalbers.shp", append=FALSE)
 
 # indigenous lands
-ind <- read_indigenous_land(date = 202103, simplified = FALSE) # latest available
+ind <- read_indigenous_land(date = 201909, simplified = FALSE) # latest available 202103
 ind <- st_transform(ind, crs = my_crs_SAaea)
 ind2 <- select(ind, (c("abbrev_state", "fase_ti", "modalidade", "date")))
 setwd(paste0(wdmain,"/data/processed/landTenure_IPLC/"))
-st_write(ind2, "landTenure_IPLCS_202103_SAalbers.shp", append=FALSE)
+st_write(ind2, "landTenure_IPLCS_201909_SAalbers.shp", append=FALSE)
 # according to this https://www.gov.br/funai/pt-br/atuacao/terras-indigenas/demarcacao-de-terras-indigenas
 # the following indigenous lands categories
 # Terras IndÃ­genas Tradicionalmente Ocupadas: SÃ£o as terras habitadas pelos indÃ­genas em carÃ¡ter permanente, utilizadas para atividades produtivas, culturais, bem-estar e reproduÃ§Ã£o fÃ­sica, segundo seus usos, costumes e tradiÃ§Ãµes.
