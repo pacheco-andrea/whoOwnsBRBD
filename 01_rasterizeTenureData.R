@@ -22,6 +22,7 @@ r <- rast(list.files()[grep("Richness", list.files())[1]])
 r <- project(r, my_crs_SAaea)
 mask <- r*0
 
+# 2. upon first run:
 # rasterize IRU-AST-PCT ----
 setwd(paste0(wdmain,"/data/processed/landTenure_IRU-AST-PCT/"))
 # need to bind all the state sfs into one in order to:
@@ -103,7 +104,8 @@ setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
 writeRaster(flp_r, filename = "landTenure_undesignated-military-other_SAalbers_1km.tif")
 
 
-# make map ----
+
+# 3. make map of tenure categories ----
 tenureColors = c("#FC8D62", "#8DA0CB", "#8C7E5B", "#1B9E77", "#E78AC3", "#FFD700", "#1d6c7d") #, "#F0F0F0")
 
 # get tenure rasters:
