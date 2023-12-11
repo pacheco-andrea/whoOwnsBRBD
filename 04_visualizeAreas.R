@@ -12,10 +12,8 @@ library(stringr)
 
 # this looks like it will be completely re-written: no longer categorical counts of how much per category
 # but instead, how do i summarize how much richness, endemism, etc. is in each tenure category?
-# i can start with barplots - yes! which will likely show outliers
-# how to show these by total area? could do barplots...
-# also need to relate all of this to the deficit information
-# so, e.g., how much with deficit has high rich, high endem, or has potential to be higher?
+# i can start with bar and boxplots - which will likely show outliers
+# in a second step need to count the deficit data 
 
 # read data on biodiversity extractions (land tenure + biodiversity) ----
 setwd(paste0(wdmain, "/data/processed/bdExtractions-perPolygon"))

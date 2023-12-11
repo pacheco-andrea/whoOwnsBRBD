@@ -2,13 +2,22 @@
 # script that counts the biodiversity indicators per different tenure regimes
 # output: tables per state in br of the mean biodiversity indicator (richness, endemism) per polygon (by the X id) 
 # note run time of the extraction should be ~50m on my cpu
+
 # author: Andrea Pacheco
 # first run: 17.10.2022
-# last run: 11.10.2023
+# last run: 23.11.2023
+
+# issues:
+# - what to do about properties that are <1km
+# - OVERLAPS: treat them as separate categories.
+
 
 # libraries
-library(raster)
+# libraries
+library(terra)
 library(sf)
+library(dplyr)
+library(geobr)
 library(exactextractr)
 # load directories and etc.
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
@@ -17,11 +26,8 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 # what is the best solution for polygons with an area <1km?
 
 # biodiversity data ----
-setwd(paste0(wdmain, "data/processed/BiodivIndicators_SA-albers"))
+setwd(paste0(wdmain, "data/processed/BiodivIndicators_albers"))
 list.files()
-richness <- rast("Species_Richness_All_groups_MARS_SAalbers.tif")
-endemism <- rast("Weight_Endemism_All_groups_RF_SAalbers.tif") #index 0-1
-# betaD <- rast("Beta_Diversity_GDM_SAalbers.tif") # idk what the 3 rgb bands are - so tackle this later
 
 # conduct extractions using simple tenure data ----
 setwd(paste0(wdmain,"/data/processed/landTenureCategs_v2023/"))

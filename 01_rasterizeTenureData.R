@@ -8,9 +8,7 @@
 # libraries
 library(terra)
 library(ggplot2)
-#library(tidyterra)
 library(sf)
-#library(geodata)
 library(geobr)
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
@@ -79,12 +77,14 @@ uc_r <- rasterize(uc, mask, "group")
 uc_out_r <- rasterize(uc_outl, mask, "group")
 uc_app_r <- rasterize(uc_approx, mask, "group")
 uc_corr_r <- rasterize(uc_correct, mask, "group")
+uc_corrCategs <- rasterize(uc_correct, mask, "categry")
 
 setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
 writeRaster(uc_r, filename = "landTenure_PAs_SAalbers_1km.tif", overwrite = TRUE)
 writeRaster(uc_out_r, filename = "landTenure_PAs_outlined_SAalbers_1km.tif", overwrite = TRUE)
 writeRaster(uc_app_r, filename = "landTenure_PAs_approximate_SAalbers_1km.tif", overwrite = TRUE)
 writeRaster(uc_corr_r, filename = "landTenure_PAs_correct_SAalbers_1km.tif", overwrite = TRUE)
+writeRaster(uc_corrCategs, filename = "landTenure_PAs_correctCategs_SAalbers_1km.tif", overwrite = TRUE)
 
 # rasterize indigenous lands----
 setwd(paste0(wdmain, "data/processed/landTenure_IPLC/"))
@@ -153,6 +153,17 @@ plot(t$landTenure_PAs_correct,
      axes = F,
      plg = list(legend = c("proteçao integral","uso sustentavel"), x="left", y=-5))
 
+# just to check which PA categories were actually overlapping and it does seem like it includes parks (only concerning categ)
+# see more here: https://terrasindigenas.org.br/#pesquisa
+# plot(t$landTenure_PAs_correctCategs, 
+#      # col = c("#8C7E5B", "#1B9E77"),
+#      type = "classes",
+#      mar=NA,
+#      box = F,
+#      axes = F,
+#      plg = list(x="bottomleft"))
+# terra::lines(v, lwd=.1)
+
 plot(t$`landTenure_IND_phase-regul`,
      add = T,
      col = c("#f7dbed","#ffffff","#ffffff", "#ffffff", "#E78AC3", "#E78AC3"), alpha = .8,
@@ -160,7 +171,7 @@ plot(t$`landTenure_IND_phase-regul`,
      mar=NA,
      box = F,
      axes = F,
-     plg = list(legend = c("declared","delimited", "under study", "encaminhada","homologated", "regularized"), x = "bottomleft"))
+     plg = list(legend = c("declared","delimited", "under study", "encaminhada","homologated", "regularized"), x = "bottomright"))
 
 
 plot(t$`landTenure_AST-IRU-PCT`, 
