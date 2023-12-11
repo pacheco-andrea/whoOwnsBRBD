@@ -50,9 +50,13 @@ for (i in 1:length(files))
 uc <- read_conservation_units(date = 201909, simplified = FALSE) # latest update 201909
 # need to crop these to only the extent of terrestrial brazil
 uc <- st_transform(uc, crs = my_crs_SAaea)
+# tirar APAs
+# pensar RPPN
 uc <- uc[-grep("TRINDADE", uc$name_conservation_unit),] # manually removed marine PAs that I wasn't able to crop with raster
 uc2 <- select(uc, c("group", "category", "creation_year", "quality"))
 # modify and translate the variable on quality
+# should not consider!
+# check directly with MMA for update since 2019
 uc2$quality <- gsub("^Aproximado.*", "approximate", uc2$quality)
 uc2$quality <- gsub("^Correto.*", "correct", uc2$quality)
 uc2$quality <- gsub("^Esquem.*", "outlined", uc2$quality)
