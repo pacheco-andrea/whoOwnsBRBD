@@ -62,35 +62,39 @@ st_crs(uc_mma) <- my_crs_SAaea
 uc_mma <- uc_mma[-grep("TRINDADE", uc_mma$NOME_UC1),] # manually removed big marine PAs that I wasn't able to crop with raster
 uc_mma2 <- select(uc_mma, c("GRUPO4", "CATEGORI3", "ANO_CRIA6"))
 unique(uc_mma$CATEGORI3)
-# should separately consider RPPN because these are private
-uc_rppn <- uc_mma2[which(uc_mma2$CATEGORI3 == "Reserva Particular do Patrim\xf4nio Natural"),]
-colnames(uc_rppn) <- c("group", "category", "yearCreat", "geometry")
+# should separately consider RPPN because these are private - but these are better sourced from ICMBIO
 # should NOT include APAs because they have no real protection
 uc_mma2 <- uc_mma2[which(uc_mma2$CATEGORI3 != "Reserva Particular do Patrim\xf4nio Natural"),]
 uc_mma2 <- uc_mma2[which(uc_mma2$CATEGORI3 != "\xc1rea de Prote\xe7\xe3o Ambiental"),]
 colnames(uc_mma2) <- c("group", "category", "yearCreat", "geometry")
 
-# should i try to crop?
-mask2 <- as.polygons(mask)
-mask2 <- st_as_sf(mask2)
-sf_proj_info(mask2)
-
-mask2 <- st_transform(mask2, crs = my_crs_SAaea)
-test <- uc_mma2[mask2, op = st_within()]
-plot(test$geometry)
-
-# in total, this makes 674 RPPN, and 1120 UCs, 319 sustainable use, and 802
+# in total, this makes 674 RPPN, and 1120 UCs, 319 sustainable use, and 801 strict protection
+# write out:
 setwd(paste0(wdmain,"/data/processed/landTenure_UC/"))
-st_write(uc2, "landTenure_UCs_20231212_SAalbers.shp", append=FALSE)
+st_write(uc_mma2, "landTenure_UCs_MMA_20231212_SAalbers.shp", append=FALSE)
 
-
+# add RPPNs:
+setwd(paste0(wdmain,"/data/raw/landTenure/RPPN"))
+unzip("total.zip")
+rppn <- st_read("total.shp")
+rppn <- st_transform(rppn, crs = my_crs_SAaea)
+rppn$group <- "US" # to categorize as sustainable use
+rppn$category <- "RPPN"
+rppn <- select(rppn, c("group", "category"))
+setwd(paste0(wdmain,"/data/processed/landTenure_RPPN"))
+st_write(rppn, "landTenure_RPPN_20231212_SAalbers.shp", append=FALSE)
 
 # indigenous lands
-ind <- read_indigenous_land(date = 201909, simplified = FALSE) # latest available 202103
-ind <- st_transform(ind, crs = my_crs_SAaea)
-ind2 <- select(ind, (c("abbrev_state", "fase_ti", "modalidade", "date")))
+setwd(paste0(wdmain,"/data/raw/landTenure/FUNAI"))
+unzip("tis_poligonais.zip")
+ind <- st_read("tis_poligonais.shp")
+table(ind$fase_ti)
+# keep only regularized and homologated indigenous lands because these are the legally official ones
+ind <- ind[which(ind$fase_ti == "Homologada" | ind$fase_ti == "Regularizada" ),]
+ind2 <- select(ind, (c( "uf_sigla", "fase_ti","modalidade")))
+plot(ind2$geometry)
 setwd(paste0(wdmain,"/data/processed/landTenure_IPLC/"))
-st_write(ind2, "landTenure_IPLCS_201909_SAalbers.shp", append=FALSE)
+st_write(ind2, "landTenure_indigenous_20231212_SAalbers.shp", append=FALSE)
 # according to this https://www.gov.br/funai/pt-br/atuacao/terras-indigenas/demarcacao-de-terras-indigenas
 # the following indigenous lands categories
 # Terras IndÃ­genas Tradicionalmente Ocupadas: SÃ£o as terras habitadas pelos indÃ­genas em carÃ¡ter permanente, utilizadas para atividades produtivas, culturais, bem-estar e reproduÃ§Ã£o fÃ­sica, segundo seus usos, costumes e tradiÃ§Ãµes.
