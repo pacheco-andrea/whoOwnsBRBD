@@ -47,21 +47,43 @@ for (i in 1:length(files))
 # 2. Conservation units and indigenous lands ----
 
 # conservation units
-uc <- read_conservation_units(date = 201909, simplified = FALSE) # latest update 201909
-# need to crop these to only the extent of terrestrial brazil
-uc <- st_transform(uc, crs = my_crs_SAaea)
-# tirar APAs
-# pensar RPPN
-uc <- uc[-grep("TRINDADE", uc$name_conservation_unit),] # manually removed marine PAs that I wasn't able to crop with raster
-uc2 <- select(uc, c("group", "category", "creation_year", "quality"))
-# modify and translate the variable on quality
-# should not consider!
-# check directly with MMA for update since 2019
-uc2$quality <- gsub("^Aproximado.*", "approximate", uc2$quality)
-uc2$quality <- gsub("^Correto.*", "correct", uc2$quality)
-uc2$quality <- gsub("^Esquem.*", "outlined", uc2$quality)
+# uc <- read_conservation_units(date = 201909, simplified = FALSE) # latest update 201909
+# # need to crop these to only the extent of terrestrial brazil
+# uc <- st_transform(uc, crs = my_crs_SAaea)
+# uc <- uc[-grep("TRINDADE", uc$name_conservation_unit),] # manually removed marine PAs that I wasn't able to crop with raster
+# uc2 <- select(uc, c("group", "category", "creation_year")) # note, best not to consider quality column, according to amanda
+# setwd(paste0(wdmain,"/data/processed/landTenure_UC/"))
+# st_write(uc2, "landTenure_ConservationUnits_201909_SAalbers.shp", append=FALSE) # no longer using this data as it's outdated
+
+# conservation units sourced directly from MMA
+setwd(paste0(wdmain,"/data/raw/landTenure/UCs_MMA"))
+uc_mma <- st_read("drive-download-20231212T124407Z-001/ucstodas.shp")
+st_crs(uc_mma) <- my_crs_SAaea
+uc_mma <- uc_mma[-grep("TRINDADE", uc_mma$NOME_UC1),] # manually removed big marine PAs that I wasn't able to crop with raster
+uc_mma2 <- select(uc_mma, c("GRUPO4", "CATEGORI3", "ANO_CRIA6"))
+unique(uc_mma$CATEGORI3)
+# should separately consider RPPN because these are private
+uc_rppn <- uc_mma2[which(uc_mma2$CATEGORI3 == "Reserva Particular do Patrim\xf4nio Natural"),]
+colnames(uc_rppn) <- c("group", "category", "yearCreat", "geometry")
+# should NOT include APAs because they have no real protection
+uc_mma2 <- uc_mma2[which(uc_mma2$CATEGORI3 != "Reserva Particular do Patrim\xf4nio Natural"),]
+uc_mma2 <- uc_mma2[which(uc_mma2$CATEGORI3 != "\xc1rea de Prote\xe7\xe3o Ambiental"),]
+colnames(uc_mma2) <- c("group", "category", "yearCreat", "geometry")
+
+# should i try to crop?
+mask2 <- as.polygons(mask)
+mask2 <- st_as_sf(mask2)
+sf_proj_info(mask2)
+
+mask2 <- st_transform(mask2, crs = my_crs_SAaea)
+test <- uc_mma2[mask2, op = st_within()]
+plot(test$geometry)
+
+# in total, this makes 674 RPPN, and 1120 UCs, 319 sustainable use, and 802
 setwd(paste0(wdmain,"/data/processed/landTenure_UC/"))
-st_write(uc2, "landTenure_ConservationUnits_201909_SAalbers.shp", append=FALSE)
+st_write(uc2, "landTenure_UCs_20231212_SAalbers.shp", append=FALSE)
+
+
 
 # indigenous lands
 ind <- read_indigenous_land(date = 201909, simplified = FALSE) # latest available 202103

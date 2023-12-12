@@ -33,7 +33,11 @@ read_my_shp = function(f){
 # establish my projection: South America Albers Equal Area 
 my_crs_SAaea <- "+proj=aea +lat_0=-32 +lon_0=-60 +lat_1=-5 +lat_2=-42 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs"
 
-
+# 1. make mask to base rest of rasters on
+setwd(paste0(wdmain,"/data/raw/Biodiversity_v20231009")) # use my biodiversity data
+r <- rast(list.files()[grep("Richness", list.files())[1]])
+r <- project(r, my_crs_SAaea)
+mask <- r*0
 
 # LEARNING TO USE TERRA INSTEAD OF RASTER ----
 # x <- rast()
