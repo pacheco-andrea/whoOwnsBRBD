@@ -38,6 +38,7 @@ for (i in 1:length(files))
   # read in all the shapefiles (with only specific columns established in the read_my_shp funct above), bind rows into one df
   stateShp <- read_my_shp(files[i])
   name <- paste(files[i])
+  test <- st_read("cf_imoveis_imaflora_ac.shp")
   # write out
   setwd(paste0(wdmain,"/data/processed/landTenure_IRU-AST-PCT/"))
   st_write(stateShp, name)
@@ -122,9 +123,23 @@ flp2 <- st_zm(flp2, drop = T, what = "ZM") # remove Z dimension which doesn't wo
 setwd(paste0(wdmain,"/data/processed/landTenure_UND-OTH/"))
 st_write(flp2, "landTenure_Undesignated-Other-Military_SAalbers.shp", append=FALSE)
 
-# synthesis of these data: ----
-nrow(uc2) # 1932
-nrow(ind2)# 624
-nrow(flp2) # 1841
-# = 4397 observations + 6797557 properties from CSR = 6,801,954 (or, nearly 7 million parcels, which, btw is 3 million more than i had in the 2018 version of imaflora)
 
+# 4. INCRA data: SIGEF, SNCI, assentamentos, and quilombos ----
+setwd(paste0(wdmain, "data/raw/landTenure/INCRA"))
+l <- list.files()
+zips <- grep(".zip", l)
+lapply(l[zips], unzip)
+
+# SIGEF:
+# SIGEF is the Sistema de Gestão Fundiaria: the electronic tool developed for the georeferenced certification of land properties/tenure in Brazil
+sigef <- st_read("Sigef Brasil.shp")
+plot(sigef$geometry)
+(sigef$data_aprov)
+
+# explore frequency of certification from INCRA
+ggplot(sigef, aes(x=data_aprov)) + geom_histogram(binwidth=30, colour="white") +
+  scale_x_date(#breaks = seq(min(sigef$data_aprov)-5, max(sigef$data_aprov)+5, 30),
+                breaks = seq(min(sigef$data_aprov), max(sigef$data_aprov), 500),
+               limits = c(min(sigef$data_aprov), max(sigef$data_aprov))) +
+  ylab("Frequency") + xlab("Year and Month") +
+  theme_bw() 
