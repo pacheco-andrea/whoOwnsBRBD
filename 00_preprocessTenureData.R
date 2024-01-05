@@ -7,7 +7,7 @@
 
 # author: Andrea Pacheco
 # first run: 23.09.2022
-# last run: 15.11.2023
+# last run: 15.12.2023
 
 # libraries
 library(terra)
@@ -69,7 +69,6 @@ uc_mma2 <- uc_mma2[which(uc_mma2$CATEGORI3 != "Reserva Particular do Patrim\xf4n
 uc_mma2 <- uc_mma2[which(uc_mma2$CATEGORI3 != "\xc1rea de Prote\xe7\xe3o Ambiental"),]
 colnames(uc_mma2) <- c("group", "category", "yearCreat", "geometry")
 
-# in total, this makes 674 RPPN, and 1120 UCs, 319 sustainable use, and 801 strict protection
 # write out:
 setwd(paste0(wdmain,"/data/processed/landTenure_UC/"))
 st_write(uc_mma2, "landTenure_UCs_MMA_20231212_SAalbers.shp", append=FALSE)
@@ -93,7 +92,7 @@ table(ind$fase_ti)
 # keep only regularized and homologated indigenous lands because these are the legally official ones
 ind <- ind[which(ind$fase_ti == "Homologada" | ind$fase_ti == "Regularizada" ),]
 ind2 <- select(ind, (c( "uf_sigla", "fase_ti","modalidade")))
-plot(ind2$geometry)
+# plot(ind2$geometry)
 setwd(paste0(wdmain,"/data/processed/landTenure_IPLC/"))
 st_write(ind2, "landTenure_indigenous_20231212_SAalbers.shp", append=FALSE)
 # according to this https://www.gov.br/funai/pt-br/atuacao/terras-indigenas/demarcacao-de-terras-indigenas
@@ -103,8 +102,52 @@ st_write(ind2, "landTenure_indigenous_20231212_SAalbers.shp", append=FALSE)
 # Terras Dominiais: SÃ£o as terras de propriedade das comunidades indÃ­genas, havidas por qualquer das formas de aquisiÃ§Ã£o do domÃ­nio, nos termos da legislaÃ§Ã£o civil.
 # Interditadas: weren't found on this official site, but these refer to tribes in isolation
 
-# 3. Public forests ----
-# from the above datasets, i realized that that public lands were missing. hence, 
+# 3. INCRA data: SIGEF, SNCI, assentamentos, and quilombos ----
+setwd(paste0(wdmain, "data/raw/landTenure/INCRA"))
+l <- list.files()
+# zips <- grep(".zip", l)
+# lapply(l[zips], unzip)
+
+# SIGEF:
+# SIGEF is the Sistema de Gestão Fundiaria: the electronic tool developed for the georeferenced certification of land properties/tenure in Brazil
+sigef <- st_read("Sigef Brasil.shp")
+plot(sigef$geometry)
+summary(sigef$data_aprov) # indeed, the SIGEF only runs starting from 2013
+
+# # explore frequency of certification from INCRA: more as the years went on, 
+# ggplot(sigef, aes(x=data_aprov)) + geom_histogram(binwidth=30, colour="white") +
+#   scale_x_date(#breaks = seq(min(sigef$data_aprov)-5, max(sigef$data_aprov)+5, 30),
+#                 breaks = seq(min(sigef$data_aprov), max(sigef$data_aprov), 500),
+#                limits = c(min(sigef$data_aprov), max(sigef$data_aprov))) +
+#   ylab("Frequency") + xlab("Year and Month") +
+#   theme_bw() 
+
+sigef2 <- select(sigef, c("situacao_i", "status", "data_aprov"))
+sigef2 <- st_transform(sigef2, crs = my_crs_SAaea)
+sigef2 <- st_zm(sigef2, drop = TRUE, what = "ZM") # remove z dimension
+sigef2$LTcateg <- "sigef"
+setwd(paste0(wdmain,"/data/processed/landTenure_SIGEF/"))
+st_write(sigef2, "landTenure_SIGEFproperties_20231312_SAalbers.shp", append = F)
+
+# SNCI
+setwd(paste0(wdmain, "data/raw/landTenure/INCRA"))
+snci <- st_read("Imóvel certificado SNCI Brasil.shp")
+summary(snci$data_certi) # goes from 2004-2021 which does hold up to what the Camara paper says (but has not been updated since, whereas sigef yes?)
+# # check histogram of dates certified
+# ggplot(snci, aes(x=data_certi)) + geom_histogram(binwidth=30, colour="white") +
+#   scale_x_date(#breaks = seq(min(sigef$data_aprov)-5, max(sigef$data_aprov)+5, 30),
+#                 breaks = seq(min(snci$data_certi, na.rm = TRUE), max(snci$data_certi, na.rm = TRUE), 500),
+#                limits = c(min(snci$data_certi, na.rm = TRUE), max(snci$data_certi, na.rm = TRUE))) +
+#   ylab("Frequency") + xlab("Year and Month") +
+#   theme_bw()
+snci2 <- st_transform(snci, crs = my_crs_SAaea)
+snci2 <- select(snci2, c("data_certi"))
+snci2$LTcateg <- "snci"
+setwd(paste0(wdmain,"/data/processed/landTenure_SNCI/"))
+st_write(snci2, "landTenure_SNCIproperties_20240105_SAalbers.shp", append = F)
+
+
+# 4. Public forests ----
 setwd(paste0(wdmain,"data/raw/landTenure/florestasPublicas/CNFP 2020 Shapefiles (5) (1)"))
 l <- grep(".shp", list.files())
 flp <- lapply(list.files()[l], st_read)
@@ -124,22 +167,12 @@ setwd(paste0(wdmain,"/data/processed/landTenure_UND-OTH/"))
 st_write(flp2, "landTenure_Undesignated-Other-Military_SAalbers.shp", append=FALSE)
 
 
-# 4. INCRA data: SIGEF, SNCI, assentamentos, and quilombos ----
-setwd(paste0(wdmain, "data/raw/landTenure/INCRA"))
-l <- list.files()
-zips <- grep(".zip", l)
-lapply(l[zips], unzip)
+# 5. I also explored the harmonized dataset produced by Camara et al 2023 (ERL) ----
+# the data is only for the amazon, and not very reproducible in the sense that their scripts do not show the raw data from start to finish
+# their prioritization levels could provide a justifiable basis for us, though
+# setwd(paste0(wdmain, "data/raw/landTenure/amz_fc/zip"))
+# l <- list.files()
+# lapply(l, unzip)
+# amz_lt <- st_read("amz_land_tenure.shp")
+# plot(amz_lt$geometry) # just checking this is indeed only for the amazon - it is. 
 
-# SIGEF:
-# SIGEF is the Sistema de Gestão Fundiaria: the electronic tool developed for the georeferenced certification of land properties/tenure in Brazil
-sigef <- st_read("Sigef Brasil.shp")
-plot(sigef$geometry)
-(sigef$data_aprov)
-
-# explore frequency of certification from INCRA
-ggplot(sigef, aes(x=data_aprov)) + geom_histogram(binwidth=30, colour="white") +
-  scale_x_date(#breaks = seq(min(sigef$data_aprov)-5, max(sigef$data_aprov)+5, 30),
-                breaks = seq(min(sigef$data_aprov), max(sigef$data_aprov), 500),
-               limits = c(min(sigef$data_aprov), max(sigef$data_aprov))) +
-  ylab("Frequency") + xlab("Year and Month") +
-  theme_bw() 
