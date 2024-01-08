@@ -66,35 +66,21 @@ writeRaster(r, filename = "landTenure_AST-IRU-PCT_SAalbers_1km.tif", overwrite =
 
 # rasterize Conservation units (PAs) ----
 setwd(paste0(wdmain, "data/processed/landTenure_UC/"))
-uc <- st_read("landTenure_ConservationUnits_201909_SAalbers.shp")
-
-# when mapping, i want to distinguish correct PAs from approximate and outlined
-uc_outl <- uc[which(uc$quality == "outlined"),]
-uc_approx <- uc[which(uc$quality == "approximate"),]
-uc_correct <- uc[which(uc$quality == "correct"),]
-
+uc <- st_read("landTenure_UCs_MMA_20231212_SAalbers.shp", crs = "+proj=aea +lat_0=-32 +lon_0=-60 +lat_1=-5 +lat_2=-42 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs")
+plot(uc$geometry)
+# test <- vect(uc)
 uc_r <- rasterize(uc, mask, "group")
-uc_out_r <- rasterize(uc_outl, mask, "group")
-uc_app_r <- rasterize(uc_approx, mask, "group")
-uc_corr_r <- rasterize(uc_correct, mask, "group")
-uc_corrCategs <- rasterize(uc_correct, mask, "categry")
-
+plot(uc_r)
 setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
-writeRaster(uc_r, filename = "landTenure_PAs_SAalbers_1km.tif", overwrite = TRUE)
-writeRaster(uc_out_r, filename = "landTenure_PAs_outlined_SAalbers_1km.tif", overwrite = TRUE)
-writeRaster(uc_app_r, filename = "landTenure_PAs_approximate_SAalbers_1km.tif", overwrite = TRUE)
-writeRaster(uc_corr_r, filename = "landTenure_PAs_correct_SAalbers_1km.tif", overwrite = TRUE)
-writeRaster(uc_corrCategs, filename = "landTenure_PAs_correctCategs_SAalbers_1km.tif", overwrite = TRUE)
+writeRaster(uc_r, filename = "landTenure_PAs_SAalbers_1km_testv20230108.tif", overwrite = TRUE)
 
 # rasterize indigenous lands----
-setwd(paste0(wdmain, "data/processed/landTenure_IPLC/"))
-ind <- st_read("landTenure_IPLCS_202103_SAalbers.shp")
-ind <- st_read("landTenure_IPLCS_201909_SAalbers.shp")
-ind_r <- rasterize(ind, mask, "modaldd") # one version for the category
+setwd(paste0(wdmain, "data/processed/landTenure_IND/"))
+ind <- st_read("landTenure_indigenous_20231212_SAalbers.shp")
+ind <-st_transform(ind, my_crs_SAaea)
+ind_r <- rasterize(ind, mask, "fase_ti") # one version for the category
 setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
-writeRaster(ind_r, filename = "landTenure_IND_categories_201909_SAalbers_1km.tif", overwrite = TRUE)
-ind_r <- rasterize(ind, mask, "fase_ti") # one version of the phase of regularization
-writeRaster(ind_r, filename = "landTenure_IND_phase-regul_201909_SAalbers_1km.tif", overwrite = TRUE)
+writeRaster(ind_r, filename = "landTenure_IND_categories_201909_SAalbers_1km_testv20230108.tif", overwrite = TRUE)
 
 # public forests ----
 setwd(paste0(wdmain, "data/processed/landTenure_UND-OTH/"))
@@ -122,24 +108,6 @@ biomes <- st_transform(biomes, crs = crs(t, proj = T))
 plot(biomes)
 v <- vect(biomes)
 
-# # compare versions of indigenous datasets from 2019 to 2021
-# par(mfrow = c(1,2))
-# plot(t$`landTenure_IND_phase-regul`,
-#      col = c("#f7dbed","yellow","red", "orange", "#E78AC3", "#E78AC3"), alpha = .8,
-#      type = "classes",
-#      mar=NA,
-#      box = F,
-#      axes = F,
-#      plg = list(legend = c("declared","delimited", "under study", "encaminhada","homologated", "regularized"), x = "bottomleft"))
-# terra::lines(v, lwd=.1)
-# plot(t$`landTenure_IND_phase-regul_201909`, 
-#      col = c("#f7dbed","yellow","red", "orange", "#E78AC3", "#E78AC3"), alpha = .8,
-#      type = "classes", 
-#      mar=NA,
-#      box = F,
-#      axes = F,
-#      plg = list(legend = c("declared","delimited", "under study", "encaminhada","homologated", "regularized"), x = "bottomleft"))
-# terra::lines(v, lwd=.1)
 
 # plot maps one at a time, one on top of the other
 names(t)

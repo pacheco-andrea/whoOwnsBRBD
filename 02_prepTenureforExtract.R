@@ -19,9 +19,10 @@ setwd(paste0(wdmain, "data/processed/"))
 l <- list.files()
 tenDataFolds <- l[grep("landTenure_", l)]
 
+# should join...
 
 
-# ok so to actually conduct the prioritization, it would be through a spatial join
+# ok so to actually conduct the prioritization of one categ over the other, it would be through a spatial join
 # https://tmieno2.github.io/R-as-GIS-for-Economists/spatial-join.html#case-2-polygons-target-vs-points-source
 
 # testing/learning:
