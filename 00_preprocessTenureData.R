@@ -61,9 +61,27 @@ colnames(data7)
 # let me try subsetting indigenous that are inside PAs
 tenfolds
 
-testoverlap <- st_intersection(uc, ind) # returns those that intersect (248)
-plot(testoverlap$geometry)
+testintersect <- st_intersects(ind, uc)
+testintersection  <- st_intersection(uc, ind) # returns geometry of the shared portion of x and y
+nrow(testintersection )
+plot(testintersection $geometry)
 
-# ok, now test if in a raster, they overlap
+testwithin <- st_snap(ind, uc, tolerance = 1000) # run time start ~10:45
+
+testoverlap <- st_overlap(ind, uc # ids if x and y share space, are of the same dimension but are not completely contained
+
+# ALL OF THIS FOR THE ONE WALL-TO-WALL with the minimum necessary of overlaps (as this will become one category)                       
+# i need to come up with a series of rules
+# if UCs and IND overlap: should resolve, prioritize UCs
+# if UCs and IRU-AST-PCT overlap: should note these overlaps as private on public (but only keep IRU and AST, and if AST then it's public on public)
+# if UCs and RPPN overlap
+# UCs + SIGEF: note overlap as private on public
+# Ucs + SNCI: note overlap as private on public
+# UCs + UND-OTHER: note as public on public
+
+# SIGEF + SNCI: merge as private from INCRA
+# IRU-AST + SIGEF-SNCI: merge as private on private but not problematic - simply due to different systems # this would potentially take foreeever
+# 
+
 
 

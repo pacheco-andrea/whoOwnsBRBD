@@ -68,26 +68,26 @@ writeRaster(r, filename = "landTenure_AST-IRU-PCT_SAalbers_1km.tif", overwrite =
 setwd(paste0(wdmain, "data/processed/landTenure_UC/"))
 uc <- st_read("landTenure_UCs_MMA_20231212_SAalbers.shp", crs = "+proj=aea +lat_0=-32 +lon_0=-60 +lat_1=-5 +lat_2=-42 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs")
 plot(uc$geometry)
-# test <- vect(uc)
 uc_r <- rasterize(uc, mask, "group")
 plot(uc_r)
 setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
-writeRaster(uc_r, filename = "landTenure_PAs_SAalbers_1km_testv20230108.tif", overwrite = TRUE)
+writeRaster(uc_r, filename = "landTenure_UC_SAalbers_1km.tif", overwrite = TRUE)
 
 # rasterize indigenous lands----
 setwd(paste0(wdmain, "data/processed/landTenure_IND/"))
 ind <- st_read("landTenure_indigenous_20231212_SAalbers.shp")
-ind <-st_transform(ind, my_crs_SAaea)
-ind_r <- rasterize(ind, mask, "fase_ti") # one version for the category
+ind <- st_transform(ind, my_crs_SAaea)
+ind$LTcateg <- "indigenous"
+ind_r <- rasterize(ind, mask, "LTcateg") # one version for the category
 setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
-writeRaster(ind_r, filename = "landTenure_IND_categories_201909_SAalbers_1km_testv20230108.tif", overwrite = TRUE)
+writeRaster(ind_r, filename = "landTenure_IND_SAalbers_1km.tif", overwrite = TRUE)
 
 # public forests ----
 setwd(paste0(wdmain, "data/processed/landTenure_UND-OTH/"))
-flp <- st_read("landTenure_Undesignated-Other-Military_SAalbers.shp")
+flp <- st_read("landTenure_UND-OTH_SAalbers.shp")
 flp_r <- rasterize(flp, mask, "protecao")
 setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
-writeRaster(flp_r, filename = "landTenure_undesignated-military-other_SAalbers_1km.tif")
+writeRaster(flp_r, filename = "landTenure_UND-OTH_SAalbers_1km.tif")
 
 
 
@@ -99,7 +99,8 @@ setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
 l <- grep(".tif$", list.files())
 t <- rast(list.files()[l]) 
 terra::plot(t)
-names(t) <- gsub("_SAalbers_1km.tif","", list.files()[l])
+
+names(t) <- gsub("landTenure_", "", gsub("_SAalbers_1km.tif","", list.files()[l]))
 
 # add biomes 
 biomes <- read_biomes(year=2019)
@@ -113,13 +114,13 @@ v <- vect(biomes)
 names(t)
 
 par(mfrow = c(1,1))
-plot(t$landTenure_PAs_correct, 
+plot(t$UC, # conservation units
      col = c("#8C7E5B", "#1B9E77"), 
      type = "classes", 
      mar=NA,
      box = F,
      axes = F,
-     plg = list(legend = c("proteçao integral","uso sustentavel"), x="left", y=-5))
+     plg = list(legend = c("PA strict protection","PA sustainable use"), x="left", y=-5))
 
 # just to check which PA categories were actually overlapping and it does seem like it includes parks (only concerning categ)
 # see more here: https://terrasindigenas.org.br/#pesquisa
@@ -132,14 +133,16 @@ plot(t$landTenure_PAs_correct,
 #      plg = list(x="bottomleft"))
 # terra::lines(v, lwd=.1)
 
-plot(t$`landTenure_IND_phase-regul`,
+plot(t$IND,
      add = T,
-     col = c("#f7dbed","#ffffff","#ffffff", "#ffffff", "#E78AC3", "#E78AC3"), alpha = .8,
+     col = c("#E78AC3"), alpha = .8,
      type = "classes",
      mar=NA,
      box = F,
      axes = F,
-     plg = list(legend = c("declared","delimited", "under study", "encaminhada","homologated", "regularized"), x = "bottomright"))
+     plg = list(legend = c("indigenous"), x = "bottomright"))
+
+     # plg = list(legend = c("declared","delimited", "under study", "encaminhada","homologated", "regularized"), x = "bottomright"))
 
 
 plot(t$`landTenure_AST-IRU-PCT`, 
