@@ -147,7 +147,7 @@ snci2$LTcateg <- "snci"
 # fix self-intersection issue
 snci2 <- st_buffer(snci2, dist = 0) 
 setwd(paste0(wdmain,"/data/processed/landTenure_SNCI/"))
-st_write(snci2, "landTenure_SNCIproperties_20240105_SAalbers.shp", append = F)
+st_write(snci2, "landTenure_SNCI_20240105_SAalbers.shp", append = F)
 
 # # how much is the overlap between sigef and snci?
 # nrow(sigef2)
