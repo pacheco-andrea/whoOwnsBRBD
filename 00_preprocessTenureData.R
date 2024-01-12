@@ -18,130 +18,86 @@ library(geobr)
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 # SF GEOMETRY OPERATIONS EXAMPLES ----
-set.seed(131)
 
-m = rbind(c(0,0), c(1,0), c(1,1), c(0,1), c(0,0))
-p = st_polygon(list(m))
-n = 100
-l = vector("list", n)
-for (i in 1:n)
-  l[[i]] = p + 10 * runif(2)
-s = st_sfc(l)
-plot(s, col = sf.colors(categorical = TRUE, alpha = .5))
-title("overlapping squares")
+st_difference()
+# behaves differently with one and two arguments:
+# st_difference is called with a single argument, overlapping areas are erased from geometries
+# that are indexed at greater numbers in the argument to x; 
+# geometries that are empty or contained fully inside geometries with higher priority are removed entirely. 
+# that is, 
+# for these differences, the way to determine the order of prioritization would be to sort by variable/column (e.g. arrange(category, year))
+# the issue is that i want to keep the overlaps and assign them to the right category
+# and have the other parts of shapes that haven't overlapped as integral as possible 
+# when i run with two objects (x,y)
+# the returned object is a million little features that need to be grouped by an id in order to be related to the original polygon
+# (i haven't figured out this last part yet - but i'm probably being blind)
 
-# functions
-d = st_difference(s) # sequential differences: s1, s2-s1, s3-s2-s1, ...
-plot(d, col = sf.colors(categorical = TRUE, alpha = .5))
-title("non-overlapping differences") 
-# for these differences, the way to determine the order of prioritization would be to sort by variable/column
-# im pretty sure what i need for prioritizing Ucs above indigenous is the difference operation
-# so that Ucs take a bite out of indigenous, and then i can plot them without overlaps
-
-# determine the order: sort by categories in the columns!! (but this is for one data set, would i have to join them first?)
-# e.g. wdpa2 <- wdpa2 >%> arrange(category, year)
-
-i = st_intersection(s) # all intersections
-plot(i, col = sf.colors(categorical = TRUE, alpha = .5))
-title("non-overlapping intersections") # i don't get it. 
-summary(lengths(st_overlaps(s, s))) # includes self-counts!
-summary(lengths(st_overlaps(d, d)))
-summary(lengths(st_overlaps(i, i)))
-sf = st_sf(s)
-i = st_intersection(sf) # all intersections
-plot(i["n.overlaps"]) # i dont understand where they got this variable, how they created it
-summary(i$n.overlaps - lengths(i$origins))
+st_intersects()
+st_intersection ()
+# all areas that have overlapped 
+# filtering the resulting object by the number of overlaps allows one to keep the areas that have NOT overlapped
+# but again, this leaves me with the same problem as above
 
 # A helper function that erases all of y from x:
 st_erase = function(x, y) st_difference(x, st_union(st_combine(y)))
-e <- st_erase(i, sf)
-poly = st_polygon(list(cbind(c(0, 0, 1, 1, 0), c(0, 1, 1, 0, 0))))
-lines = st_multilinestring(list(
-  cbind(c(0, 1), c(1, 1.05)),
-  cbind(c(0, 1), c(0, -.05)),
-  cbind(c(1, .95, 1), c(1.05, .5, -.05))
-))
-snapped = st_snap(poly, lines, tolerance=.1)
-plot(snapped, col='red')
-plot(poly, border='green', add=TRUE)
-plot(lines, lwd=2, col='blue', add=TRUE) # this shows me snapping is NOT what i need
 
-# THIS IS EXACTLY WHAT I NEED FOR TAKING BITES OUT OF SHAPES
-set.seed(1)
-m = rbind(c(0,0), c(1,0), c(1,1), c(0,1), c(0,0))
-p = st_polygon(list(m))
-n = 100
-l = vector("list", n)
-for (i in 1:n)
-  l[[i]] = p + 2 * runif(2)
-
-
-s = st_sf(polygon = 1:n, geometry = st_sfc(l))
-s5 <- s[1:5, ]
-plot(s5["polygon"])
-
-non_overlaps <- st_intersection(s5) %>%
-  filter(n.overlaps == 1)
-
-plot(non_overlaps["polygon"])
-non_overlaps$origins
+# st_snap is hard to imagine how i would use
 
 
 
 # Land tenure data folders ----
 setwd(paste0(wdmain,"/data/processed/"))
-grep("^landTenure", list.files())
-tenfolds <- list.files()[grep("^landTenure_", list.files())]
 
+# Overlaps of PAs/UCs and indigenous lands: ----
 
-# figure out spatial operations i need to use: ----
-# try subsetting indigenous that are inside PAs
-tenfolds
-ind <- st_read("landTenure_IND/landTenure_indigenous_20231212_SAalbers.shp")
 uc <- st_read("landTenure_UC/landTenure_UCs_MMA_20231212_SAalbers.shp")
+uc <- st_transform(uc, my_crs_SAaea) # fix projection
+uc$subcateg <- uc$LTcateg # add/clear up this column
+uc$LTcateg <- uc$group
+uc$id <- paste0("UC-", 1:nrow(uc))
+uc <- select(uc, c("LTcateg", "id", "geometry"))
 
+ind <- st_read("landTenure_IND/landTenure_indigenous_20231212_SAalbers.shp")
 ind <- st_transform(ind, my_crs_SAaea)
 ind$LTcateg <- "indigenous"
-uc <- st_transform(uc, my_crs_SAaea)
-uc$subcateg <- uc$LTcateg
-uc$LTcateg <- uc$group
+ind$id <- paste0("IN-", 1:nrow(ind))
+ind <- select(uc, c("LTcateg","id", "geometry"))
 
-# intersection?
-testintersection  <- st_intersection(uc, ind) # returns geometry of the shared portion of x and y
-nrow(testintersection)
-plot(testintersection$geometry)
-str(testintersection)
-# remove the parts that overlapped from the original indigenous
-ind_nooverlaps <- st_difference(ind[1:100,], testintersection)
-nrow(ind)
-nrow(ind_nooverlaps)
-plot(st_union(ind_nooverlaps))
+# intersection of UCs and IND
+intersection_uc.ind  <- st_intersection(uc, ind) # returns geometry of the shared portion of x and y
+uc <- st_buffer(uc, dist=0)
+ind <- st_buffer(ind, dist=0)
+intersection_uc.ind  <- st_intersection(uc, ind) # returns geometry of the shared portion of x and y
+plot(intersection_uc.ind$geometry)
+# try to remove the parts that overlapped from the original indigenous
+ind_no.overlaps <- st_difference(ind[1:100,], intersection_uc.ind) # note st_diff is computationally expensive
+plot(st_union(st_combine(ind_no.overlaps)))
+
+
+# this is how far i got ###########
+
+
+
+
 
 # INTERSECTS
 
-i = st_intersection(sf) # all intersections
-plot(i["n.overlaps"])
-summary(i$n.overlaps - lengths(i$origins))
+# i = st_intersection(sf) # all intersections
+# plot(i["n.overlaps"])
+# summary(i$n.overlaps - lengths(i$origins))
 
 # try simply using an rbind
 # st_join doesn't work, it's not keeping all the observations and the math isn't mathing
-uc2 <- select(uc, c("LTcateg", "geometry"))
-uc2$id <- paste0("UC-", 1:nrow(uc2))
-uc2 <- st_buffer(uc2, dist = 0)
-ind2 <- select(ind, c("LTcateg", "geometry"))
-ind2$id <- paste0("IN-", 1:nrow(ind2))
-ind2 <- st_buffer(ind2, dist = 0)
 
-mytest <- rbind(uc2,ind2)
-nrow(mytest)
-plot(mytest$geometry)
+
+mytest <- rbind(uc,ind)
 t3 <- st_intersects(mytest)
-length(lengths(t3)) # BINGO: THIS IS THE AMOUNTS OF INTERSECTS PER FEATURE - it also gives the specific feature it intersects with
+length(lengths(t3)) # THIS IS THE AMOUNTS OF INTERSECTS PER FEATURE - it also gives the specific feature it intersects with
 mytest$ints <- lengths(t3)
-plot(mytest[,"ints"]) # BINGO, this is amount of intersections per feature
+plot(mytest[,"ints"]) # this is amount of intersections per feature
 mytest_nonoverlaps <- mytest %>% filter(ints == 1) # these are all the areas that didn't have overlaps
 
-# try the intersection with this data
+# try the intersection with two objects
 ucind_intersection <- st_intersection(uc2,ind2)
 ind_nooverlaps <- st_difference(ind2[1:100,], ucind_intersection) # remove the overlapped parts from the indigenous data
 ind_nooverlaps # will be many features > need to group by id
