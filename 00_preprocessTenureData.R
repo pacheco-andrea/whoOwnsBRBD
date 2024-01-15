@@ -57,23 +57,75 @@ uc$LTcateg <- uc$group
 uc$id <- paste0("UC-", 1:nrow(uc))
 uc <- select(uc, c("LTcateg", "id", "geometry"))
 
+
 ind <- st_read("landTenure_IND/landTenure_indigenous_20231212_SAalbers.shp")
 ind <- st_transform(ind, my_crs_SAaea)
 ind$LTcateg <- "indigenous"
 ind$id <- paste0("IN-", 1:nrow(ind))
-ind <- select(uc, c("LTcateg","id", "geometry"))
+ind <- select(ind, c("LTcateg","id", "geometry"))
 
-# intersection of UCs and IND
-intersection_uc.ind  <- st_intersection(uc, ind) # returns geometry of the shared portion of x and y
-uc <- st_buffer(uc, dist=0)
-ind <- st_buffer(ind, dist=0)
-intersection_uc.ind  <- st_intersection(uc, ind) # returns geometry of the shared portion of x and y
+
+
+# TEST intersection of UCs and IND
+test_uc <- uc[136,] #136, 246
+test_ind <- ind[484,]
+test <- rbind(test_ind, test_uc)
+plot(test["LTcateg"])
+
+uc.ind_intersects <- st_intersects(test_uc, test_ind) # one intersection = intersects with one other feature (not every single line)
+uc.ind_intersection <- st_intersection(test_uc, test_ind) # returns geometry of the shared portion of x and y
+uc.ind_intersection
+plot(uc.ind_intersection$geometry) # can clearly see that it is indeed ONLY the areas that overlap
+# is there a difference in behavior when using one or two objects in the function?
+bound_intersection <- st_intersection(test) # clearly, yes. there is a difference. 
+# the bound_intersection has three observations instead of one. 
+# it KEEPS the original features shapes!!!
+plot(bound_intersection$geometry)
+plot(bound_intersection["n.overlaps"]) # we get this column
+plot(bound_intersection[1,]$geometry) # the first observation is all the indigenous with NO overlaps
+plot(bound_intersection[2,]$geometry) # the second, is the one with overlap
+plot(bound_intersection[3,]$geometry) # the third, is the part of UC with no overlaps
+
+# TEST difference bt UCs and IND
+uc.ind_diff <- st_difference(test_uc, test_ind)
+uc.ind_diff # returns one feature - which is essentially feature 3 in the above example. the parts where they don't overlap! (the parts of the x that don't overlap with y)
+
+# make what i wanted to make last week:
+resolved_uc.ind <- bound_intersection
+resolved_uc.ind[which(resolved_uc.ind$n.overlaps > 1),]$LTcateg <- "US"
+plot(resolved_uc.ind["LTcateg"])
+
+# eventually would need to code something smart to replace the category with the one it was originally
+# OR - TO SIMPLIFY CODING, just do one rbound category at a time...
+places.to.resolve <- resolved_uc.ind[which(resolved_uc.ind$n.overlaps > 1),]
+
+for(i in 1:length(places.to.resolve))
+{
+  origin <- places.to.resolve[i,]$origins
+  # get the category it should be replaced 
+  names.origins <- grep(max(origin[[1]]), resolved_uc.ind$origins)
+}
+
+
+# WHAT HAVE I LEARNED? ----
+# PAS ARE SELF-OVERLAPPING. HOW DO I DEAL WITH THIs before dealing with the rest of overlaps??
+# there's a huge advantage to simply rbinding the data together
+
+
+
+# uc <- st_buffer(uc, dist=0)
+# ind <- st_buffer(ind, dist=0)
+# repeat fixing the above
+intersection_uc.ind  <-  # returns geometry of the shared portion of x and y
 plot(intersection_uc.ind$geometry)
+plot()
 # try to remove the parts that overlapped from the original indigenous
 ind_no.overlaps <- st_difference(ind[1:100,], intersection_uc.ind) # note st_diff is computationally expensive
 plot(st_union(st_combine(ind_no.overlaps)))
 
-
+par(mfrow = c(1,2))
+plot(ind[1:100,])
+plot(st_union(st_combine(ind_no.overlaps)))
 # this is how far i got ###########
 
 
