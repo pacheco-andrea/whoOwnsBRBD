@@ -17,34 +17,6 @@ library(geobr)
 # load directories and other settings
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
-# SF GEOMETRY OPERATIONS EXAMPLES ----
-
-st_difference()
-# behaves differently with one and two arguments:
-# st_difference is called with a single argument, overlapping areas are erased from geometries
-# that are indexed at greater numbers in the argument to x; 
-# geometries that are empty or contained fully inside geometries with higher priority are removed entirely. 
-# that is, 
-# for these differences, the way to determine the order of prioritization would be to sort by variable/column (e.g. arrange(category, year))
-# the issue is that i want to keep the overlaps and assign them to the right category
-# and have the other parts of shapes that haven't overlapped as integral as possible 
-# when i run with two objects (x,y)
-# the returned object is a million little features that need to be grouped by an id in order to be related to the original polygon
-# (i haven't figured out this last part yet - but i'm probably being blind)
-
-st_intersects()
-st_intersection ()
-# all areas that have overlapped 
-# filtering the resulting object by the number of overlaps allows one to keep the areas that have NOT overlapped
-# but again, this leaves me with the same problem as above
-
-# A helper function that erases all of y from x:
-st_erase = function(x, y) st_difference(x, st_union(st_combine(y)))
-
-# st_snap is hard to imagine how i would use
-
-
-
 # Land tenure data folders ----
 setwd(paste0(wdmain,"/data/processed/"))
 
@@ -64,56 +36,73 @@ ind$LTcateg <- "indigenous"
 ind$id <- paste0("IN-", 1:nrow(ind))
 ind <- select(ind, c("LTcateg","id", "geometry"))
 
-
-
-# TEST intersection of UCs and IND
-test_uc <- uc[136,] #136, 246
-test_ind <- ind[484,]
-test <- rbind(test_ind, test_uc)
-plot(test["LTcateg"])
-
-uc.ind_intersects <- st_intersects(test_uc, test_ind) # one intersection = intersects with one other feature (not every single line)
-uc.ind_intersection <- st_intersection(test_uc, test_ind) # returns geometry of the shared portion of x and y
-uc.ind_intersection
-plot(uc.ind_intersection$geometry) # can clearly see that it is indeed ONLY the areas that overlap
-# is there a difference in behavior when using one or two objects in the function?
-bound_intersection <- st_intersection(test) # clearly, yes. there is a difference. 
-# the bound_intersection has three observations instead of one. 
-# it KEEPS the original features shapes!!!
-plot(bound_intersection$geometry)
-plot(bound_intersection["n.overlaps"]) # we get this column
-plot(bound_intersection[1,]$geometry) # the first observation is all the indigenous with NO overlaps
-plot(bound_intersection[2,]$geometry) # the second, is the one with overlap
-plot(bound_intersection[3,]$geometry) # the third, is the part of UC with no overlaps
-
-# TEST difference bt UCs and IND
-uc.ind_diff <- st_difference(test_uc, test_ind)
-uc.ind_diff # returns one feature - which is essentially feature 3 in the above example. the parts where they don't overlap! (the parts of the x that don't overlap with y)
-
-# make what i wanted to make last week:
-resolved_uc.ind <- bound_intersection
-resolved_uc.ind[which(resolved_uc.ind$n.overlaps > 1),]$LTcateg <- "US"
-plot(resolved_uc.ind["LTcateg"])
-
-# eventually would need to code something smart to replace the category with the one it was originally
-# OR - TO SIMPLIFY CODING, just do one rbound category at a time...
-places.to.resolve <- resolved_uc.ind[which(resolved_uc.ind$n.overlaps > 1),]
-
-for(i in 1:length(places.to.resolve))
-{
-  origin <- places.to.resolve[i,]$origins
-  # get the category it should be replaced 
-  names.origins <- grep(max(origin[[1]]), resolved_uc.ind$origins)
-}
+# TEST intersection of UCs and IND----
+# test_uc <- uc[136,] #136, 246
+# test_ind <- ind[484,]
+# test <- rbind(test_ind, test_uc)
+# plot(test["LTcateg"])
+# 
+# uc.ind_intersects <- st_intersects(test_uc, test_ind) # one intersection = intersects with one other feature (not every single line)
+# uc.ind_intersection <- st_intersection(test_uc, test_ind) # returns geometry of the shared portion of x and y
+# uc.ind_intersection
+# plot(uc.ind_intersection$geometry) # can clearly see that it is indeed ONLY the areas that overlap
+# # is there a difference in behavior when using one or two objects in the function?
+# bound_intersection <- st_intersection(test) # clearly, yes. there is a difference. 
+# # the bound_intersection has three observations instead of one. 
+# # it KEEPS the original features shapes!!!
+# plot(bound_intersection$geometry)
+# plot(bound_intersection["n.overlaps"]) # we get this column
+# plot(bound_intersection[1,]$geometry) # the first observation is all the indigenous with NO overlaps
+# plot(bound_intersection[2,]$geometry) # the second, is the one with overlap
+# plot(bound_intersection[3,]$geometry) # the third, is the part of UC with no overlaps
+# 
+# # TEST difference bt UCs and IND
+# uc.ind_diff <- st_difference(test_uc, test_ind)
+# uc.ind_diff # returns one feature - which is essentially feature 3 in the above example. the parts where they don't overlap! (the parts of the x that don't overlap with y)
+# 
+# # make what i wanted to make last week:
+# resolved_uc.ind <- bound_intersection
+# resolved_uc.ind[which(resolved_uc.ind$n.overlaps > 1),]$LTcateg <- "US"
+# plot(resolved_uc.ind["LTcateg"])
+# 
+# # eventually would need to code something smart to replace the category with the one it was originally
+# # OR - TO SIMPLIFY CODING, just do one rbound category at a time...
+# places.to.resolve <- resolved_uc.ind[which(resolved_uc.ind$n.overlaps > 1),]
+# 
+# for(i in 1:length(places.to.resolve))
+# {
+#   origin <- places.to.resolve[i,]$origins
+#   # get the category it should be replaced 
+#   names.origins <- grep(max(origin[[1]]), resolved_uc.ind$origins)
+# }
 
 
 # WHAT HAVE I LEARNED? ----
+# i need to go with st_intersection! do it phases so that it's easy to know what's waht.
 # PAS ARE SELF-OVERLAPPING. HOW DO I DEAL WITH THIs before dealing with the rest of overlaps??
-# there's a huge advantage to simply rbinding the data together
+# i should simply run an st_intersection on itself, and keep whatever doesn't overlap
+uc <- st_buffer(uc, dist=0)
+uc <- st_make_valid(uc)
+uc.overlaps <- st_intersection(uc) # error
+uc.intersects <- st_intersects(uc)
+myIntersects <- do.call(rbind, uc.intersects)
+d <- data.frame(matrix(unlist(uc.intersects), nrow = length(uc.intersects), byrow = TRUE))
+uc.intersects[which(lengths(uc.intersects)>1)]
+t <- uc[which(lengths(uc.intersects)>1),] # subset the ucs for which there was an intersection
+
+length(lengths(uc.intersects)>1)
+
+r[which(unlist(st_intersects(s, r)) == 1)]
+ints <- legnths(t3)
+mytest_nonoverlaps <- mytest %>% filter(ints == 1) 
 
 
+uc_strict <- uc[which(uc$LTcateg == "PI"),]
+uc_sustuse <- uc[which(uc$LTcateg == "US"),]
+test <- st_intersection(uc_strict)
+plot(test["n.overlaps"])
 
-# uc <- st_buffer(uc, dist=0)
+# 
 # ind <- st_buffer(ind, dist=0)
 # repeat fixing the above
 intersection_uc.ind  <-  # returns geometry of the shared portion of x and y
