@@ -11,8 +11,9 @@
 # libraries
 library(terra)
 library(sf)
+library(geos)
 library(dplyr)
-library(geobr)
+
 
 # load directories and other settings
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
@@ -22,7 +23,8 @@ setwd(paste0(wdmain,"/data/processed/"))
 
 # Overlaps of PAs/UCs and indigenous lands: ----
 
-uc <- st_read("landTenure_UC/landTenure_UCs_MMA_20231212_SAalbers.shp")
+uc <- st_read("landTenure_UC/landTenure_UCs_MMA_20231212_SAalbers.shp", stringsAsFactors = F, options = "ENCODING=latin1")
+# fix empty geometries
 uc <- st_transform(uc, my_crs_SAaea) # fix projection
 uc$subcateg <- uc$LTcateg # add/clear up this column
 uc$LTcateg <- uc$group
@@ -79,24 +81,50 @@ ind <- select(ind, c("LTcateg","id", "geometry"))
 
 # WHAT HAVE I LEARNED? ----
 # i need to go with st_intersection! do it phases so that it's easy to know what's waht.
+
 # PAS ARE SELF-OVERLAPPING. HOW DO I DEAL WITH THIs before dealing with the rest of overlaps??
 # i should simply run an st_intersection on itself, and keep whatever doesn't overlap
 uc <- st_buffer(uc, dist=0)
-uc <- st_make_valid(uc)
-uc.overlaps <- st_intersection(uc) # error
+uc <- lwgeom::st_make_valid(uc)
+unique(st_geometry_type(uc))
+uc <- sf::st_cast(uc, "MULTIPOLYGON")
+unique(st_is_valid(uc))
+unique(st_is_empty(uc))
+class(st_geometry_type(uc))
+
+# find bug
+uc2 <- uc[-1047,] #problem 1
+for(i in 1050:nrow(uc3))
+{
+  find.bug <- st_intersection(uc2[1:i,])
+  print(i)
+}
+uc3 <- uc2[-1054,]
+for(i in 1053:nrow(uc3))
+{
+  find.bug <- st_intersection(uc3[1:i,])
+  print(i)
+}
+
+uc.overlaps <- st_intersection(uc3)
+# fix the features that were problematic
+plot(uc[1047,]$geometry)
+p1 <- st_simplify(uc[1047,], dTolerance = 10)
+plot(p1$geometry)
+plot(st_combine(uc[1047,]))
+plot(uc2[1054,]$geometry)
+
+
 uc.intersects <- st_intersects(uc)
-myIntersects <- do.call(rbind, uc.intersects)
-d <- data.frame(matrix(unlist(uc.intersects), nrow = length(uc.intersects), byrow = TRUE))
-uc.intersects[which(lengths(uc.intersects)>1)]
+length(uc.intersects[which(lengths(uc.intersects)>1)])
+length(uc.intersects[which(lengths(uc.intersects)==1)])
 t <- uc[which(lengths(uc.intersects)>1),] # subset the ucs for which there was an intersection
-
 length(lengths(uc.intersects)>1)
-
 r[which(unlist(st_intersects(s, r)) == 1)]
 ints <- legnths(t3)
 mytest_nonoverlaps <- mytest %>% filter(ints == 1) 
 
-
+# split up into these parts
 uc_strict <- uc[which(uc$LTcateg == "PI"),]
 uc_sustuse <- uc[which(uc$LTcateg == "US"),]
 test <- st_intersection(uc_strict)
@@ -116,47 +144,6 @@ par(mfrow = c(1,2))
 plot(ind[1:100,])
 plot(st_union(st_combine(ind_no.overlaps)))
 # this is how far i got ###########
-
-
-
-
-
-# INTERSECTS
-
-# i = st_intersection(sf) # all intersections
-# plot(i["n.overlaps"])
-# summary(i$n.overlaps - lengths(i$origins))
-
-# try simply using an rbind
-# st_join doesn't work, it's not keeping all the observations and the math isn't mathing
-
-
-mytest <- rbind(uc,ind)
-t3 <- st_intersects(mytest)
-length(lengths(t3)) # THIS IS THE AMOUNTS OF INTERSECTS PER FEATURE - it also gives the specific feature it intersects with
-mytest$ints <- lengths(t3)
-plot(mytest[,"ints"]) # this is amount of intersections per feature
-mytest_nonoverlaps <- mytest %>% filter(ints == 1) # these are all the areas that didn't have overlaps
-
-# try the intersection with two objects
-ucind_intersection <- st_intersection(uc2,ind2)
-ind_nooverlaps <- st_difference(ind2[1:100,], ucind_intersection) # remove the overlapped parts from the indigenous data
-ind_nooverlaps # will be many features > need to group by id
-union_indnooverlap <- st_union(ind_nooverlaps)
-plot(unionindnooverlap)
-
-# erases y from x
-st_erase = function(x, y) st_difference(x, st_union(st_combine(y)))
-
-ind3 <- st_simplify(ind2)
-ucind_intersection2 <- st_simplify(ucind_intersection)
-testerase_ucind <- st_erase(ind3, ucind_intersection2)
-problem <- st_point(c(-740076.4338403953, 3669421.4526430634))
-findproblem <- st_within(problem, ind2)
-ucind_intersection[49,]
-# try again to get the "bites"
-mytest <- rbind(uc2,ind2)
-invalid <- st_is_valid(mytest[1200:1250,])
 
 # find bug
 for (i in 1250:nrow(mytest))

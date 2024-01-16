@@ -21,7 +21,7 @@
 # install.packages("tidyterra")
 # install.packages("rspatial/geodata")
 # install.packages("geobr")
-
+# install.packages("geos")
 
 wdmain <- "N:/eslu/priv/pacheco/whoOwnsBRBD/"
 
