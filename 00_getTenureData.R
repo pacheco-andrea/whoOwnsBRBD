@@ -55,23 +55,35 @@ for (i in 1:length(files))
 # additionally, i had to do some manual preprocessing in QGIS where i assigned the SAD 1969 and reprojected to WGS 84 in QGIS because .shp in mma website was missing the .prj file
 setwd(paste0(wdmain,"/data/raw/landTenure/UCs_MMA"))
 uc_mma <- st_read("ucs_mma_qgispreprocess.shp")
-plot(uc_mma$geom)
+# plot(uc_mma$geom)
 uc_mma <- st_transform(uc_mma, my_crs_SAaea)
 # manually remove big marine PAs to preemptively avoid extraction errors
 uc_mma <- uc_mma[-grep("TRINDADE", uc_mma$NOME_UC1),] 
 uc_mma <- uc_mma[-grep("20/03/2018", uc_mma$ATO_LEGA9),]
 uc_mma <- uc_mma[-grep("NORONHA", uc_mma$NOME_UC1),]
 uc_mma <- uc_mma[-grep("ATOL DAS ROCAS", uc_mma$NOME_UC1),]
-plot(uc_mma$geometry)
+# plot(uc_mma$geometry)
 uc_mma2 <- select(uc_mma, c("GRUPO4", "CATEGORI3", "ANO_CRIA6"))
 # should separately consider RPPN because these are private - but these are better sourced from ICMBIO
 # should NOT include APAs because they have no real protection
 uc_mma2 <- uc_mma2[-grep("^Reserva Particular do", uc_mma2$CATEGORI3),]
 uc_mma2 <- uc_mma2[-grep("rea de Prote", uc_mma2$CATEGORI3),]
-colnames(uc_mma2) <- c("group", "LTcateg", "yearCreat", "geometry")
+# colnames(uc_mma2) <- c("group", "LTcateg", "yearCreat", "geometry")
 # write out:
 setwd(paste0(wdmain,"/data/processed/landTenure_UC/"))
 st_write(uc_mma2, "landTenure_UCs_MMA_20231212_SAalbers.shp", append=FALSE)
+
+# # by the way, i run into the st_intersection GEOS exception issue even with the data downloaded from the geobr package 
+# # the two features with an issue are: code 267, and 964
+# # i'm keeping the following test as a reminder:
+# test <- read_conservation_units()
+# test <- test[which(test$category != "Reserva Particular do Patrimônio Natural"),]
+# nrow(test)
+# test2 <- test[-grep("267", test$code_conservation_unit),]
+# test2 <- test2[grep("964", test$code_conservation_unit),]
+# testintersection <- st_intersection(test2)
+
+
 
 # add RPPNs:
 setwd(paste0(wdmain,"/data/raw/landTenure/RPPN"))

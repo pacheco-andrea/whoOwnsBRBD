@@ -1,11 +1,14 @@
 #### Biodiversity and Tenure in Brazil ####
 
-# this script brings together the pre-processed tenure data 
-# and creates the outputs:
+# this script brings together the pre-processed tenure data and
+# 1) cleans and fixes self-overlaps of data
+# 2) identifies the overlappiing areas across datasets: NOTE, should do this one at a time in order to 
+# 3) creates the categories for these overlaps themselves
+
+# to create the outputs:
+
 # 1) one version with no overlaps for rasterizing (or rather, with overlaps as one category)
 # 2) one version with overlaps for extracting 
-
-# is this a script to deal with the overlaps overall?
 
 
 # libraries
@@ -13,6 +16,7 @@ library(terra)
 library(sf)
 library(geos)
 library(dplyr)
+library(ggplot2)
 
 
 # load directories and other settings
@@ -21,7 +25,7 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 # Land tenure data folders ----
 setwd(paste0(wdmain,"/data/processed/"))
 
-# Overlaps of PAs/UCs and indigenous lands: ----
+# A) Read and standardize PAs/UCs and indigenous lands: ----
 
 uc <- st_read("landTenure_UC/landTenure_UCs_MMA_20231212_SAalbers.shp", stringsAsFactors = F, options = "ENCODING=latin1")
 # fix empty geometries
@@ -38,7 +42,7 @@ ind$LTcateg <- "indigenous"
 ind$id <- paste0("IN-", 1:nrow(ind))
 ind <- select(ind, c("LTcateg","id", "geometry"))
 
-# TEST intersection of UCs and IND----
+# A.1) SMALL TEST intersection of UCs and IND to figure out what needs to be done ----
 # test_uc <- uc[136,] #136, 246
 # test_ind <- ind[484,]
 # test <- rbind(test_ind, test_uc)
@@ -79,63 +83,49 @@ ind <- select(ind, c("LTcateg","id", "geometry"))
 # }
 
 
-# WHAT HAVE I LEARNED? ----
-# i need to go with st_intersection! do it phases so that it's easy to know what's waht.
+# A.2) Clean existing self-overlaps within UCs datasets ----
 
-# PAS ARE SELF-OVERLAPPING. HOW DO I DEAL WITH THIs before dealing with the rest of overlaps??
-# i should simply run an st_intersection on itself, and keep whatever doesn't overlap
-uc <- st_buffer(uc, dist=0)
-uc <- lwgeom::st_make_valid(uc)
-unique(st_geometry_type(uc))
-uc <- sf::st_cast(uc, "MULTIPOLYGON")
-unique(st_is_valid(uc))
-unique(st_is_empty(uc))
-class(st_geometry_type(uc))
+# first fix two features which prevented running st_intersection
+ucp1 <- uc[1047,]
+ucp2 <- uc[1055,]
+uc <- uc[-c(1047,1055),] # remove problem polygons from entire dataset
+ucp1 <- st_simplify(ucp1, preserveTopology = T, dTolerance = 100) # fix the polygons by simplifying
+ucp2 <- st_simplify(ucp2, preserveTopology = T, dTolerance = 100) # fix the polygons by simplifying
+uc <- rbind(uc, ucp1, ucp2) # add back to the original data
+# identify the self-overlaps of UCs
+uc.overlaps <- st_intersection(uc)
+plot(uc.overlaps["n.overlaps"])
+# make datasets that don't overlap, one for each category of PA
+UCstrict_no.overlaps <- uc.overlaps[which(uc.overlaps$LTcateg == "PI" & uc.overlaps$n.overlaps == 1),]
+UCsustuse_no.overlaps <- uc.overlaps[which(uc.overlaps$LTcateg == "US" & uc.overlaps$n.overlaps == 1),]
+nrow(rbind(UCstrict_no.overlaps,UCsustuse_no.overlaps))
+length(unique(uc$id)) == length(unique(uc.overlaps$id)) # NOTE: we lose 2 areas that were completely within others
 
-# find bug
-uc2 <- uc[-1047,] #problem 1
-for(i in 1050:nrow(uc3))
+# A.3 identify the overlaps of each of these with indigenous lands ----
+
+# are there self-intersections of indigenous?
+ind.overlaps <- st_intersection(ind)
+# find issues in the indigenous lands too
+indp1 <- ind[109,]
+ind <- ind[-109, ]
+
+for (i in 1:nrow(ind))
 {
-  find.bug <- st_intersection(uc2[1:i,])
+  intersection_issue <- st_intersection(ind[1:i,])
   print(i)
 }
-uc3 <- uc2[-1054,]
-for(i in 1053:nrow(uc3))
-{
-  find.bug <- st_intersection(uc3[1:i,])
-  print(i)
-}
 
-uc.overlaps <- st_intersection(uc3)
-# fix the features that were problematic
-plot(uc[1047,]$geometry)
-p1 <- st_simplify(uc[1047,], dTolerance = 10)
-plot(p1$geometry)
-plot(st_combine(uc[1047,]))
-plot(uc2[1054,]$geometry)
+ind.ucstrict_overlaps <- st_intersection(rbind(UCstrict_no.overlaps[,c("LTcateg", "id", "geometry")], ind))
 
 
-uc.intersects <- st_intersects(uc)
-length(uc.intersects[which(lengths(uc.intersects)>1)])
-length(uc.intersects[which(lengths(uc.intersects)==1)])
-t <- uc[which(lengths(uc.intersects)>1),] # subset the ucs for which there was an intersection
-length(lengths(uc.intersects)>1)
-r[which(unlist(st_intersects(s, r)) == 1)]
-ints <- legnths(t3)
-mytest_nonoverlaps <- mytest %>% filter(ints == 1) 
+ind.ucstrict_overlaps <- st_intersection(rbind(UCstrict_no.overlaps[,c("LTcateg", "id", "geometry")], ind))
 
-# split up into these parts
-uc_strict <- uc[which(uc$LTcateg == "PI"),]
-uc_sustuse <- uc[which(uc$LTcateg == "US"),]
-test <- st_intersection(uc_strict)
-plot(test["n.overlaps"])
 
-# 
-# ind <- st_buffer(ind, dist=0)
-# repeat fixing the above
-intersection_uc.ind  <-  # returns geometry of the shared portion of x and y
-plot(intersection_uc.ind$geometry)
-plot()
+
+
+
+
+
 # try to remove the parts that overlapped from the original indigenous
 ind_no.overlaps <- st_difference(ind[1:100,], intersection_uc.ind) # note st_diff is computationally expensive
 plot(st_union(st_combine(ind_no.overlaps)))
