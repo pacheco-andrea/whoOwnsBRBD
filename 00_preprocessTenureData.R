@@ -94,112 +94,88 @@ ucp2 <- st_simplify(ucp2, preserveTopology = T, dTolerance = 100) # fix the poly
 uc <- rbind(uc, ucp1, ucp2) # add back to the original data
 # identify the self-overlaps of UCs
 uc.overlaps <- st_intersection(uc)
-plot(uc.overlaps["n.overlaps"])
+# plot(uc.overlaps["n.overlaps"])
 # make datasets that don't overlap, one for each category of PA
 UCstrict_no.overlaps <- uc.overlaps[which(uc.overlaps$LTcateg == "PI" & uc.overlaps$n.overlaps == 1),]
 UCsustuse_no.overlaps <- uc.overlaps[which(uc.overlaps$LTcateg == "US" & uc.overlaps$n.overlaps == 1),]
 nrow(rbind(UCstrict_no.overlaps,UCsustuse_no.overlaps))
 length(unique(uc$id)) == length(unique(uc.overlaps$id)) # NOTE: we lose 2 areas that were completely within others
 
-# A.3 identify the overlaps of each of these with indigenous lands ----
+# A.3) Clean self-overlaps within indigenous lands ----
 
-# are there self-intersections of indigenous?
-ind.overlaps <- st_intersection(ind)
-# find issues in the indigenous lands too
+# clean self-overlapping inds
+# ind.overlaps <- st_intersection(ind)
+# # find issues in the indigenous lands too
+# for (i in 1:nrow(ind))
+# {
+#   intersection_issue <- st_intersection(ind[1:i,])
+#   print(i)
+# }
 indp1 <- ind[109,]
 ind <- ind[-109, ]
+indp1 <- st_simplify(indp1, preserveTopology = T, dTolerance = 100)
+ind.overlaps <- st_intersection(rbind(ind, indp1))
+plot(ind.overlaps["n.overlaps"])
+ind.clean <- ind.overlaps[which(ind.overlaps$n.overlaps == 1), c("LTcateg", "id", "geometry")]
 
-for (i in 1:nrow(ind))
-{
-  intersection_issue <- st_intersection(ind[1:i,])
-  print(i)
-}
-
-ind.ucstrict_overlaps <- st_intersection(rbind(UCstrict_no.overlaps[,c("LTcateg", "id", "geometry")], ind))
-
-
-ind.ucstrict_overlaps <- st_intersection(rbind(UCstrict_no.overlaps[,c("LTcateg", "id", "geometry")], ind))
-
-
-
-
-
-
-
-# try to remove the parts that overlapped from the original indigenous
-ind_no.overlaps <- st_difference(ind[1:100,], intersection_uc.ind) # note st_diff is computationally expensive
-plot(st_union(st_combine(ind_no.overlaps)))
-
-par(mfrow = c(1,2))
-plot(ind[1:100,])
-plot(st_union(st_combine(ind_no.overlaps)))
-# this is how far i got ###########
-
-# find bug
-for (i in 1250:nrow(mytest))
-{
-  non_overlaps <- st_intersection(mytest[1249:i,])
-  print(i)
-}
-
-non_overlaps2 <- st_intersection(mytest[-1226,])
-
-non_overlaps2 <- non_overlaps %>% filter()
-filter(n.overlaps == 1)
-plot(non_overlaps["polygon"])
-
-# what's the difference with doing it with the two shapes separately?
-t4 <- st_intersects(uc, ind)
-str(t4)
-# the difference is the number of observations i get - so for the intersects uc+ind,
-# i get: per feature of uc, the number from ind that intersects
-
-# should i just assign an ID, do the intersection, subtract it from the original, and then carry on?
-# no because that's not exactly it
-# it's more that i should USE the intersection to eat OFF of the indigenous
-
-t5 <- st_intersects(uc[20,], ind) # smaller example of the first intersection i could find of a UC
-tint <- st_intersection(uc[20,], ind) # do the intersection
-ind_eaten <- st_difference(ind, tint) # geometry from x that does not intersect with y. eat off the intersection from the original (what shouldn't be there)
-# test if the intersections remain in the one of interest
-t6 <- st_intersects(uc[20,], ind_eaten)
-lengths(t6) # more intersections AFTER?!?
-tint2 <- st_intersection(uc[20,], ind_eaten)
-plot(tint2$geometry)
-eat_test <- st_difference(ind, t4)
-
-# and THEN use intersects to quantify the amount of overlaps of other categories???
-length(t5)
-
-# shouldn't it actually be:
-t5 <- st_difference(ind2[1:100,], uc2[1:100,], by_feature = TRUE) # EACH INDIVIDUAL INTERSECTION BECOMES AN OBSERVATION - WHICH IS WHY KEEPING AN ID WOULD COME IN HANDY
-t6 <- st_difference(ind2[1:100,], uc2[1:100,], by_feature = FALSE)
-# I DONT REALLY NEED THIS FOR THIS PARTICULAR CASE OF IND + UCS, BUT LATER ON, I WILL TO FIND OUT HOW MUCH AREA IS OVERLAPPINGPER EACH PROPERTY
-# I WOULD HAVE TO GROUP THE ST_AREA COUNTS PER GROUP OF SPECIFIC ID
-# check that worked
-back <- t5 %>% group_by(id.1)
-
-back <- t5 %>% mutate(feature_group = rep(1:nrow(ind2[1:100,]), times = sapply(geometry, function(x) length(x))))
+# A.3.1) Find how strict ucs overlap with indigenous ----
+ind.strict <- rbind(UCstrict_no.overlaps[,c("LTcateg", "id", "geometry")], ind.clean)
+# only run in order to debug this intersection 
+# for (i in 1285:nrow(rbind(ind.strict2, ind.solved)))
+# {
+#   intersection_issue <- st_intersection(rbind(ind.strict2, ind.solved[2:4,])[1:i,])
+#   print(i)
+# }
+ind.problems <- ind.strict[which(ind.strict$id == "IN-183" | ind.strict$id == "IN-294" | ind.strict$id == "IN-295" | ind.strict$id == "IN-424"),]
+ind.solved <- st_simplify(ind.problems, preserveTopology = T, dTolerance = 1000)
+ind.solved <- st_collection_extract(ind.solved, "POLYGON") # fix the linestring geometries in IN-294
+ind.strict2 <- ind.strict[which(ind.strict$id != "IN-183" & ind.strict$id != "IN-294" & ind.strict$id != "IN-295" & ind.strict$id != "IN-424"),]
+# how sustainable use ucs overlap with indigenous
+ind.ucstrict_overlaps <- st_intersection(rbind(ind.strict2, ind.solved)) # ok although this didn't work, i manually checked whether these overlapped with UCs, and no
+# so for now my solution is to simply: 
+ind.ucstrict_overlaps <- st_intersection(ind.strict2) # run the intersection for this section
+plot(ind.ucstrict_overlaps["n.overlaps"])
+# create separate categories and write everything out
+# PI UCs that don't overlap
+completelyClean_UCstrict <- ind.ucstrict_overlaps[which(ind.ucstrict_overlaps$n.overlaps == 1 & ind.ucstrict_overlaps$LTcateg == "PI"),]
+setwd(paste0(wdmain, "data/processed/LT_cleanOverlaps"))
+# st_write(completelyClean_UCstrict[,1:2], "PA_strict.shp", append = F)
 
 
-uc[lengths(testintersection)==0,] # this keeps everythign where there's no intersection, correct?
 
-# CHECK THIS: https://stackoverflow.com/questions/63024545/r-sf-find-polygons-outside-of-multiple-overlapping-polygons
 
-# overlap - should quantify amount of overlap
-induc_overlap <- st_overlaps(ind, uc) # ids if x and y share space, are of the same dimension, but are not completely contained by each other
+# indigenous that don't overlap
+ind.ucstrict_overlaps[which(ind.ucstrict_overlaps$n.overlaps == 1 & ind.ucstrict_overlaps$LTcateg == "IN"),]
+setwd(paste0(wdmain, "data/processed/LT_cleanOverlaps"))
+# add the ind.solved to the ind that don't overlap
 
-# the easiest way I can think of prioritizing is 
-# 1. create indigenous that doesn't touch ucs
-ind_difference <- st_difference(ind, uc)
-setwd(paste0(wdmain,"/data/processed/tests/"))
-st_write(ind_difference, "testdifference_ind-uc.shp")
 
-test_difference <- st_intersection(ind_difference, uc)
+# write the overlaps:
+ind.ucstrict_only.overlaps <- ind.ucstrict_overlaps[which(ind.ucstrict_overlaps$n.overlaps > 1),]
+setwd(paste0(wdmain, "data/processed/LT_cleanOverlaps"))
+st_write(ind.ucstrict_no.overlaps, "UCstrict-indigenous_no-overlap.shp")
+
+
+
+
+# A.3.2 Find how sustainable use overlap with indigenous ----
+ind.sust <- rbind(UCsustuse_no.overlaps[,c("LTcateg", "id", "geometry")], ind.clean)
+ind.sust_overlaps <- st_intersection(ind.sust)
+# for (i in 737:nrow(ind.sust))
+# {
+#   intersection_issue <- st_intersection(ind.sust[1:i,])
+#   print(i)
+# }
+more.problems <- ind.sust[which(ind.sust$id == "IN-314"),]
+ind.sust <- ind.sust[which(ind.sust$id != "IN-314" & ind.sust$id != "UC-1104" & ind.sust$id != "IN-295" & ind.sust$id != "IN-424"),]
+
+setwd(paste0(wdmain, "data/processed/LT_cleanOverlaps"))
 
 # ----
-# ALL OF THIS FOR THE ONE WALL-TO-WALL with the minimum necessary of overlaps (as this will become one category)                       
-# i need to come up with a series of rules
+# FOR THE ONE WALL-TO-WALL with the minimum necessary of overlaps (as this will become one category)
+# i could st_union/combine each category and rasterize that for the map
+
+# a series of rules in order to interpret what the overlaps mean
 # if UCs and IND overlap: should resolve, prioritize UCs
 # if UCs and IRU-AST-PCT overlap: should note these overlaps as private on public (but only keep IRU and AST, and if AST then it's public on public)
 # if UCs and RPPN overlap
