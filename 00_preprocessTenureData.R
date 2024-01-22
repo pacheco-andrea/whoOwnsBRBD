@@ -135,41 +135,67 @@ ind.ucstrict_overlaps <- st_intersection(rbind(ind.strict2, ind.solved)) # ok al
 # so for now my solution is to simply: 
 ind.ucstrict_overlaps <- st_intersection(ind.strict2) # run the intersection for this section
 plot(ind.ucstrict_overlaps["n.overlaps"])
-# create separate categories and write everything out
+
+# create separate categories and write  out
 # PI UCs that don't overlap
-completelyClean_UCstrict <- ind.ucstrict_overlaps[which(ind.ucstrict_overlaps$n.overlaps == 1 & ind.ucstrict_overlaps$LTcateg == "PI"),]
-setwd(paste0(wdmain, "data/processed/LT_cleanOverlaps"))
-# st_write(completelyClean_UCstrict[,1:2], "PA_strict.shp", append = F)
-
-
-
-
-# indigenous that don't overlap
-ind.ucstrict_overlaps[which(ind.ucstrict_overlaps$n.overlaps == 1 & ind.ucstrict_overlaps$LTcateg == "IN"),]
-setwd(paste0(wdmain, "data/processed/LT_cleanOverlaps"))
-# add the ind.solved to the ind that don't overlap
-
-
-# write the overlaps:
-ind.ucstrict_only.overlaps <- ind.ucstrict_overlaps[which(ind.ucstrict_overlaps$n.overlaps > 1),]
-setwd(paste0(wdmain, "data/processed/LT_cleanOverlaps"))
-st_write(ind.ucstrict_no.overlaps, "UCstrict-indigenous_no-overlap.shp")
-
-
+UCstrict_CLEAN <- ind.ucstrict_overlaps[which(ind.ucstrict_overlaps$n.overlaps == 1 & ind.ucstrict_overlaps$LTcateg == "PI"),]
+polys <- grep("GEOMETRY", (st_geometry_type(UCstrict_CLEAN)))
+UCstrict_CLEAN[polys,] # these seem to be the linestring geometries
+UCstrict_CLEAN <- st_collection_extract(UCstrict_CLEAN, "POLYGON") # get rid of resulting linestring geometries
+# but now, 
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
+st_write(UCstrict_CLEAN[-polys,1:2], "PA_strict.shp", append = F) # clearly, those linestring geometries were the issues
+UCstrict_CLEAN.fix <- st_collection_extract(UCstrict_CLEAN[-polys,])
 
 
 # A.3.2 Find how sustainable use overlap with indigenous ----
 ind.sust <- rbind(UCsustuse_no.overlaps[,c("LTcateg", "id", "geometry")], ind.clean)
-ind.sust_overlaps <- st_intersection(ind.sust)
+# ind.sust_overlaps <- st_intersection(ind.sust)
+# debug
 # for (i in 737:nrow(ind.sust))
 # {
 #   intersection_issue <- st_intersection(ind.sust[1:i,])
 #   print(i)
 # }
-more.problems <- ind.sust[which(ind.sust$id == "IN-314"),]
+more.problems <- ind.sust[which(ind.sust$id == "IN-314" | ind.sust$id == "UC-1104" | ind.sust$id == "IN-295" | ind.sust$id == "IN-424"),]
 ind.sust <- ind.sust[which(ind.sust$id != "IN-314" & ind.sust$id != "UC-1104" & ind.sust$id != "IN-295" & ind.sust$id != "IN-424"),]
+# ind.solved2 <- st_simplify(more.problems, preserveTopology = T, dTolerance = 1000)
+ind.solved2 <- st_collection_extract(more.problems, "POLYGON")
+ind.solved2 <- st_as_sf(ind.solved2 %>% group_by(id) %>% summarise(geometry = st_union(geometry)) %>% ungroup())
+st_geometry_type(ind.solved2)
 
-setwd(paste0(wdmain, "data/processed/LT_cleanOverlaps"))
+st_join(ind.solved2, more.problems, by = "id", left = T)
+
+ind.sust_overlaps <- st_intersection(rbind(ind.sust, ind.solved2))
+plot(ind.sust_overlaps["n.overlaps"])
+
+# separate categories
+ind.sust_CLEAN <- ind.sust_overlaps[which(ind.sust_overlaps$n.overlaps == 1 & ind.sust_overlaps$LTcateg == "US"),]
+ind.sust_CLEAN <- st_collection_extract(ind.sust_CLEAN, "POLYGON")
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
+st_write(ind.sust_CLEAN[,1:2], "PA_sustuse", append = F)
+
+
+
+
+
+
+# indigenous that don't overlap
+ind_CLEAN1 <- ind.ucstrict_overlaps[which(ind.ucstrict_overlaps$n.overlaps == 1 & ind.ucstrict_overlaps$LTcateg == "IN"),]
+ind_CLEAN2 <- ind.solved
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
+# add the ind.solved to the ind that don't overlap
+
+
+# the overlaps:
+ind.ucstrict_only.overlaps <- ind.ucstrict_overlaps[which(ind.ucstrict_overlaps$n.overlaps > 1),]
+ind.ucstrict_only.overlaps <- st_collection_extract(ind.ucstrict_only.overlaps, "POLYGON")
+setwd(paste0(wdmain, "data/processed/LT_overlaps"))
+st_write(ind.ucstrict_only.overlaps[,1:3], "PA_strict-indigenous.shp", append = F)
+
+
+
+
 
 # ----
 # FOR THE ONE WALL-TO-WALL with the minimum necessary of overlaps (as this will become one category)
