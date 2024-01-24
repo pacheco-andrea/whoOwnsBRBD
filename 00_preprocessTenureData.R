@@ -44,57 +44,13 @@ ind$id <- paste0("IN-", 1:nrow(ind))
 ind <- select(ind, c("LTcateg","id", "geometry"))
 
 
-# SMALL TEST intersection of UCs and IND to figure out what needs to be done ----
-# test_uc <- uc[136,] #136, 246
-# test_ind <- ind[484,]
-# test <- rbind(test_ind, test_uc)
-# plot(test["LTcateg"])
-# 
-# uc.ind_intersects <- st_intersects(test_uc, test_ind) # one intersection = intersects with one other feature (not every single line)
-# uc.ind_intersection <- st_intersection(test_uc, test_ind) # returns geometry of the shared portion of x and y
-# uc.ind_intersection
-# plot(uc.ind_intersection$geometry) # can clearly see that it is indeed ONLY the areas that overlap
-# # is there a difference in behavior when using one or two objects in the function?
-# bound_intersection <- st_intersection(test) # clearly, yes. there is a difference. 
-# # the bound_intersection has three observations instead of one. 
-# # it KEEPS the original features shapes!!!
-# plot(bound_intersection$geometry)
-# plot(bound_intersection["n.overlaps"]) # we get this column
-# plot(bound_intersection[1,]$geometry) # the first observation is all the indigenous with NO overlaps
-# plot(bound_intersection[2,]$geometry) # the second, is the one with overlap
-# plot(bound_intersection[3,]$geometry) # the third, is the part of UC with no overlaps
-# 
-# # TEST difference bt UCs and IND
-# uc.ind_diff <- st_difference(test_uc, test_ind)
-# uc.ind_diff # returns one feature - which is essentially feature 3 in the above example. the parts where they don't overlap! (the parts of the x that don't overlap with y)
-# 
-# # make what i wanted to make last week:
-# resolved_uc.ind <- bound_intersection
-# resolved_uc.ind[which(resolved_uc.ind$n.overlaps > 1),]$LTcateg <- "US"
-# plot(resolved_uc.ind["LTcateg"])
-# 
-# # eventually would need to code something smart to replace the category with the one it was originally
-# # OR - TO SIMPLIFY CODING, just do one rbound category at a time...
-# places.to.resolve <- resolved_uc.ind[which(resolved_uc.ind$n.overlaps > 1),]
-# 
-# for(i in 1:length(places.to.resolve))
-# {
-#   origin <- places.to.resolve[i,]$origins
-#   # get the category it should be replaced 
-#   names.origins <- grep(max(origin[[1]]), resolved_uc.ind$origins)
-# }
-
-
-
-
-
 # B) Cleaning ----
 # B.1) Clean self-overlaps within UCs datasets ----
 
 # first fix two features which prevented running st_intersection
 uc[c(1047,1055),]
-uc.p <- uc[which(uc$id == "UC-1048" | uc$id == "UC-1057"),]
-uc <- uc[which(uc$id != "UC-1048" | uc$id != "UC-1057"),,] # remove problem polygons from entire dataset
+uc.p <- uc[which(uc$id == "UC-1047" | uc$id == "UC-1055"),]
+uc <- uc[which(uc$id != "UC-1047" & uc$id != "UC-1055"),,] # remove problem polygons from entire dataset
 uc.p <- st_simplify(uc.p, preserveTopology = T, dTolerance = 100) # fix the polygons by simplifying
 uc <- rbind(uc, uc.p) # add back to the original data
 
@@ -177,7 +133,7 @@ UCstrict_CLEAN <- rbind(UCstrict_CLEAN, polys.fixed) # bind them back in
 # write out strictly protected areas that don't overlap with indigenous
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
 st_write(UCstrict_CLEAN[,1:2], "PA_strict.shp", append = F) 
-plot(UCstrict_CLEAN$geometry)
+# plot(UCstrict_CLEAN$geometry)
 
 
 # C.3) Sustainable use x indigenous ----
@@ -263,4 +219,12 @@ st_write(indigenous_CLEAN[,1:2], "indigenous.shp", append = F)
 plot(indigenous_CLEAN[which(indigenous_CLEAN$id == "IN-484"),])
 
 overall.overlaps[grep("UC-136", overall.overlaps$id),]
+plot(overall.overlaps[grep("UC-136", overall.overlaps$id),]$geometry)
 
+# i think what's happening is that when i bind the two non-overlaps for the clean indigenous,
+# and then i ask it to keep the larger one...?
+# because what's happening is that the indigenous 484 isn't being "bitten off" in the way that it should
+# only certain parts were bitten off?
+# so need to pick up here
+plot(i1[grep("484", i1$id),]$geometry)
+plot(i2[grep("484", i2$id),]$geometry) # i thiiiink it needs to be this one? or both of them together? what a mess. 

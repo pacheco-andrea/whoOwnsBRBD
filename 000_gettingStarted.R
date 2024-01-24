@@ -99,3 +99,51 @@ mask <- r*0
 # r <- rast(v, ncols=75, nrows=100)
 # z <- rasterize(v, r, "NAME_2")
 # plot(z)
+
+# SMALL TEST intersection of UCs and IND to figure out what needs to be done ----
+
+# # Land tenure data folders ----
+# setwd(paste0(wdmain,"/data/processed/"))
+# 
+# # A) Read and standardize PAs/UCs and indigenous lands: ----
+# 
+# uc <- st_read("landTenure_UC/landTenure_UCs_MMA_20231212_SAalbers.shp", stringsAsFactors = F, options = "ENCODING=latin1")
+# # fix empty geometries
+# uc <- st_transform(uc, my_crs_SAaea) # fix projection
+# uc$subcateg <- uc$LTcateg # add/clear up this column
+# uc$LTcateg <- uc$group
+# uc$id <- paste0("UC-", 1:nrow(uc))
+# uc <- select(uc, c("LTcateg", "id", "geometry"))
+# 
+# 
+# ind <- st_read("landTenure_IND/landTenure_indigenous_20231212_SAalbers.shp")
+# ind <- st_transform(ind, my_crs_SAaea)
+# ind$LTcateg <- "indigenous"
+# ind$id <- paste0("IN-", 1:nrow(ind))
+# ind <- select(ind, c("LTcateg","id", "geometry"))
+
+
+# test_uc <- uc[136,] #136, 246
+# test_ind <- ind[484,]
+# test <- rbind(test_ind, test_uc)
+# plot(test["LTcateg"])
+# 
+# uc.ind_intersects <- st_intersects(test_uc, test_ind) # one intersection = intersects with one other feature (not every single line)
+# uc.ind_intersection <- st_intersection(test_uc, test_ind) # returns geometry of the shared portion of x and y
+# uc.ind_intersection
+# plot(uc.ind_intersection$geometry) # can clearly see that it is indeed ONLY the areas that overlap
+# # is there a difference in behavior when using one or two objects in the function?
+# bound_intersection <- st_intersection(test) # clearly, yes. there is a difference. 
+# # the bound_intersection has three observations instead of one. 
+# # it KEEPS the original features shapes!!!
+# plot(bound_intersection$geometry)
+# plot(bound_intersection["n.overlaps"]) # we get this column
+# plot(bound_intersection[1,]$geometry) # the first observation is all the indigenous with NO overlaps
+# plot(bound_intersection[2,]$geometry) # the second, is the one with overlap
+# plot(bound_intersection[3,]$geometry) # the third, is the part of UC with no overlaps
+# 
+# # TEST difference bt UCs and IND
+# uc.ind_diff <- st_difference(test_uc, test_ind)
+# uc.ind_diff # returns one feature - which is essentially feature 3 in the above example. the parts where they don't overlap! 
+#  (the parts of the x that don't overlap with y)
+
