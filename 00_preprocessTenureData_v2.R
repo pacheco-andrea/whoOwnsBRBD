@@ -57,12 +57,13 @@ uc <- rbind(uc, uc.p) # add back to the original data
 # identify the self-overlaps of UCs
 uc.overlaps <- st_intersection(uc)
 # plot(uc.overlaps["n.overlaps"])
+uc_no.overlaps <- uc.overlaps[which(uc.overlaps$n.overlaps == 1), c("LTcateg", "id", "geometry")]
 
-# make datasets that don't overlap, one for each category of PA
-UCstrict_no.overlaps <- uc.overlaps[which(uc.overlaps$LTcateg == "PI" & uc.overlaps$n.overlaps == 1),]
-UCsustuse_no.overlaps <- uc.overlaps[which(uc.overlaps$LTcateg == "US" & uc.overlaps$n.overlaps == 1),]
-nrow(rbind(UCstrict_no.overlaps,UCsustuse_no.overlaps))
-length(unique(uc$id)) == length(unique(uc.overlaps$id)) # NOTE: we lose 2 areas that were completely within others
+# # make datasets that don't overlap, one for each category of PA
+# UCstrict_no.overlaps <- uc.overlaps[which(uc.overlaps$LTcateg == "PI" & uc.overlaps$n.overlaps == 1),]
+# UCsustuse_no.overlaps <- uc.overlaps[which(uc.overlaps$LTcateg == "US" & uc.overlaps$n.overlaps == 1),]
+# nrow(rbind(UCstrict_no.overlaps,UCsustuse_no.overlaps))
+# length(unique(uc$id)) == length(unique(uc.overlaps$id)) # NOTE: we lose 2 areas that were completely within others
 
 # B.2) Clean self-overlaps within indigenous lands ----
 
@@ -85,7 +86,7 @@ ind_no.overlaps <- ind.overlaps[which(ind.overlaps$n.overlaps == 1), c("LTcateg"
 # C.1) Overall overlaps between UCs and indigenous: ----
 
 # using the UCs and indigenous that have been pre-cleaned from self-intersections, just in case
-overall.overlaps <- st_intersection(uc.overlaps[which(uc.overlaps$n.overlaps == 1),1:2], ind_no.overlaps)
+overall.overlaps <- st_intersection(uc_no.overlaps, ind_no.overlaps)
 unique(st_geometry_type(overall.overlaps))
 polys <- overall.overlaps[grep("GEOMETRY", (st_geometry_type(overall.overlaps))),] # identify these linestrings
 polys.extract <- st_collection_extract(polys, "POLYGON") # fix 
@@ -97,7 +98,19 @@ overall.overlaps <- rbind(overall.overlaps, polys.fixed) # bind them back in
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
 # st_write(overall.overlaps, "PAs-indigenous.shp", append = F)
 
+# C.ALTERNATIVE VERSION: find all no.overlaps at the same time ----
+uc_x_ind <- rbind(uc_no.overlaps, ind_no.overlaps)
+# there are always geometry errors with these, so they need to be handled separately
+uc_x_ind2 <- uc_x_ind[which(uc_x_ind$id != "IN-183" & uc_x_ind$id != "IN-294" & uc_x_ind$id != "IN-295" & uc_x_ind$id != "IN-424" &
+                            uc_x_ind$id != "IN-314", uc_x_ind$id != "UC-1104"),]
+# only run in order to debug this intersection 
+for (i in 1:nrow(uc_x_ind2))
+{
+  intersection_issue <- st_intersection(uc_x_ind2[1:i,])
+  print(i)
+}
 
+uc_x_ind_overlaps <- st_intersection(uc_x_ind2)
 
 # C.2) Strictly protected x  indigenous ----
 ind_x_strict <- rbind(UCstrict_no.overlaps[,c("LTcateg", "id", "geometry")], ind_no.overlaps)
