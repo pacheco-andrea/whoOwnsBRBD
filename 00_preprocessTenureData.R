@@ -2,10 +2,10 @@
 
 # this script brings together the pre-processed tenure data and
 # 1) cleans and fixes self-overlaps of data
-# 2) identifies the overlappiing areas across datasets: NOTE, should do this one at a time in order to 
+# 2) identifies the overlapping areas across datasets: NOTE, should do this one at a time in order to keep track of overlaps
 # 3) creates the categories for these overlaps themselves
 
-# to create the outputs:
+# this creates the outputs:
 
 # 1) one version with no overlaps for rasterizing (or rather, with overlaps as one category)
 # 2) one version with overlaps for extracting 
@@ -95,7 +95,7 @@ overall.overlaps <- overall.overlaps[-grep("GEOMETRY", (st_geometry_type(overall
 overall.overlaps <- rbind(overall.overlaps, polys.fixed) # bind them back in
 
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
-st_write(overall.overlaps, "PAs-indigenous.shp", append = F)
+# st_write(overall.overlaps, "PAs-indigenous.shp", append = F)
 
 
 
@@ -113,7 +113,7 @@ ind.solved <- st_collection_extract(ind.solved, "POLYGON") # fix the linestring 
 # (note, don't need to aggregate by id here, as resuted in same amount of obs)
 ind_x_strict2 <- ind_x_strict[which(ind_x_strict$id != "IN-183" & ind_x_strict$id != "IN-294" & ind_x_strict$id != "IN-295" & ind_x_strict$id != "IN-424"),]
 # how sustainable use ucs overlap with indigenous
-ind.ucstrict_overlaps <- st_intersection(rbind(ind_x_strict2, ind.solved)) # ok although this didn't work, i manually checked whether these overlapped with UCs, and no
+# ind.ucstrict_overlaps <- st_intersection(rbind(ind_x_strict2, ind.solved)) # ok although this didn't work, i manually checked whether these overlapped with UCs, and no
 # so for now my solution is to simply run the intersection for this section
 ind.ucstrict_overlaps <- st_intersection(ind_x_strict2) 
 # plot(ind.ucstrict_overlaps["n.overlaps"])
@@ -132,7 +132,7 @@ UCstrict_CLEAN <- rbind(UCstrict_CLEAN, polys.fixed) # bind them back in
 
 # write out strictly protected areas that don't overlap with indigenous
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
-st_write(UCstrict_CLEAN[,1:2], "PA_strict.shp", append = F) 
+# st_write(UCstrict_CLEAN[,1:2], "PA_strict.shp", append = F) 
 # plot(UCstrict_CLEAN$geometry)
 
 
@@ -152,7 +152,7 @@ ind.solved2 <- st_collection_extract(ind.solved2, "POLYGON")
 ind.solved2 <- ind.solved2 %>% group_by(id) %>% summarise(geometry = st_union(geometry)) %>% ungroup() %>% st_as_sf() 
 ind.solved2 <- st_as_sf(inner_join(st_drop_geometry(more.problems), ind.solved2, by = "id")) 
 
-ind_x_sust_overlaps <- st_intersection(rbind(ind_x_sust, ind.solved2)) # also isn't working, so i'll have to manually check 
+# ind_x_sust_overlaps <- st_intersection(rbind(ind_x_sust, ind.solved2)) # also isn't working, so i'll have to manually check 
 # plot(more.problems["id"]) # no overlaps, except for ID-314 with an APA (which i'm disregarding anyway)
 ind_x_sust_overlaps <- st_intersection(ind_x_sust) # run for indigenous-sustainable use overlaps
 # plot(ind_x_sust_overlaps["n.overlaps"])
@@ -170,7 +170,7 @@ ind_x_sust_CLEAN <- rbind(ind_x_sust_CLEAN, polys.fixed) # bind them back in
 
 # write out sustainable use areas that don't overlap with indigenous:
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
-st_write(ind_x_sust_CLEAN[,1:2], "PA_sustuse.shp", append = F)
+# st_write(ind_x_sust_CLEAN[,1:2], "PA_sustuse.shp", append = F)
 
 
 
@@ -183,8 +183,12 @@ indigenous_CLEAN <- rbind(i1,i2)
 length(unique(indigenous_CLEAN$id))
 nrow(indigenous_CLEAN)
 # make sure i keep the observation which was "eaten off" resulting from the st_intersection
-# which would have made a smaller in area observation
+# which initially i thought would have made a smaller in area observation, but not necessarily
+# as i found out from plotting it later IND-484
 indigenous_CLEAN$area <- st_area(indigenous_CLEAN)
+test <- indigenous_CLEAN %>% arrange(area) %>% group_by(id)
+plot(test[which(test$id == "IN-484"),][1,]$geometry)
+plot(test[which(test$id == "IN-484"),][2,]$geometry)
 indigenous_CLEAN <- st_as_sf(as.data.frame(indigenous_CLEAN %>% arrange(area) %>% group_by(id) %>% slice(1)))
 # fix error in linestring geometries
 polys <- indigenous_CLEAN[grep("GEOMETRY", (st_geometry_type(indigenous_CLEAN))),] # identify these linestrings
@@ -193,10 +197,10 @@ polys.extract <- polys.extract %>% group_by(id) %>% summarise(geometry = st_unio
 polys.fixed <- st_as_sf(inner_join(st_drop_geometry(polys), polys.extract, by = "id")) # keep all the original information
 indigenous_CLEAN <- indigenous_CLEAN[-grep("GEOMETRY", (st_geometry_type(indigenous_CLEAN))),] # remove them
 indigenous_CLEAN <- rbind(indigenous_CLEAN, polys.fixed) # bind them back in
-plot(indigenous_CLEAN$geometry)
+# plot(indigenous_CLEAN$geometry)
 
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
-st_write(indigenous_CLEAN[,1:2], "indigenous.shp", append = F)
+# st_write(indigenous_CLEAN[,1:2], "indigenous.shp", append = F)
 
 
 # ----
@@ -204,16 +208,9 @@ st_write(indigenous_CLEAN[,1:2], "indigenous.shp", append = F)
 # i could st_union/combine each category and rasterize that for the map
 
 # a series of rules in order to interpret what the overlaps mean
-# if UCs and IND overlap: should resolve, prioritize UCs
-# if UCs and IRU-AST-PCT overlap: should note these overlaps as private on public (but only keep IRU and AST, and if AST then it's public on public)
-# if UCs and RPPN overlap
-# UCs + SIGEF: note overlap as private on public
-# Ucs + SNCI: note overlap as private on public
-# UCs + UND-OTHER: note as public on public
-
 # SIGEF + SNCI: merge as private from INCRA
 # IRU-AST + SIGEF-SNCI: merge as private on private but not problematic - simply due to different systems # this would potentially take foreeever
-# 
+
 
 # the only issue i found from manual inspection was:
 plot(indigenous_CLEAN[which(indigenous_CLEAN$id == "IN-484"),])

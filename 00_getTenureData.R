@@ -1,6 +1,6 @@
 #### Biodiversity and Tenure in Brazil ####
 
-# this script gathers different sources of (updated) land tenure data and preprocesses them for use in analyses
+# this script gathers different sources of (updated) land tenure data and pre-processes them for use in analyses
 # outputs are:
 # individual folders with parcel-level tenure data for brazil
 # these are simplified versions of the data (filtering for only the minimum relevant information category, and geometry)
@@ -20,7 +20,7 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 # Land tenure data sources:
 
 # 1. CAR properties sourced from CSR ----
-# these data were provided by the CSR (Centro de Sensoramento Remoto) of UFMG and downloaded manually
+# these data were provided by the CSR (Centro de Sensoriamento Remoto) of UFMG and downloaded manually
 # the original source of these data is the SFB (servico florestal brasilero)
 # categories are: IRU, AST, PCT, (imovel rural, assentamentos, and povos e comunidades tradicionais)
 # after running exploratory analyses, i have decided to exclude the PCT category from the analysis as 
@@ -52,7 +52,8 @@ for (i in 1:length(files))
 # 2. Conservation units  ----
 # sourced directly from MMA (rather than the IBGE package read_conservation_units function which is easier but may be outdated)
 # this required a vpn from brazil, as the site was blocked from access otherwise
-# additionally, i had to do some manual preprocessing in QGIS where i assigned the SAD 1969 and reprojected to WGS 84 in QGIS because .shp in mma website was missing the .prj file
+# additionally, i had to do some manual preprocessing in QGIS where i assigned the SAD 1969 and reprojected to WGS 84 in QGIS 
+# because .shp in mma website was missing the .prj file
 setwd(paste0(wdmain,"/data/raw/landTenure/UCs_MMA"))
 uc_mma <- st_read("ucs_mma_qgispreprocess.shp")
 # plot(uc_mma$geom)
@@ -144,7 +145,7 @@ st_write(sigef2, "landTenure_SIGEF_20231312_SAalbers.shp", append = F)
 
 # SNCI
 setwd(paste0(wdmain, "data/raw/landTenure/INCRA"))
-snci <- st_read("ImÃ³vel certificado SNCI Brasil.shp")
+snci <- st_read("Imóvel certificado SNCI Brasil.shp")
 summary(snci$data_certi) # goes from 2004-2021 which does hold up to what the Camara paper says (but has not been updated since, whereas sigef yes?)
 # # check histogram of dates certified
 # ggplot(snci, aes(x=data_certi)) + geom_histogram(binwidth=30, colour="white") +

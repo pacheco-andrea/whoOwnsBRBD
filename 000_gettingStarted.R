@@ -10,7 +10,7 @@
 # Move on from any deprecated rgdal and raster parts of my workflow to sf and terra
 
 # install.packages("terra")
-# install.packages("rgdal")
+# # install.packages("rgdal")
 # install.packages("sf")
 # install.packages("dplyr")
 # install.packages("ggplot2")
