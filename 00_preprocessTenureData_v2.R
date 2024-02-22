@@ -102,35 +102,54 @@ setwd(paste0(wdmain, "data/processed/LT_overlaps"))
 uc_x_ind <- rbind(uc_no.overlaps, ind_no.overlaps)
 # there are always geometry errors with these, so they need to be handled separately
 uc_x_ind2 <- uc_x_ind[which(uc_x_ind$id != "IN-183" & uc_x_ind$id != "IN-294" & uc_x_ind$id != "IN-295" & uc_x_ind$id != "IN-424" &
-                            uc_x_ind$id != "IN-314", uc_x_ind$id != "UC-1104"),]
-# only run in order to debug this intersection 
-for (i in 1:nrow(uc_x_ind2))
-{
-  intersection_issue <- st_intersection(uc_x_ind2[1:i,])
-  print(i)
-}
-
-uc_x_ind_overlaps <- st_intersection(uc_x_ind2)
-
-# C.2) Strictly protected x  indigenous ----
-ind_x_strict <- rbind(UCstrict_no.overlaps[,c("LTcateg", "id", "geometry")], ind_no.overlaps)
-# only run in order to debug this intersection 
-# for (i in 1285:nrow(rbind(ind_x_strict2, ind.solved)))
+                            uc_x_ind$id != "IN-314" & uc_x_ind$id != "UC-770" & uc_x_ind$id != "UC-1104"& uc_x_ind$id != "UC-859"),]
+# # only run in order to debug this intersection 
+# for (i in 768:nrow(uc_x_ind2))
 # {
-#   intersection_issue <- st_intersection(rbind(ind_x_strict2, ind.solved[2:4,])[1:i,])
+#   intersection_issue <- st_intersection(uc_x_ind2[1:i,])
 #   print(i)
 # }
-ind.problems <- ind_x_strict[which(ind_x_strict$id == "IN-183" | ind_x_strict$id == "IN-294" | ind_x_strict$id == "IN-295" | ind_x_strict$id == "IN-424"),]
-ind.solved <- st_simplify(ind.problems, preserveTopology = T, dTolerance = 100) 
-ind.solved <- st_collection_extract(ind.solved, "POLYGON") # fix the linestring geometries in IN-294 
-# (note, don't need to aggregate by id here, as resuted in same amount of obs)
-ind_x_strict2 <- ind_x_strict[which(ind_x_strict$id != "IN-183" & ind_x_strict$id != "IN-294" & ind_x_strict$id != "IN-295" & ind_x_strict$id != "IN-424"),]
-# how sustainable use ucs overlap with indigenous
-# ind.ucstrict_overlaps <- st_intersection(rbind(ind_x_strict2, ind.solved)) # ok although this didn't work, i manually checked whether these overlapped with UCs, and no
-# so for now my solution is to simply run the intersection for this section
-ind.ucstrict_overlaps <- st_intersection(ind_x_strict2) 
-# plot(ind.ucstrict_overlaps["n.overlaps"])
-# make sure to deal with ind that don't overlap together later
+uc_x_ind_problems <- uc_x_ind[which(uc_x_ind$id == "IN-183" | uc_x_ind$id == "IN-294" | uc_x_ind$id == "IN-295" | uc_x_ind$id == "IN-424" |
+                              uc_x_ind$id == "IN-314" | uc_x_ind$id == "UC-770" | uc_x_ind$id == "UC-1104" | uc_x_ind$id == "UC-859"),]
+
+uc_x_ind_overlaps <- st_intersection(uc_x_ind2)
+# plot(uc_x_ind_overlaps[,"n.overlaps"])
+
+
+# first need to fix resulting linestring geometries bc otherwise writing out wont work
+uc_x_ind_overlaps_CLEAN <- uc_x_ind_overlaps
+unique(st_geometry_type(uc_x_ind_overlaps_CLEAN))
+# get all the geometries which are not polygons (i.e., lines and points)
+pgeometries <- uc_x_ind_overlaps_CLEAN[which(st_geometry_type(uc_x_ind_overlaps_CLEAN) != "MULTIPOLYGON" &
+                                               st_geometry_type(uc_x_ind_overlaps_CLEAN) != "POLYGON"),]
+extract.pgeometries <- st_collection_extract(pgeometries, "POLYGON") # extract only the polygons
+extract.pgeometries <- extract.pgeometries %>% group_by(id) %>% summarize(geometry = st_union(geometry)) %>% ungroup() %>% st_as_sf() 
+# get back all the original information from these problem geometries
+fixed.pgeometries <- st_as_sf(inner_join(st_drop_geometry(uc_x_ind_overlaps_CLEAN), extract.pgeometries, by = "id")) 
+# replace problem geos with the fixed geos in clean df
+uc_x_ind_overlaps_CLEAN <- uc_x_ind_overlaps_CLEAN[which(st_geometry_type(uc_x_ind_overlaps_CLEAN) == "MULTIPOLYGON" |
+                                                            st_geometry_type(uc_x_ind_overlaps_CLEAN) == "POLYGON"),]
+uc_x_ind_overlaps_CLEAN <- rbind(uc_x_ind_overlaps_CLEAN, fixed.pgeometries)
+unique(st_geometry_type(uc_x_ind_overlaps_CLEAN))
+
+nrow(uc_x_ind_overlaps_CLEAN)
+length(unique(uc_x_ind_overlaps_CLEAN$id))
+
+uc_x_ind_overlaps_CLEAN.clean <- uc_x_ind_overlaps_CLEAN %>% 
+  group_by(id) %>% 
+  summarize(geometry = st_union(geometry)) %>% 
+  ungroup() %>% 
+  st_as_sf() 
+
+# write out part that doesn't overlap:
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
+st_write(uc_x_ind_overlaps_CLEAN[which(uc_x_ind_overlaps_CLEAN$n.overlaps == 1),c("LTcateg", "id", "geometry")], "UCs-indigenous.shp", append = F)
+uc_x_ind_overlaps_CLEAN[which(uc_x_ind_overlaps_CLEAN$n.overlaps == 1),c("LTcateg", "id", "geometry")] %>%
+group_by(id) %>% summarize(geometry = st_union(geometry)) %>% ungroup() %>% st_as_sf() 
+
+# write out part that overlaps:
+setwd(paste0(wdmain, "data/processed/LT_overlaps"))
+st_write(uc_x_ind_overlaps_CLEAN[which(uc_x_ind_overlaps_CLEAN$n.overlaps > 1),c("LTcateg", "id", "geometry")], "UCs-indigenous.shp", append = F)
 
 
 # Write  out only PI UCs that don't overlap
@@ -138,7 +157,7 @@ UCstrict_CLEAN <- ind.ucstrict_overlaps[which(ind.ucstrict_overlaps$n.overlaps =
 # however, there was an error in writing out because there are some linestring geometries
 polys <- UCstrict_CLEAN[grep("GEOMETRY", (st_geometry_type(UCstrict_CLEAN))),] # identify these linestrings
 polys.extract <- st_collection_extract(polys, "POLYGON") # fix 
-polys.extract <- polys.extract %>% group_by(id) %>% summarise(geometry = st_union(geometry)) %>% ungroup() %>% st_as_sf() # aggregate resulting extra poygons by the id
+polys.extract <- polys.extract %>% group_by(id) %>% summarise(geometry = st_union(geometry)) %>% ungroup() %>% st_as_sf() # aggregate resulting extra polygons by the id
 polys.fixed <- st_as_sf(inner_join(st_drop_geometry(polys), polys.extract, by = "id")) # keep all the original information
 UCstrict_CLEAN <- UCstrict_CLEAN[-grep("GEOMETRY", (st_geometry_type(UCstrict_CLEAN))),] # remove them
 UCstrict_CLEAN <- rbind(UCstrict_CLEAN, polys.fixed) # bind them back in
