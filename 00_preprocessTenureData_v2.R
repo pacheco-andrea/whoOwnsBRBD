@@ -96,7 +96,7 @@ overall.overlaps <- overall.overlaps[-grep("GEOMETRY", (st_geometry_type(overall
 overall.overlaps <- rbind(overall.overlaps, polys.fixed) # bind them back in
 
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
-# st_write(overall.overlaps, "PAs-indigenous.shp", append = F)
+st_write(overall.overlaps, "PAs-indigenous.shp", append = F)
 
 # C.ALTERNATIVE VERSION: find all no.overlaps at the same time ----
 uc_x_ind <- rbind(uc_no.overlaps, ind_no.overlaps)
@@ -116,8 +116,13 @@ uc_x_ind_overlaps <- st_intersection(uc_x_ind2)
 # plot(uc_x_ind_overlaps[,"n.overlaps"])
 
 
-# first need to fix resulting linestring geometries bc otherwise writing out wont work
-uc_x_ind_overlaps_CLEAN <- uc_x_ind_overlaps
+# first filter out data that doesn't overlap
+no.overlaps <- uc_x_ind_overlaps[which(uc_x_ind_overlaps$n.overlaps == 1),]
+# get back polygons that made the intersection bug
+no.overlaps2 <- rbind(no.overlaps[,c("LTcateg", "id", "geometry")], uc_x_ind_problems)
+
+# need to fix resulting linestring geometries 
+uc_x_ind_overlaps_CLEAN <- no.overlaps2
 unique(st_geometry_type(uc_x_ind_overlaps_CLEAN))
 # get all the geometries which are not polygons (i.e., lines and points)
 pgeometries <- uc_x_ind_overlaps_CLEAN[which(st_geometry_type(uc_x_ind_overlaps_CLEAN) != "MULTIPOLYGON" &
@@ -132,26 +137,52 @@ uc_x_ind_overlaps_CLEAN <- uc_x_ind_overlaps_CLEAN[which(st_geometry_type(uc_x_i
 uc_x_ind_overlaps_CLEAN <- rbind(uc_x_ind_overlaps_CLEAN, fixed.pgeometries)
 unique(st_geometry_type(uc_x_ind_overlaps_CLEAN))
 
+# deal with polygons that have been separated as a result of the intersection function 
+uc_x_ind_overlaps_CLEAN
 nrow(uc_x_ind_overlaps_CLEAN)
 length(unique(uc_x_ind_overlaps_CLEAN$id))
 
-uc_x_ind_overlaps_CLEAN.clean <- uc_x_ind_overlaps_CLEAN %>% 
-  group_by(id) %>% 
+# check the duplicated ids
+head(uc_x_ind_overlaps_CLEAN[duplicated(uc_x_ind_overlaps_CLEAN$id),])
+uc_x_ind_overlaps_CLEAN[which(uc_x_ind_overlaps_CLEAN$id == "UC-19"),] 
+# union the stray polygons that became separated through the creation of the overlapping polygons
+no.overlaps_clean <- uc_x_ind_overlaps_CLEAN %>% 
+  group_by(LTcateg, id) %>% 
   summarize(geometry = st_union(geometry)) %>% 
   ungroup() %>% 
   st_as_sf() 
+# plot(no.overlaps_clean$geometry)
+no.overlaps_clean
+length(unique(no.overlaps_clean$id))
 
-# write out part that doesn't overlap:
+
+
+# write out one at a time for cleannes!
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
-st_write(uc_x_ind_overlaps_CLEAN[which(uc_x_ind_overlaps_CLEAN$n.overlaps == 1),c("LTcateg", "id", "geometry")], "UCs-indigenous.shp", append = F)
-uc_x_ind_overlaps_CLEAN[which(uc_x_ind_overlaps_CLEAN$n.overlaps == 1),c("LTcateg", "id", "geometry")] %>%
-group_by(id) %>% summarize(geometry = st_union(geometry)) %>% ungroup() %>% st_as_sf() 
+st_write(no.overlaps_clean[which(no.overlaps_clean$LTcateg == "PI"),], "PA_strict.shp", append = F)
+st_write(no.overlaps_clean[which(no.overlaps_clean$LTcateg == "US"),], "PA_sustuse.shp", append = F)
+st_write(no.overlaps_clean[which(no.overlaps_clean$LTcateg == "indigenous"),], "indigenous.shp", append = F)
 
-# write out part that overlaps:
+
+# deal with parts that do overlap ----
+# i actually need to do an st_intersection of ("ucs that don't self-overlaps", "inds that dont self overlap")
+# otherwise, i'll get ALL the polygons that had overlaps (with a column that tells me which one)
+# what i want, is the AREAS that overlap, which i'll summarize into the corresponding id's
+uc_no.overlaps
+overlaps
+nrow(overlaps)
+length(unique(overlaps$id))
+overlaps.clean <- overlaps %>%
+  group_by(LTcateg, id) %>%
+  summarize(geometry = st_union(geometry)) %>%
+  ungroup() %>%
+  st_as_sf()
+plot(overlaps.clean[,"LTcateg"]) # what?? i don't get this. why is is so much, so big?
+
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
-st_write(uc_x_ind_overlaps_CLEAN[which(uc_x_ind_overlaps_CLEAN$n.overlaps > 1),c("LTcateg", "id", "geometry")], "UCs-indigenous.shp", append = F)
+st_write(overlaps.clean, "UCs-indigenous.shp", append = F)
 
-
+# dont forget about the errors you took out earlier!!!!
 # Write  out only PI UCs that don't overlap
 UCstrict_CLEAN <- ind.ucstrict_overlaps[which(ind.ucstrict_overlaps$n.overlaps == 1 & ind.ucstrict_overlaps$LTcateg == "PI"),]
 # however, there was an error in writing out because there are some linestring geometries
