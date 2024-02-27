@@ -29,7 +29,6 @@ setwd(paste0(wdmain,"/data/processed/"))
 # A) Read and standardize PAs/UCs and indigenous lands: ----
 
 uc <- st_read("landTenure_UC/landTenure_UCs_MMA_20231212_SAalbers.shp", stringsAsFactors = F, options = "ENCODING=latin1")
-# fix empty geometries
 uc <- st_transform(uc, my_crs_SAaea) # fix projection
 uc$subcateg <- uc$LTcateg # add/clear up this column
 uc$LTcateg <- uc$group
@@ -97,28 +96,36 @@ plot(ind.selfOverlaps$geometry, col = "gray30")
 
 # write out this data
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
-st_write(uc.selfOverlaps, "indigenous_selfOverlaps.shp", append = F)
+st_write(ind.selfOverlaps, "indigenous_selfOverlaps.shp", append = F)
 
 
-# C) Find overlapping and non-overlapping polygons ----
+# C) Find overlapping and non-overlapping polygons indigenous - PAs ----
+
 # C.1) Overall overlaps between UCs and indigenous: ----
 
 # using the UCs and indigenous that have been pre-cleaned from self-intersections, just in case
 overall.overlaps <- st_intersection(uc_no.overlaps, ind_no.overlaps)
 unique(st_geometry_type(overall.overlaps))
-polys <- overall.overlaps[grep("GEOMETRY", (st_geometry_type(overall.overlaps))),] # identify these linestrings
+# identify these linestrings and fix
+polys <- overall.overlaps[grep("GEOMETRY", (st_geometry_type(overall.overlaps))),] 
 polys.extract <- st_collection_extract(polys, "POLYGON") # fix 
-polys.extract <- polys.extract %>% group_by(id) %>% summarise(geometry = st_union(geometry)) %>% ungroup() %>% st_as_sf() # aggregate resulting extra poygons by the id
-polys.fixed <- st_as_sf(inner_join(st_drop_geometry(polys), polys.extract, by = "id")) # keep all the original information
-overall.overlaps <- overall.overlaps[-grep("GEOMETRY", (st_geometry_type(overall.overlaps))),] # remove them
-overall.overlaps <- rbind(overall.overlaps, polys.fixed) # bind them back in
+# aggregate resulting extra polygons by the id
+polys.extract <- polys.extract %>% group_by(id) %>% summarise(geometry = st_union(geometry)) %>% ungroup() %>% st_as_sf() 
+# keep all the original information
+polys.fixed <- st_as_sf(inner_join(st_drop_geometry(polys), polys.extract, by = "id")) 
+# remove the wrong geometries
+overall.overlaps <- overall.overlaps[-grep("GEOMETRY", (st_geometry_type(overall.overlaps))),] 
+# bind the correct geometries back in
+overall.overlaps <- rbind(overall.overlaps, polys.fixed)
 
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
 st_write(overall.overlaps, "PAs-indigenous.shp", append = F)
 
-# C.ALTERNATIVE VERSION: find all no.overlaps at the same time ----
+# C.2) get UCs and indigenous lands that DO NOT overlap ----
+
 uc_x_ind <- rbind(uc_no.overlaps, ind_no.overlaps)
-# there are always geometry errors with these, so they need to be handled separately
+# remove these polygons from the data because they prevent st_intersection to run
+# no worries, they will be inserted back in later
 uc_x_ind2 <- uc_x_ind[which(uc_x_ind$id != "IN-183" & uc_x_ind$id != "IN-294" & uc_x_ind$id != "IN-295" & uc_x_ind$id != "IN-424" &
                             uc_x_ind$id != "IN-314" & uc_x_ind$id != "UC-770" & uc_x_ind$id != "UC-1104"& uc_x_ind$id != "UC-859"),]
 # # only run in order to debug this intersection 
@@ -134,21 +141,20 @@ uc_x_ind_overlaps <- st_intersection(uc_x_ind2)
 # plot(uc_x_ind_overlaps[,"n.overlaps"])
 
 
-# first filter out data that doesn't overlap
+# now filter out data that doesn't overlap
+# (note, i already have everything that *does* overlap)
 no.overlaps <- uc_x_ind_overlaps[which(uc_x_ind_overlaps$n.overlaps == 1),]
 # get back polygons that made the intersection bug
 no.overlaps2 <- rbind(no.overlaps[,c("LTcateg", "id", "geometry")], uc_x_ind_problems)
 
-# need to fix resulting linestring geometries 
+# fix resulting linestring geometries 
 uc_x_ind_overlaps_CLEAN <- no.overlaps2
 unique(st_geometry_type(uc_x_ind_overlaps_CLEAN))
 # get all the geometries which are not polygons (i.e., lines and points)
 pgeometries <- uc_x_ind_overlaps_CLEAN[which(st_geometry_type(uc_x_ind_overlaps_CLEAN) != "MULTIPOLYGON" &
                                                st_geometry_type(uc_x_ind_overlaps_CLEAN) != "POLYGON"),]
 extract.pgeometries <- st_collection_extract(pgeometries, "POLYGON") # extract only the polygons
-extract.pgeometries <- extract.pgeometries %>% group_by(id) %>% summarize(geometry = st_union(geometry)) %>% ungroup() %>% st_as_sf() 
-# get back all the original information from these problem geometries
-fixed.pgeometries <- st_as_sf(inner_join(st_drop_geometry(uc_x_ind_overlaps_CLEAN), extract.pgeometries, by = "id")) 
+fixed.pgeometries <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(geometry = st_union(geometry)) %>% ungroup() %>% st_as_sf() 
 # replace problem geos with the fixed geos in clean df
 uc_x_ind_overlaps_CLEAN <- uc_x_ind_overlaps_CLEAN[which(st_geometry_type(uc_x_ind_overlaps_CLEAN) == "MULTIPOLYGON" |
                                                             st_geometry_type(uc_x_ind_overlaps_CLEAN) == "POLYGON"),]
@@ -160,7 +166,7 @@ length(unique(uc_x_ind_overlaps_CLEAN$id))
 
 
 
-# write out one at a time for cleannes!
+# write out one at a time to keep things organized!
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
 st_write(uc_x_ind_overlaps_CLEAN[which(uc_x_ind_overlaps_CLEAN$LTcateg == "PI"),], "PA_strict.shp", append = F)
 st_write(uc_x_ind_overlaps_CLEAN[which(uc_x_ind_overlaps_CLEAN$LTcateg == "US"),], "PA_sustuse.shp", append = F)
@@ -169,19 +175,8 @@ st_write(uc_x_ind_overlaps_CLEAN[which(uc_x_ind_overlaps_CLEAN$LTcateg == "indig
 
 
 # ----
-# FOR THE ONE WALL-TO-WALL with the minimum necessary of overlaps (as this will become one category)
-# i could st_union/combine each category and rasterize that for the map
 
 # a series of rules in order to interpret what the overlaps mean
 # SIGEF + SNCI: merge as private from INCRA
 # IRU-AST + SIGEF-SNCI: merge as private on private but not problematic - simply due to different systems # this would potentially take foreeever
 
-
-# issues i found from manual inspection:
-# on indigenous areas popped up that was somehow deleted: IN-456
-# need to check that i haven't deleted them from my dealing with those weird geometries
-# check what the shape of IN-456 looks like
-
-
-# also a number of bits from PAs were somehow lost...
-# and just now i've realized it was because of them self-overlapping!!!
