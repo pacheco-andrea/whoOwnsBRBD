@@ -1,5 +1,10 @@
 #### Biodiversity and Tenure in Brazil ####
 
+# FOR THE ONE WALL-TO-WALL with the minimum necessary of overlaps (as this will become one category)
+# i could st_union/combine each category and rasterize that for the map
+
+
+
 # this script brings together preprocessed tenure data and rasterizes them so they can be mapped
 # outputs are: 
 # one categorical raster for each tenure category
