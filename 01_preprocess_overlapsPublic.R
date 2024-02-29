@@ -31,46 +31,62 @@ Sys.setenv(LANG = "en") # because i have no admin rights on the server...
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 # Land tenure data folders ----
-setwd(paste0(wdmain,"/data/processed/"))
 
-# A) Read and standardize data: ----
 
-# protected areas
-uc <- st_read("landTenure_UC/landTenure_UCs_MMA_20231212_SAalbers.shp", stringsAsFactors = F, options = "ENCODING=latin1")
-uc <- st_transform(uc, my_crs_SAaea) # fix projection
-uc$subcateg <- uc$LTcateg # add/clear up this column
-uc$LTcateg <- uc$group
-uc$id <- paste0("UC-", 1:nrow(uc))
-uc <- select(uc, c("LTcateg", "id", "geometry"))
+# A) UPON FIRST RUN, Read and standardize data: ----
 
-# indigenous lands
-ind <- st_read("landTenure_IND/landTenure_indigenous_20231212_SAalbers.shp")
-ind <- st_transform(ind, my_crs_SAaea)
-ind$LTcateg <- "indigenous"
-ind$id <- paste0("IN-", 1:nrow(ind))
-ind <- select(ind, c("LTcateg","id", "geometry"))
-
-# undesignated lands
-und <- st_read("landTenure_UND-OTH/landTenure_UND-OTH_SAalbers.shp")
-und <- st_transform(und, my_crs_SAaea)
-und$LTcateg <- und$protecao
-und$id <- paste0("UND-", 1:nrow(und))
-und <- select(und, c("LTcateg", "id", "geometry"))
-
-# rural settlements
-setwd(paste0(wdmain,"/data/processed/landTenure_IRU-AST-PCT"))
-l <- list.files()
-ast <- lapply(l[grep(".shp", l)], st_read)
-ast <- do.call(rbind, ast)
-ast
-unique(ast$LTcateg)
-ast <- ast[which(ast$LTcateg == "AST"),]
-ast$id <- paste0("AST-", 1:nrow(ast))
-ast <- select(ast, c("LTcateg","id", "geometry"))
+# # protected areas
+# setwd(paste0(wdmain,"/data/processed/"))
+# uc <- st_read("landTenure_UC/landTenure_UCs_MMA_20231212_SAalbers.shp", stringsAsFactors = F, options = "ENCODING=latin1")
+# uc <- st_transform(uc, my_crs_SAaea) # fix projection
+# uc$subcateg <- uc$LTcateg # add/clear up this column
+# uc$LTcateg <- uc$group
+# uc$id <- paste0("UC-", 1:nrow(uc))
+# uc <- select(uc, c("LTcateg", "id", "geometry"))
+# setwd(paste0(wdmain,"/data/processed/processed2/public"))
+# st_write(uc, "protectedAreas.shp", append = F)
+# 
+# # indigenous lands
+# setwd(paste0(wdmain,"/data/processed/"))
+# ind <- st_read("landTenure_IND/landTenure_indigenous_20231212_SAalbers.shp")
+# ind <- st_transform(ind, my_crs_SAaea)
+# ind$LTcateg <- "indigenous"
+# ind$id <- paste0("IN-", 1:nrow(ind))
+# ind <- select(ind, c("LTcateg","id", "geometry"))
+# setwd(paste0(wdmain,"/data/processed/processed2/public"))
+# st_write(ind, "indigenous.shp", append = F)
+# 
+# 
+# # undesignated lands
+# setwd(paste0(wdmain,"/data/processed/"))
+# und <- st_read("landTenure_UND-OTH/landTenure_UND-OTH_SAalbers.shp")
+# und <- st_transform(und, my_crs_SAaea)
+# und$LTcateg <- und$protecao
+# und$id <- paste0("UND-", 1:nrow(und))
+# und <- select(und, c("LTcateg", "id", "geometry"))
+# setwd(paste0(wdmain,"/data/processed/processed2/public"))
+# st_write(und, "undesignated-oth.shp", append = F)
+# 
+# # rural settlements
+# setwd(paste0(wdmain,"/data/processed/landTenure_IRU-AST-PCT"))
+# l <- list.files()
+# ast <- lapply(l[grep(".shp", l)], st_read)
+# ast <- do.call(rbind, ast)
+# ast
+# unique(ast$LTcateg)
+# ast <- ast[which(ast$LTcateg == "AST"),]
+# ast$id <- paste0("AST-", 1:nrow(ast))
+# ast <- select(ast, c("LTcateg","id", "geometry"))
+# setwd(paste0(wdmain,"/data/processed/processed2/public"))
+# st_write(ast, "ruralSettlements.shp", append = F)
 
 # B) Cleaning ----
-# B.1) Clean self-overlaps within UCs datasets ----
 
+# upon first run, clear workspace and read the data back in where needed
+
+# B.1) Clean self-overlaps within UCs datasets ----
+setwd(paste0(wdmain,"/data/processed/processed2/public"))
+uc <- st_read("protectedAreas.shp")
 # first fix two features which prevented running st_intersection
 uc[c(1047,1055),]
 uc.p <- uc[which(uc$id == "UC-1047" | uc$id == "UC-1055"),]
@@ -78,25 +94,26 @@ uc <- uc[which(uc$id != "UC-1047" & uc$id != "UC-1055"),,] # remove problem poly
 uc.p <- st_simplify(uc.p, preserveTopology = T, dTolerance = 100) # fix the polygons by simplifying
 uc <- rbind(uc, uc.p) # add back to the original data
 
-# identify the self-overlaps of UCs
+# get the self-overlaps within UCs
 uc.overlaps <- st_intersection(uc)
 
-# create df with no overlaps
+# create df with no overlaps within
 uc_no.overlaps <- uc.overlaps[which(uc.overlaps$n.overlaps == 1), c("LTcateg", "id", "geometry")]
 
-# rescue polygons that overlapped and make them their own category
+# create and clean df with only the self-overlaps, and make them their own category
 unique(st_geometry_type(uc.overlaps[which(uc.overlaps$n.overlaps > 1),]))
 pgeometries <- uc.overlaps[which(uc.overlaps$n.overlaps > 1),]
 extract.pgeometries <- st_collection_extract(pgeometries, "POLYGON")
 uc.selfOverlaps <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf()
-plot(uc.selfOverlaps$geometry, col = "gray30")
+# plot(uc.selfOverlaps$geometry, col = "gray30")
 
 # write out this data
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
 st_write(uc.selfOverlaps, "PAs_selfOverlaps.shp", append = F)
 
 # B.2) Clean self-overlaps within indigenous lands ----
-
+setwd(paste0(wdmain,"/data/processed/processed2/public"))
+ind <- st_read("indigenous.shp")
 # clean self-overlapping inds
 # ind.overlaps <- st_intersection(ind)
 # # find issues in the indigenous lands too
@@ -112,12 +129,12 @@ ind.overlaps <- st_intersection(rbind(ind, ind.p))
 # create df with no overlaps
 ind_no.overlaps <- ind.overlaps[which(ind.overlaps$n.overlaps == 1), c("LTcateg", "id", "geometry")]
 
-# rescue polygons that overlapped and make them their own category
+# create and clean df with only the self-overlaps, and make them their own category
 unique(st_geometry_type(ind.overlaps[which(ind.overlaps$n.overlaps > 1),]))
 pgeometries <- ind.overlaps[which(ind.overlaps$n.overlaps > 1),]
 extract.pgeometries <- st_collection_extract(pgeometries, "POLYGON")
 ind.selfOverlaps <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf()
-plot(ind.selfOverlaps$geometry, col = "gray30")
+# plot(ind.selfOverlaps$geometry, col = "gray30")
 
 # write out this data
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
@@ -126,6 +143,8 @@ st_write(ind.selfOverlaps, "indigenous_selfOverlaps.shp", append = F)
 
 
 # B.3) Clean self-overlaps within UND ----
+setwd(paste0(wdmain,"/data/processed/processed2/public"))
+und <- st_read("undesignated-oth.shp")
 
 # find issues in undesignated lands too
 st_is_valid(und)
@@ -159,7 +178,24 @@ st_write(und.selfOverlaps, "undesig-other_selfOverlaps.shp", append = F)
 
 
 # B.4) Clean self-overlaps within AST
+setwd(paste0(wdmain,"/data/processed/processed2/public"))
+ruset <- st_read("ruralSettlements.shp")
+summary(st_is_valid(ruset))
+# ok, i'm starting to get worried because the intersection below isn't working
+# and there are simply too many observations to do those manual fixes i did for PAs and indigenous lands
+ruset.overlaps <- st_intersection(ruset)
+ruset_simple <- st_simplify(ruset, dTolerance = 0.001)
+ruset.overlaps <- st_intersection(ruset_simple)
 
+summary(st_is_valid(ruset_simple))
+
+ruset_simple.snapped <- st_snap(ruset_simple, ruset_simple, tolerance = 0.01)
+
+for (i in 150:nrow(ruset_simple))
+{
+  intersection_issue <- st_intersection(ruset_simple[1:i,])
+  print(i)
+}
 
 # C) Find overlapping non-overlapping polygons  ----
 
@@ -267,7 +303,7 @@ st_write(uc_x_ind_overlaps_CLEAN[which(uc_x_ind_overlaps_CLEAN$LTcateg == "indig
 
 
 
-rm(list=ls())
+
 
 # get the public data overlaps
 
