@@ -68,17 +68,17 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 # st_write(und, "undesignated-oth.shp", append = F)
 # 
 # # rural settlements
-# setwd(paste0(wdmain,"/data/processed/landTenure_IRU-AST-PCT"))
-# l <- list.files()
-# ast <- lapply(l[grep(".shp", l)], st_read)
-# ast <- do.call(rbind, ast)
-# ast
-# unique(ast$LTcateg)
-# ast <- ast[which(ast$LTcateg == "AST"),]
-# ast$id <- paste0("AST-", 1:nrow(ast))
-# ast <- select(ast, c("LTcateg","id", "geometry"))
-# setwd(paste0(wdmain,"/data/processed/processed2/public"))
-# st_write(ast, "ruralSettlements.shp", append = F)
+setwd(paste0(wdmain,"/data/processed/landTenure_IRU-AST-PCT"))
+l <- list.files()
+ast <- lapply(l[grep(".shp", l)], st_read)
+ast <- do.call(rbind, ast)
+ast
+unique(ast$LTcateg)
+ast <- ast[which(ast$LTcateg == "AST"),]
+ast$id <- paste0("AST-", 1:nrow(ast))
+ast <- select(ast, c("LTcateg","id", "geometry"))
+setwd(paste0(wdmain,"/data/processed/processed2/public"))
+st_write(ast, "ruralSettlements.shp", append = F)
 
 # B) Cleaning ----
 
@@ -88,7 +88,6 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 setwd(paste0(wdmain,"/data/processed/processed2/public"))
 uc <- st_read("protectedAreas.shp")
 # first fix two features which prevented running st_intersection
-uc[c(1047,1055),]
 uc.p <- uc[which(uc$id == "UC-1047" | uc$id == "UC-1055"),]
 uc <- uc[which(uc$id != "UC-1047" & uc$id != "UC-1055"),,] # remove problem polygons from entire dataset
 uc.p <- st_simplify(uc.p, preserveTopology = T, dTolerance = 100) # fix the polygons by simplifying
@@ -177,19 +176,37 @@ setwd(paste0(wdmain, "data/processed/LT_overlaps"))
 st_write(und.selfOverlaps, "undesig-other_selfOverlaps.shp", append = F)
 
 
-# B.4) Clean self-overlaps within AST
+# B.4) Clean self-overlaps within AST ----
 setwd(paste0(wdmain,"/data/processed/processed2/public"))
 ruset <- st_read("ruralSettlements.shp")
 summary(st_is_valid(ruset))
 # ok, i'm starting to get worried because the intersection below isn't working
 # and there are simply too many observations to do those manual fixes i did for PAs and indigenous lands
-ruset.overlaps <- st_intersection(ruset)
+head(ruset)
+
+ruset.overlaps <- st_intersection(ruset[1:35,])
+plot(ruset[1:35,"geometry"])
+
+setwd(paste0(wdmain,"/data/tmp/"))
+st_write(ruset[1:35,], "test_ruralSettlements.shp")
+
 ruset_simple <- st_simplify(ruset, dTolerance = 0.001)
 ruset.overlaps <- st_intersection(ruset_simple)
 
 summary(st_is_valid(ruset_simple))
+set.seed(123)
+sampled_ruset <- ruset_simple[sample(nrow(ruset_simple), 1000, replace = F), ]
+# create a test sample
+timeTests <- system.time(
+  ruset_simple.snapped <- st_snap(sampled_ruset, sampled_ruset, tolerance = 0.1)
+  )
+# time Test for 1000, and tolerance 0.01 = 4596.35 |30.19 | 23319.09
+# time Test for 1000, and tolerance 0.1 = 3782.14 |  14.40 | 3816.38 
 
-ruset_simple.snapped <- st_snap(ruset_simple, ruset_simple, tolerance = 0.01)
+plot(ruset_simple.snapped$geometry)
+
+setwd(paste0(wdmain,"/data/processed/processed2/public"))
+st_write(ruset_simple.snapped, "ruralSettlements_snapped_test.shp", append = F)
 
 for (i in 150:nrow(ruset_simple))
 {
