@@ -28,38 +28,46 @@ l <- list.files()
 d <- lapply(l[grep(".shp", l)], st_read)
 unlist(lapply(d, nrow))
 # get smallest state
-d[[4]]
-plot(d[[4]][,"geometry"]) # amapá
+amapa <- d[[4]]
+plot(amapa[,"geometry"]) # amapá
 
-int_test <- st_intersection(d[[4]])
+int_test <- st_intersection(amapa)
 
-any(is.na(st_dimension(d[[4]])))
-any(is.na(st_is_valid(d[[4]])))
-any(na.omit(st_is_valid(d[[4]])) == FALSE)
+any(is.na(st_dimension(amapa)))
+any(is.na(st_is_valid(amapa)))
+any(na.omit(st_is_valid(amapa)) == FALSE)
 
-test2 <- d[[4]] %>% st_set_precision(1000) %>% st_intersection() # also doesn't work.
+test2 <- amapa %>% st_set_precision(1000) %>% st_intersection() # also doesn't work.
 
 # maybe first running intersects() to identify the problems, and then intersection 
-intersects_test <- st_intersects(d[[4]])
+intersects_test <- st_intersects(amapa)
 str(intersects_test)
 length(intersects_test) # but i don't reaaally understand how to use this output
-d[[4]][intersects_test,]
+amapa[intersects_test,]
 
-test2 <- st_set_precision(d[[4]], 1000000)
+# THIS WAS THE LATEST TEST ############################################################
+test2 <- st_set_precision(amapa, 1000000)
 snapping.time <- system.time(test3 <- st_snap(test2, test2, tolerance = 5))
+any(is.na(st_dimension(test2)))
 any(is.na(st_is_valid(test2)))
-snapped_intersecting.time <- system.time(test4 <- st_intersection(test3))
+any(na.omit(st_is_valid(test2)) == FALSE)
+falses <- grep("FALSE", st_is_valid(test3))
+test3[falses,]
+
+summary(test3[falses,])
+
+snapped_intersecting.time <- system.time(test4 <- st_intersection(test3[-falses,]))
 
 
 
-dAST <- d[[4]][which(d[[4]]$LTcateg == "AST"),]
+dAST <- amapa[which(amapa$LTcateg == "AST"),]
 int_test <- st_intersection(dAST)
 plot(int_test[,"n.overlaps"])
 
 diff_test <- st_difference(dAST)
 
 # i think my continual problem is that i actually WANT the overlapping parts
-# which 
+# the only way that i find to get these is the st_intersection 
 
 
 ast <- do.call(rbind, ast)
