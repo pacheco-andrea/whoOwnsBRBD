@@ -68,17 +68,17 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 # st_write(und, "undesignated-oth.shp", append = F)
 # 
 # # rural settlements
-setwd(paste0(wdmain,"/data/processed/landTenure_IRU-AST-PCT"))
-l <- list.files()
-ast <- lapply(l[grep(".shp", l)], st_read)
-ast <- do.call(rbind, ast)
-ast
-unique(ast$LTcateg)
-ast <- ast[which(ast$LTcateg == "AST"),]
-ast$id <- paste0("AST-", 1:nrow(ast))
-ast <- select(ast, c("LTcateg","id", "geometry"))
-setwd(paste0(wdmain,"/data/processed/processed2/public"))
-st_write(ast, "ruralSettlements.shp", append = F)
+# setwd(paste0(wdmain,"/data/processed/landTenure_IRU-AST-PCT"))
+# l <- list.files()
+# ast <- lapply(l[grep(".shp", l)], st_read)
+# ast <- do.call(rbind, ast)
+# ast
+# unique(ast$LTcateg)
+# ast <- ast[which(ast$LTcateg == "AST"),]
+# ast$id <- paste0("AST-", 1:nrow(ast))
+# ast <- select(ast, c("LTcateg","id", "geometry"))
+# setwd(paste0(wdmain,"/data/processed/processed2/public"))
+# st_write(ast, "ruralSettlements.shp", append = F)
 
 # B) Cleaning ----
 

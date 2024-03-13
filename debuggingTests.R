@@ -53,9 +53,9 @@ any(is.na(st_is_valid(test2)))
 any(na.omit(st_is_valid(test2)) == FALSE)
 falses <- grep("FALSE", st_is_valid(test3))
 test3[falses,]
-
+                                                                                                                                                 
 summary(test3[falses,])
-
+# also didn't work when removing the invalid geometries
 snapped_intersecting.time <- system.time(test4 <- st_intersection(test3[-falses,]))
 
 
