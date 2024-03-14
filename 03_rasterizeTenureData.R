@@ -13,6 +13,7 @@ library(terra)
 library(ggplot2)
 library(sf)
 library(geobr)
+library(dplyr)
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 # 1. upon first run:
@@ -42,14 +43,14 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 # st_write(s2, "landTenureCategs_v2023_allBR.shp", row.names = F, append = FALSE) # consider re-splitting this into states?
 
 # rasterize and write out raster for map
-setwd(paste0(wdmain,"/data/processed/landTenureCategs_v2023_allBR/"))
-s2 <- st_read("landTenureCategs_v2023_allBR.shp")
-# keep only rural properties (IRU)
-s2 <- s2[which(s2$tipo == "IRU"),]
-r <- terra::rasterize(s2, mask, "tipo")
-plot(r)
-setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
-writeRaster(r, filename = "landTenure_IRU_SAalbers_1km.tif", overwrite = TRUE)
+# setwd(paste0(wdmain,"/data/processed/landTenureCategs_v2023_allBR/"))
+# s2 <- st_read("landTenureCategs_v2023_allBR.shp")
+# # keep only rural properties (IRU)
+# s2 <- s2[which(s2$tipo == "IRU"),]
+# r <- terra::rasterize(s2, mask, "tipo")
+# plot(r)
+# setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
+# writeRaster(r, filename = "landTenure_IRU_SAalbers_1km.tif", overwrite = TRUE)
 
 #  deal with PCT lands: if i exclude them am i losing information? yes. D: this is so complicated.but don't have to deal with that for making the raster maps
 # importing this shapefile into qgis i can tell there's a lot, but not 100% overlap of PCTs and sustainable use areas. many are within SUs
@@ -80,7 +81,7 @@ writeRaster(r, filename = "landTenure_IRU_SAalbers_1km.tif", overwrite = TRUE)
 
 
 # MISSING here: NEXT STEPS
-# IRU?
+# IRU already done above
 # SNCI
 # SIGEF?
 
@@ -134,6 +135,15 @@ plot(t$ruralSettlements,
      axes = F,
      plg = list(legend = c("rural settlements"), x = "bottomright"))
 
+plot(t$IRU, 
+     add = T,
+     col = c("#8DA0CB"), alpha = .8,
+     type = "classes", 
+     mar=NA,
+     box = F,
+     axes = F,
+     plg = list(legend = c("rural properties CAR"), x = "bottomright"))
+
 plot(t$`undesignated-oth`, 
      add = T,
      col = c("red", "#1d6c7d", "gray80"), alpha = .8,
@@ -144,6 +154,7 @@ plot(t$`undesignated-oth`,
      plg = list(legend = c("other uses", "undesignated public lands", "military"), x = "topright"))
 
 terra::lines(v, lwd=.1)
+dev.off()
 
 # identify the overlaps more systematically ----
 
@@ -153,32 +164,64 @@ names(t)
 overlaps <- list()
 for(i in 1:(length(t)-1))
 {
-  overlaps[[i]] <- terra::intersect(t[[i]], t[[i+1]]) # 1+2, 2+3, 3+4 BUT ALSO NEED
+  overlaps[[i]] <- terra::intersect(t[[i]], t[[i+1]]) # 1+2, 2+3, 3+4, 4+5 BUT ALSO NEED
 }
-for(i in 3:4)
+length2 <- length(overlaps)
+for(i in length2:6)
 {
-  overlaps[[i+1]] <- terra::intersect(t[[1]], t[[i]]) # 1+3 and 1+4 Now missing 
+  overlaps[[i+1]] <- terra::intersect(t[[1]], t[[i-1]]) # 1+3 and 1+4 and 1+5 Now missing 
 }
 
-overlaps[[6]] <- terra::intersect(t[[2]], t[[4]]) # 2+4 
+overlaps[[8]] <- terra::intersect(t[[2]], t[[4]]) # 2+4 2+5
+overlaps[[9]] <- terra::intersect(t[[2]], t[[5]])
+names(t)
 
-names(overlaps) <- c("indigenous-protectedAreas", "protectedAreas-ruralSettlements", "ruralSettlements-undesignated",
-                     "indigenous-ruralSettlements", "indigenous-undesignated", "protectedAreas-undesignated")
+names(overlaps) <- c("indigenous-IRU", "IRU-PAs", "PAS-ruralSettlements", "ruralSettlements-undesignated",
+                     "indigenous-PAs", "indigenous-ruralSettlements", "indigenous-undesignated",
+                    "IRU-ruralSettlements", "IRU-undesignated")
 myOverlaps <- mosaic(sprc(overlaps), fun = sum)
 plot(myOverlaps) # this would then be all the overlaps of public lands, 
-# but i can always idenfity which ones specifically from the looping above
+
+# but i can always identify which ones specifically overlap from the layers i created above
 # visualize these and identify which is what
-par(mfrow = c(2,4))
+par(mfrow = c(2,5))
 plot(myOverlaps) 
-plot(overlaps$`indigenous-protectedAreas`) # vast majority
-plot(overlaps$`protectedAreas-ruralSettlements`) # second majority
-plot(overlaps$`ruralSettlements-undesignated`)
-plot(overlaps$`indigenous-ruralSettlements`)
-plot(overlaps$`indigenous-undesignated`)
-plot(overlaps$`protectedAreas-undesignated`)
+for(i in 1:length(overlaps))
+{
+  plot(overlaps[[i]], main = paste0(names(overlaps)[i]), legend = F)
+}
+
 dev.off()
 
+# alright, this visualization is indeed very very helpful
+# clearly the big overlaps are with IRU-and PAs
+# and IRU and undesignated lands 
+# some, fewer overlaps with indigenous
+# and indigenous PAs
 
-# PRIVATE OVERLAPS?
 
+# should quantify these overlaps in amounts of km though
+count <- data.frame("tenure" = c(names(overlaps)),
+                    "non-overlaps" = 0, 
+                    "overlaps" = 0)
+
+for(i in 1:length(overlaps))
+{
+  table <- table(values(overlaps[[i]]))
+  count[i,2] <- as.numeric(table[1])
+  count[i,3] <- as.numeric(table[2])
+  
+}
+count
+# count$proportion <- count$overlaps/count$non.overlaps # but this doesn't count the total number of area under that tenure
+# i remember i used to do this by counting the frequencies of the rasters
+# but probably need to do this not from the overlap raster
+class(count$non.overlaps)
+count <- arrange(count, desc(overlaps))
+count$tenure <- factor(count$tenure, levels = count$tenure)
+
+ggplot(count, aes(tenure, overlaps, fill = tenure)) +
+  geom_bar(stat = "identity") +
+  labs(title = " Overlaps in categories (in km2)") +
+  theme(panel.background = element_rect(fill = "transparent"), legend.position = "inside")
 
