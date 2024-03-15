@@ -64,7 +64,7 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 # setwd(paste0(wdmain,"/data/processed/pct_lands"))
 # st_write(pct, "pct_BR.shp")
 
-# rasterize preprocessed tenure data ----
+# rasterize other preprocessed tenure data ----
 
 # setwd(paste0(wdmain, "data/processed/processed2/public"))
 # l <- list.files()
@@ -80,14 +80,11 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 # }
 
 
-# MISSING here: NEXT STEPS
-# IRU already done above
-# SNCI
-# SIGEF?
+# MISSING here: RPPN, SNCI and SIGEF?
 
 
 
-# 3. make map of tenure categories ----
+# 2. Make tenure map  ----
 tenureColors = c("#FC8D62", "#8DA0CB", "#8C7E5B", "#1B9E77", "#E78AC3", "#FFD700", "#1d6c7d") #, "#F0F0F0")
 
 # get tenure rasters:
@@ -156,72 +153,4 @@ plot(t$`undesignated-oth`,
 terra::lines(v, lwd=.1)
 dev.off()
 
-# identify the overlaps more systematically ----
-
-# PUBLIC OVERLAPS
-# make the rasters overlap through the different possible combinations:
-names(t)
-overlaps <- list()
-for(i in 1:(length(t)-1))
-{
-  overlaps[[i]] <- terra::intersect(t[[i]], t[[i+1]]) # 1+2, 2+3, 3+4, 4+5 BUT ALSO NEED
-}
-length2 <- length(overlaps)
-for(i in length2:6)
-{
-  overlaps[[i+1]] <- terra::intersect(t[[1]], t[[i-1]]) # 1+3 and 1+4 and 1+5 Now missing 
-}
-
-overlaps[[8]] <- terra::intersect(t[[2]], t[[4]]) # 2+4 2+5
-overlaps[[9]] <- terra::intersect(t[[2]], t[[5]])
-names(t)
-
-names(overlaps) <- c("indigenous-IRU", "IRU-PAs", "PAS-ruralSettlements", "ruralSettlements-undesignated",
-                     "indigenous-PAs", "indigenous-ruralSettlements", "indigenous-undesignated",
-                    "IRU-ruralSettlements", "IRU-undesignated")
-myOverlaps <- mosaic(sprc(overlaps), fun = sum)
-plot(myOverlaps) # this would then be all the overlaps of public lands, 
-
-# but i can always identify which ones specifically overlap from the layers i created above
-# visualize these and identify which is what
-par(mfrow = c(2,5))
-plot(myOverlaps) 
-for(i in 1:length(overlaps))
-{
-  plot(overlaps[[i]], main = paste0(names(overlaps)[i]), legend = F)
-}
-
-dev.off()
-
-# alright, this visualization is indeed very very helpful
-# clearly the big overlaps are with IRU-and PAs
-# and IRU and undesignated lands 
-# some, fewer overlaps with indigenous
-# and indigenous PAs
-
-
-# should quantify these overlaps in amounts of km though
-count <- data.frame("tenure" = c(names(overlaps)),
-                    "non-overlaps" = 0, 
-                    "overlaps" = 0)
-
-for(i in 1:length(overlaps))
-{
-  table <- table(values(overlaps[[i]]))
-  count[i,2] <- as.numeric(table[1])
-  count[i,3] <- as.numeric(table[2])
-  
-}
-count
-# count$proportion <- count$overlaps/count$non.overlaps # but this doesn't count the total number of area under that tenure
-# i remember i used to do this by counting the frequencies of the rasters
-# but probably need to do this not from the overlap raster
-class(count$non.overlaps)
-count <- arrange(count, desc(overlaps))
-count$tenure <- factor(count$tenure, levels = count$tenure)
-
-ggplot(count, aes(tenure, overlaps, fill = tenure)) +
-  geom_bar(stat = "identity") +
-  labs(title = " Overlaps in categories (in km2)") +
-  theme(panel.background = element_rect(fill = "transparent"), legend.position = "inside")
 

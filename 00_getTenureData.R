@@ -168,6 +168,16 @@ st_write(snci2, "landTenure_SNCI_20240105_SAalbers.shp", append = F)
 # tinter <- st_intersection(sigef2, snci2)
 # nrow(tinter)/nrow(sigef2) # so, 12% of overlap
 
+
+qui <- st_read("�reas de Quilombolas.shp")
+plot(qui$geometry)
+summary(qui)
+qui <- select(qui, c("dt_publica", "fase" , "nr_familia"))
+qui$LTcateg <- "quilombola"
+setwd(paste0(wdmain,"/data/processed/landTenure_QUI/"))
+st_write(qui, "landTenure_quilombo_20240105_SAalbers.shp", append = F)
+
+
 # 4. Public forests ----
 # NOTE: according to the map from the cadaster of public forests: "As florestas não destinadas ocorrem em glebas arrecadadas pela União ou Estados"
 # which means these are essentially the undesignated lands

@@ -1,6 +1,6 @@
 #### Biodiversity and Tenure in Brazil ####
 
-
+# public lands #
 
 # this script brings together the following pre-processed tenure data 
 # indigenous lands, protected areas, other undesignated lands, and finally AST from CSR
