@@ -46,14 +46,13 @@ setwd(paste0(wdmain,"/data/processed/processed2/private"))
 st_write(snci, "SNCI_properties.shp", append = F)
 
 
-# incra properties
+# quilombola lands
 setwd(paste0(wdmain,"/data/processed/"))
-snci <- st_read("")
-snci <- st_transform(snci, my_crs_SAaea)
-snci$id <- paste0("SNCI-", 1:nrow(snci))
-snci <- select(snci, c("LTcateg", "id", "geometry"))
+quilombola <- st_read("landTenure_QUI/")
+quilombola <- st_transform(quilombola, my_crs_SAaea)
+quilombola$id <- paste0("QUI-", 1:nrow(quilombola))
+quilombola <- select(quilombola, c("LTcateg", "id", "geometry"))
 setwd(paste0(wdmain,"/data/processed/processed2/private"))
-st_write(snci, "SNCI_properties.shp", append = F)
-
+st_write(quilombola, "quilombolaLands.shp", append = F)
 
 

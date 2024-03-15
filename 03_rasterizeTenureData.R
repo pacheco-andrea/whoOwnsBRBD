@@ -80,8 +80,19 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 # }
 
 
-# MISSING here: RPPN, SNCI and SIGEF?
-
+# # other private lands: private protected areas, sigef and snci registries, and quilombola lands
+# setwd(paste0(wdmain, "data/processed/processed2/private"))
+# l <- list.files()
+# private <- lapply(l[grep(".shp", l)], st_read)
+# names(private) <- gsub(".shp","", l[grep(".shp", l)])
+# # i actually want to keep each of these categories as separate rasters so that i can plot them systematically later
+# for(i in 1:length(private))
+# {
+#   private[[i]] <- st_transform(private[[i]], my_crs_SAaea)
+#   r <- rasterize(private[[i]], mask, "LTcateg")
+#   setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
+#   writeRaster(r, filename = paste0(names(private)[i], "_SAalbers_1km.tif"), overwrite = TRUE)
+# }
 
 
 # 2. Make tenure map  ----
@@ -153,4 +164,4 @@ plot(t$`undesignated-oth`,
 terra::lines(v, lwd=.1)
 dev.off()
 
-
+# the "extra" private lands are missing from this map now
