@@ -18,6 +18,8 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 # Land tenure data folders ----
 setwd(paste0(wdmain,"/data/processed/"))
 
+
+# A) UPON FIRST RUN, Read and standardize data: ----
 # private PAs
 rppn <- st_read("landTenure_RPPN/landTenure_RPPN_20231212_SAalbers.shp")
 rppn <- st_transform(rppn, my_crs_SAaea) # fix projection

@@ -23,6 +23,7 @@
 # install.packages("geobr")
 # install.packages("geos")
 # install.packages("tidyverse")
+# install.packages("fasterize")
 
 wdmain <- "N:/eslu/priv/pacheco/whoOwnsBRBD/"
 

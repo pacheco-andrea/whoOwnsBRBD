@@ -84,6 +84,8 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 # upon first run, clear workspace and read the data back in where needed
 
+
+
 # B.1) Clean self-overlaps within UCs datasets ----
 setwd(paste0(wdmain,"/data/processed/processed2/public"))
 uc <- st_read("protectedAreas.shp")
@@ -109,6 +111,8 @@ uc.selfOverlaps <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(g
 # write out this data
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
 st_write(uc.selfOverlaps, "PAs_selfOverlaps.shp", append = F)
+
+
 
 # B.2) Clean self-overlaps within indigenous lands ----
 setwd(paste0(wdmain,"/data/processed/processed2/public"))
@@ -176,45 +180,25 @@ setwd(paste0(wdmain, "data/processed/LT_overlaps"))
 st_write(und.selfOverlaps, "undesig-other_selfOverlaps.shp", append = F)
 
 
+
+
 # B.4) Clean self-overlaps within AST ----
+# I determined this was unnecessary bc I tested the intersections with all other categories and they worked fine
+# the st_intersection with itself, however, i never managed to get to work. 
+
 setwd(paste0(wdmain,"/data/processed/processed2/public"))
 ruset <- st_read("ruralSettlements.shp")
-summary(st_is_valid(ruset))
-# ok, i'm starting to get worried because the intersection below isn't working
-# and there are simply too many observations to do those manual fixes i did for PAs and indigenous lands
-head(ruset)
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
+st_write(ruset, "ruralSettlements.shp", append = F)
 
-ruset.overlaps <- st_intersection(ruset[1:35,])
-plot(ruset[1:35,"geometry"])
 
-setwd(paste0(wdmain,"/data/tmp/"))
-st_write(ruset[1:35,], "test_ruralSettlements.shp")
 
-ruset_simple <- st_simplify(ruset, dTolerance = 0.001)
-ruset.overlaps <- st_intersection(ruset_simple)
 
-summary(st_is_valid(ruset_simple))
-set.seed(123)
-sampled_ruset <- ruset_simple[sample(nrow(ruset_simple), 1000, replace = F), ]
-# create a test sample
-timeTests <- system.time(
-  ruset_simple.snapped <- st_snap(sampled_ruset, sampled_ruset, tolerance = 0.1)
-  )
-# time Test for 1000, and tolerance 0.01 = 4596.35 |30.19 | 23319.09
-# time Test for 1000, and tolerance 0.1 = 3782.14 |  14.40 | 3816.38 
-
-plot(ruset_simple.snapped$geometry)
-
-setwd(paste0(wdmain,"/data/processed/processed2/public"))
-st_write(ruset_simple.snapped, "ruralSettlements_snapped_test.shp", append = F)
-
-for (i in 150:nrow(ruset_simple))
-{
-  intersection_issue <- st_intersection(ruset_simple[1:i,])
-  print(i)
-}
 
 # C) Find overlapping non-overlapping polygons  ----
+
+
+
 
 # C.1) Overlaps between UCs and indigenous: ----
 
@@ -237,6 +221,8 @@ setwd(paste0(wdmain, "data/processed/LT_overlaps"))
 st_write(overall.overlaps, "PAs-indigenous.shp", append = F)
 
 # OTHER OVERLAPS ----
+# this should answer the question: do i need to worry about a given overlap?
+# is it a large proportion of data, or can i ignore these "slivers" of overlapping polygons?
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
 overlap_indPAS <- st_read("PAs-indigenous.shp")
 
@@ -255,6 +241,16 @@ pub.overlaps <- st_intersection(pasind, und_no.overlaps)
 plot(pub.overlaps$geometry)
 # will need to clean this of any weird geometries
 unique(st_geometry_type(pub.overlaps))
+
+
+# my test of the AST lands
+overlap_indPAS <- st_transform(overlap_indPAS, crs(ruset))
+ASTtest <- st_intersection(ruset, overlap_indPAS)
+sum(st_area(ASTtest)) / sum(st_area(overlap_indPAS))
+
+plot(ASTtest$geometry)
+
+
 
 
 
