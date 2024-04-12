@@ -198,10 +198,9 @@ st_write(ruset, "ruralSettlements.shp", append = F)
 # C) Find overlapping non-overlapping polygons  ----
 
 
-
-
 # C.1) Overlaps between UCs and indigenous: ----
 
+# arguably this was the biggest, most important one one, as entire areas were overlapping just from seeing it on the map
 # using the UCs and indigenous that have been pre-cleaned from self-intersections, just in case
 overall.overlaps <- st_intersection(uc_no.overlaps, ind_no.overlaps)
 unique(st_geometry_type(overall.overlaps))
@@ -220,38 +219,63 @@ overall.overlaps <- rbind(overall.overlaps, polys.fixed)
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
 st_write(overall.overlaps, "PAs-indigenous.shp", append = F)
 
-# OTHER OVERLAPS ----
-# this should answer the question: do i need to worry about a given overlap?
-# is it a large proportion of data, or can i ignore these "slivers" of overlapping polygons?
+# C.2) other overlaps ----
+# since a lot of these overlaps will actually just be slivers of polygons overlapping
+# i need to know how "seriously" to take these. 
+# hence, here i want to make a table that quantifies these overlaps as a proportion of the total area
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
 overlap_indPAS <- st_read("PAs-indigenous.shp")
 
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
-ind <- st_read("indigenous.shp")
-pastr <- st_read("PA_strict.shp")
-pasus <- st_read("PA_sustuse.shp")
-und_no.overlaps <- st_read("undesig-other.shp")
+l <- list.files()
+l[grep(".shp", l)]
+LT_no.overlaps <- lapply(l[grep(".shp", l)], st_read)
+names(LT_no.overlaps) <- gsub(".shp", "", l[grep(".shp", l)])
 
-# how do all these public lands overlap?
+# find out percent overlaps of rural settlements
+table_rSettlements <- data.frame("categ" = NA, "area_Int"= NA, "area_Categ" = NA,"area_B" = NA)
+for(i in 1:length(names(LT_no.overlaps))){
+  if(names(LT_no.overlaps)[i] == "ruralSettlements"){next}
+  
+  table_rSettlements[i,1] <- paste0(names(LT_no.overlaps)[4],"_x_", names(LT_no.overlaps)[i])
+  # fix crs
+  LT_no.overlaps[[i]] <- st_transform(LT_no.overlaps[[i]], crs(LT_no.overlaps[[4]]))
+  # make intersection
+  intersection <- st_intersection(LT_no.overlaps[[i]],LT_no.overlaps[[4]])
+  print(intersection)
+  # get the sums of the areas in order to calculate percentages and also have the areas
+  # note everything is converted to km2
+  table_rSettlements[i,2] <- sum(st_area(intersection))/1000
+  table_rSettlements[i,3] <- sum(st_area(LT_no.overlaps[[i]]))/1000
+  table_rSettlements[i,4] <- sum(st_area(LT_no.overlaps[[4]]))/1000
+}
+# find out percent overlaps of undesignated lands
+table_undesignated <- data.frame("categ" = NA, "area_Int"= NA, "area_Categ" = NA,"area_B" = NA)
+for(i in 1:length(names(LT_no.overlaps))){
+  if(names(LT_no.overlaps)[i] == "undesig-other"){next}
+  
+  table_undesignated[i,1] <- paste0(names(LT_no.overlaps)[5],"_x_", names(LT_no.overlaps)[i])
+  # fix crs
+  LT_no.overlaps[[i]] <- st_transform(LT_no.overlaps[[i]], crs(LT_no.overlaps[[5]]))
+  # make intersection
+  intersection <- st_intersection(LT_no.overlaps[[i]],LT_no.overlaps[[5]])
+  print(intersection)
+  # get the sums of the areas in order to calculate percentages and also have the areas
+  # note everything is converted to km2
+  table_undesignated[i,2] <- sum(st_area(intersection))/1000
+  table_undesignated[i,3] <- sum(st_area(LT_no.overlaps[[i]]))/1000
+  table_undesignated[i,4] <- sum(st_area(LT_no.overlaps[[5]]))/1000
+}
 
-pasind <- rbind(ind, pastr, pasus)
 
-
-pub.overlaps <- st_intersection(pasind, und_no.overlaps)
-plot(pub.overlaps$geometry)
-# will need to clean this of any weird geometries
-unique(st_geometry_type(pub.overlaps))
-
-
-# my test of the AST lands
-overlap_indPAS <- st_transform(overlap_indPAS, crs(ruset))
-ASTtest <- st_intersection(ruset, overlap_indPAS)
-sum(st_area(ASTtest)) / sum(st_area(overlap_indPAS))
-
-plot(ASTtest$geometry)
-
-
-
+# these tables show me that the only categories that overlap more than 1% are:
+rbind(table_rSettlements, table_undesignated)
+# rural settlements and sustainable use PAs, where 6.5% of rural settlements overlap with sust use PAs (and 3.5% of SU PAs overlap with rural settlements)
+# as well as undesignated lands and rural settlements, where 1.35% of rural settlements are overlapped by undesignated lands
+# therefore, let's write out this table in order to report it:
+setwd(paste0(wdmain, "/output/"))
+# also note, i'm using "B" for "base" comparison
+write.csv(rbind(table_rSettlements, table_undesignated), "publicLandOverlaps_areakm2.csv", row.names = F)
 
 
 # D) Get polygons that DO NOT overlap with each other (tenure^n) ----
