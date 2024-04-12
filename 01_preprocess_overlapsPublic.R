@@ -14,8 +14,8 @@
 
 # 1) one df (respectively) with all the self-overlaps 
 # 2) one df (respectively) with no self-overlaps 
-# 3) one df (respectively) with the overlaps^n (i.e., indigenous overlaps with PAs, indigenous overlaps with undesignated, etc.)
-
+# 3) one df (respectively) with the overlaps^n (i.e., indigenous overlaps with PAs, rural settlements overlaps with overlaps, etc.)
+# 4) one table that quantifies the area that overlaps across tenure categories
 
 # libraries
 library(terra)
@@ -183,22 +183,68 @@ st_write(und.selfOverlaps, "undesig-other_selfOverlaps.shp", append = F)
 
 
 # B.4) Clean self-overlaps within AST ----
-# I determined this was unnecessary bc I tested the intersections with all other categories and they worked fine
-# the st_intersection with itself, however, i never managed to get to work. 
-
+# I determined this was unnecessary bc while i could never get the self-intersection (st_intersection) to work with this huge dataset
+# I tested the intersections with all other categories and they worked fine - which is the main reason to run the self-intersection anyway
+# therefore, i just pass it on to the data folder used in the established workflow
 setwd(paste0(wdmain,"/data/processed/processed2/public"))
 ruset <- st_read("ruralSettlements.shp")
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
 st_write(ruset, "ruralSettlements.shp", append = F)
 
+# D) Get polygons that DO NOT overlap with each other ----
+
+# PAs and indigenous ----
+uc_x_ind <- rbind(uc_no.overlaps, ind_no.overlaps)
+# remove these polygons from the data because they prevent st_intersection to run
+# no worries, they will be inserted back in later
+uc_x_ind2 <- uc_x_ind[which(uc_x_ind$id != "IN-183" & uc_x_ind$id != "IN-294" & uc_x_ind$id != "IN-295" & uc_x_ind$id != "IN-424" &
+                              uc_x_ind$id != "IN-314" & uc_x_ind$id != "UC-770" & uc_x_ind$id != "UC-1104"& uc_x_ind$id != "UC-859"),]
+# # only run in order to debug this intersection 
+# for (i in 768:nrow(uc_x_ind2))
+# {
+#   intersection_issue <- st_intersection(uc_x_ind2[1:i,])
+#   print(i)
+# }
+uc_x_ind_problems <- uc_x_ind[which(uc_x_ind$id == "IN-183" | uc_x_ind$id == "IN-294" | uc_x_ind$id == "IN-295" | uc_x_ind$id == "IN-424" |
+                                      uc_x_ind$id == "IN-314" | uc_x_ind$id == "UC-770" | uc_x_ind$id == "UC-1104" | uc_x_ind$id == "UC-859"),]
+uc_x_ind_overlaps <- st_intersection(uc_x_ind2)
+# plot(uc_x_ind_overlaps[,"n.overlaps"])
+
+
+# now filter out data that doesn't overlap
+# (note, i everything that *does* overlap will be dealt with in section D, bc this is easier to extract with an intersection of the two datasets)
+no.overlaps <- uc_x_ind_overlaps[which(uc_x_ind_overlaps$n.overlaps == 1),]
+# get back polygons that made the intersection bug
+no.overlaps2 <- rbind(no.overlaps[,c("LTcateg", "id", "geometry")], uc_x_ind_problems)
+# fix resulting linestring geometries 
+uc_x_ind_overlaps_CLEAN <- no.overlaps2
+unique(st_geometry_type(uc_x_ind_overlaps_CLEAN))
+# get all the geometries which are not polygons (i.e., lines and points)
+pgeometries <- uc_x_ind_overlaps_CLEAN[which(st_geometry_type(uc_x_ind_overlaps_CLEAN) != "MULTIPOLYGON" &
+                                               st_geometry_type(uc_x_ind_overlaps_CLEAN) != "POLYGON"),]
+extract.pgeometries <- st_collection_extract(pgeometries, "POLYGON") # extract only the polygons
+fixed.pgeometries <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(geometry = st_union(geometry)) %>% ungroup() %>% st_as_sf() 
+# replace problem geos with the fixed geos in clean df
+uc_x_ind_overlaps_CLEAN <- uc_x_ind_overlaps_CLEAN[which(st_geometry_type(uc_x_ind_overlaps_CLEAN) == "MULTIPOLYGON" |
+                                                           st_geometry_type(uc_x_ind_overlaps_CLEAN) == "POLYGON"),]
+uc_x_ind_overlaps_CLEAN <- rbind(uc_x_ind_overlaps_CLEAN, fixed.pgeometries)
+unique(st_geometry_type(uc_x_ind_overlaps_CLEAN))
+uc_x_ind_overlaps_CLEAN
+length(unique(uc_x_ind_overlaps_CLEAN$id))
+
+# write out one at a time to keep things organized!
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
+st_write(uc_x_ind_overlaps_CLEAN[which(uc_x_ind_overlaps_CLEAN$LTcateg == "PI"),], "PA_strict.shp", append = F)
+st_write(uc_x_ind_overlaps_CLEAN[which(uc_x_ind_overlaps_CLEAN$LTcateg == "US"),], "PA_sustuse.shp", append = F)
+st_write(uc_x_ind_overlaps_CLEAN[which(uc_x_ind_overlaps_CLEAN$LTcateg == "indigenous"),], "indigenous.shp", append = F)
 
 
 
 
-# C) Find overlapping non-overlapping polygons  ----
+# D) Find overlapping polygons across categories ----
 
 
-# C.1) Overlaps between UCs and indigenous: ----
+# D.1) Overlaps between UCs and indigenous: ----
 
 # arguably this was the biggest, most important one one, as entire areas were overlapping just from seeing it on the map
 # using the UCs and indigenous that have been pre-cleaned from self-intersections, just in case
@@ -219,19 +265,22 @@ overall.overlaps <- rbind(overall.overlaps, polys.fixed)
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
 st_write(overall.overlaps, "PAs-indigenous.shp", append = F)
 
-# C.2) other overlaps ----
+# D.2) Other public land overlaps ----
 # since a lot of these overlaps will actually just be slivers of polygons overlapping
 # i need to know how "seriously" to take these. 
-# hence, here i want to make a table that quantifies these overlaps as a proportion of the total area
+# hence, here i make a table that quantifies the are of these overlaps 
+# and i can easily derive the proportions of these overlaps
+
+# get data:
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
 overlap_indPAS <- st_read("PAs-indigenous.shp")
-
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
 l <- list.files()
 l[grep(".shp", l)]
 LT_no.overlaps <- lapply(l[grep(".shp", l)], st_read)
 names(LT_no.overlaps) <- gsub(".shp", "", l[grep(".shp", l)])
-
+LT_no.overlaps[[6]] <- overlap_indPAS
+names(LT_no.overlaps)[[6]] <- "overlap_indPAS"
 # find out percent overlaps of rural settlements
 table_rSettlements <- data.frame("categ" = NA, "area_Int"= NA, "area_Categ" = NA,"area_B" = NA)
 for(i in 1:length(names(LT_no.overlaps))){
@@ -249,6 +298,7 @@ for(i in 1:length(names(LT_no.overlaps))){
   table_rSettlements[i,3] <- sum(st_area(LT_no.overlaps[[i]]))/1000
   table_rSettlements[i,4] <- sum(st_area(LT_no.overlaps[[4]]))/1000
 }
+table_rSettlements
 # find out percent overlaps of undesignated lands
 table_undesignated <- data.frame("categ" = NA, "area_Int"= NA, "area_Categ" = NA,"area_B" = NA)
 for(i in 1:length(names(LT_no.overlaps))){
@@ -266,82 +316,61 @@ for(i in 1:length(names(LT_no.overlaps))){
   table_undesignated[i,3] <- sum(st_area(LT_no.overlaps[[i]]))/1000
   table_undesignated[i,4] <- sum(st_area(LT_no.overlaps[[5]]))/1000
 }
-
-
-# these tables show me that the only categories that overlap more than 1% are:
+table_undesignated
+# these tables show me that there are 3 overlaps that represent more than 1% area overlap:
 rbind(table_rSettlements, table_undesignated)
 # rural settlements and sustainable use PAs, where 6.5% of rural settlements overlap with sust use PAs (and 3.5% of SU PAs overlap with rural settlements)
-# as well as undesignated lands and rural settlements, where 1.35% of rural settlements are overlapped by undesignated lands
+# undesignated lands and rural settlements, where 1.35% of rural settlements are overlapped by undesignated lands
+# rural settlements and the overlap between indigenous and PAs (2.3% of the overlap (indxPAs) overlaps with rural Settlements)
 # therefore, let's write out this table in order to report it:
 setwd(paste0(wdmain, "/output/"))
 # also note, i'm using "B" for "base" comparison
 write.csv(rbind(table_rSettlements, table_undesignated), "publicLandOverlaps_areakm2.csv", row.names = F)
-
-
-# D) Get polygons that DO NOT overlap with each other (tenure^n) ----
-
-# PAs and indigenous ----
-uc_x_ind <- rbind(uc_no.overlaps, ind_no.overlaps)
-# remove these polygons from the data because they prevent st_intersection to run
-# no worries, they will be inserted back in later
-uc_x_ind2 <- uc_x_ind[which(uc_x_ind$id != "IN-183" & uc_x_ind$id != "IN-294" & uc_x_ind$id != "IN-295" & uc_x_ind$id != "IN-424" &
-                            uc_x_ind$id != "IN-314" & uc_x_ind$id != "UC-770" & uc_x_ind$id != "UC-1104"& uc_x_ind$id != "UC-859"),]
-# # only run in order to debug this intersection 
-# for (i in 768:nrow(uc_x_ind2))
-# {
-#   intersection_issue <- st_intersection(uc_x_ind2[1:i,])
-#   print(i)
-# }
-uc_x_ind_problems <- uc_x_ind[which(uc_x_ind$id == "IN-183" | uc_x_ind$id == "IN-294" | uc_x_ind$id == "IN-295" | uc_x_ind$id == "IN-424" |
-                              uc_x_ind$id == "IN-314" | uc_x_ind$id == "UC-770" | uc_x_ind$id == "UC-1104" | uc_x_ind$id == "UC-859"),]
-uc_x_ind_overlaps <- st_intersection(uc_x_ind2)
-# plot(uc_x_ind_overlaps[,"n.overlaps"])
-
-
-# now filter out data that doesn't overlap
-# (note, i already have everything that *does* overlap)
-no.overlaps <- uc_x_ind_overlaps[which(uc_x_ind_overlaps$n.overlaps == 1),]
-# get back polygons that made the intersection bug
-no.overlaps2 <- rbind(no.overlaps[,c("LTcateg", "id", "geometry")], uc_x_ind_problems)
-# fix resulting linestring geometries 
-uc_x_ind_overlaps_CLEAN <- no.overlaps2
-unique(st_geometry_type(uc_x_ind_overlaps_CLEAN))
-# get all the geometries which are not polygons (i.e., lines and points)
-pgeometries <- uc_x_ind_overlaps_CLEAN[which(st_geometry_type(uc_x_ind_overlaps_CLEAN) != "MULTIPOLYGON" &
-                                               st_geometry_type(uc_x_ind_overlaps_CLEAN) != "POLYGON"),]
-extract.pgeometries <- st_collection_extract(pgeometries, "POLYGON") # extract only the polygons
-fixed.pgeometries <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(geometry = st_union(geometry)) %>% ungroup() %>% st_as_sf() 
-# replace problem geos with the fixed geos in clean df
-uc_x_ind_overlaps_CLEAN <- uc_x_ind_overlaps_CLEAN[which(st_geometry_type(uc_x_ind_overlaps_CLEAN) == "MULTIPOLYGON" |
-                                                            st_geometry_type(uc_x_ind_overlaps_CLEAN) == "POLYGON"),]
-uc_x_ind_overlaps_CLEAN <- rbind(uc_x_ind_overlaps_CLEAN, fixed.pgeometries)
-unique(st_geometry_type(uc_x_ind_overlaps_CLEAN))
-uc_x_ind_overlaps_CLEAN
-length(unique(uc_x_ind_overlaps_CLEAN$id))
-
-# write out one at a time to keep things organized!
-setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
-st_write(uc_x_ind_overlaps_CLEAN[which(uc_x_ind_overlaps_CLEAN$LTcateg == "PI"),], "PA_strict.shp", append = F)
-st_write(uc_x_ind_overlaps_CLEAN[which(uc_x_ind_overlaps_CLEAN$LTcateg == "US"),], "PA_sustuse.shp", append = F)
-st_write(uc_x_ind_overlaps_CLEAN[which(uc_x_ind_overlaps_CLEAN$LTcateg == "indigenous"),], "indigenous.shp", append = F)
-
-# HERE MISSING: # ----
-
-# PAs x undesignated
-
-# indigenous x undesignated
-
-# undesignated x AST
-
-# PAs x AST
-
-# indigenous x AST
+# this also means that I should write the rural settlements overlap with sust use PAs in the overlaps folder
+# as well as the rural settlements overlap with the overlaps of indigenous + PAs
 
 
 
+# D.3) Overlaps between sustainable use UCs/PAs and rural settlements: ----
+# this is a repeat of the process used in C.1
+# using the polygons that have been pre-cleaned from self-intersections
+overall.overlaps <- st_intersection(LT_no.overlaps$PA_sustuse, LT_no.overlaps$ruralSettlements)
+unique(st_geometry_type(overall.overlaps))
+# identify these linestrings and fix
+polys <- overall.overlaps[grep("GEOMETRY", (st_geometry_type(overall.overlaps))),]
+polys.extract <- st_collection_extract(polys, "POLYGON") # fix
+# aggregate resulting extra polygons by the id
+polys.extract <- polys.extract %>% group_by(id) %>% summarise(geometry = st_union(geometry)) %>% ungroup() %>% st_as_sf()
+# keep all the original information
+polys.fixed <- st_as_sf(inner_join(st_drop_geometry(polys), polys.extract, by = "id"))
+# remove the wrong geometries
+overall.overlaps <- overall.overlaps[-grep("GEOMETRY", (st_geometry_type(overall.overlaps))),]
+# bind the correct geometries back in
+overall.overlaps <- rbind(overall.overlaps, polys.fixed)
 
+setwd(paste0(wdmain, "data/processed/LT_overlaps"))
+st_write(overall.overlaps, "sustUsePAs-ruralSettlements.shp", append = F)
 
-
-# get the public data overlaps
-
+# D.4) Overlaps between the overlaps of indigenous-PAs and rural settlements: ----
+# this is a repeat of the process used in C.1
+# using the polygons that have been pre-cleaned from self-intersections
+overall.overlaps <- st_intersection(LT_no.overlaps$overlap_indPAS, LT_no.overlaps$ruralSettlements)
+unique(st_geometry_type(overall.overlaps))
+# identify these linestrings and fix
+polys <- overall.overlaps[grep("GEOMETRY", (st_geometry_type(overall.overlaps))),]
+polys.extract <- st_collection_extract(polys, "POLYGON") # fix
+# aggregate resulting extra polygons by the id
+polys.extract <- polys.extract %>% group_by(id) %>% summarise(geometry = st_union(geometry)) %>% ungroup() %>% st_as_sf()
+# keep all the original information
+polys.fixed <- st_as_sf(inner_join(st_drop_geometry(polys), polys.extract, by = "id"))
+# remove the wrong geometries
+overall.overlaps <- overall.overlaps[-grep("GEOMETRY", (st_geometry_type(overall.overlaps))),]
+# bind the correct geometries back in
+overall.overlaps <- rbind(overall.overlaps, polys.fixed)
+# fix colnames in order to be able to write it out
+colnames1 <- colnames(overall.overlaps)
+colnames(overall.overlaps) <- c("LTcateg", "id" , "LTcateg_2", "id_2", "LTcateg_3", "id_3","geometry")
+# write out in folder of overlaps
+setwd(paste0(wdmain, "data/processed/LT_overlaps"))
+st_write(overall.overlaps, "indPAoverlap-ruralSettlements.shp", append = F)
 
