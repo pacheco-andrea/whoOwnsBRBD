@@ -20,41 +20,71 @@ setwd(paste0(wdmain,"/data/processed/"))
 
 
 # A) UPON FIRST RUN, Read and standardize data: ----
-# private PAs
-rppn <- st_read("landTenure_RPPN/landTenure_RPPN_20231212_SAalbers.shp")
-rppn <- st_transform(rppn, my_crs_SAaea) # fix projection
-rppn$id <- paste0("RPPN-", 1:nrow(rppn))
-rppn <- select(rppn, c("LTcateg", "id", "geometry"))
+# # private PAs
+# rppn <- st_read("landTenure_RPPN/landTenure_RPPN_20231212_SAalbers.shp")
+# rppn <- st_transform(rppn, my_crs_SAaea) # fix projection
+# rppn$id <- paste0("RPPN-", 1:nrow(rppn))
+# rppn <- select(rppn, c("LTcateg", "id", "geometry"))
+# setwd(paste0(wdmain,"/data/processed/processed2/private"))
+# st_write(rppn, "private_protectedAreas.shp", append = F)
+# # rppn.selfOVerlaps <- st_intersection(rppn)
+# 
+# # sigef properties (around 1M)
+# setwd(paste0(wdmain,"/data/processed/"))
+# sigef <- st_read("landTenure_SIGEF/landTenure_SIGEF_20231312_SAalbers.shp")
+# sigef <- st_transform(sigef, my_crs_SAaea)
+# sigef$id <- paste0("SIGEF-", 1:nrow(sigef))
+# sigef <- select(sigef, c("LTcateg", "id", "geometry"))
+# setwd(paste0(wdmain,"/data/processed/processed2/private"))
+# st_write(sigef, "SIGEF_properties.shp", append = F)
+# 
+# # snci properties
+# setwd(paste0(wdmain,"/data/processed/"))
+# snci <- st_read("landTenure_SNCI/")
+# snci <- st_transform(snci, my_crs_SAaea)
+# snci$id <- paste0("SNCI-", 1:nrow(snci))
+# snci <- select(snci, c("LTcateg", "id", "geometry"))
+# setwd(paste0(wdmain,"/data/processed/processed2/private"))
+# st_write(snci, "SNCI_properties.shp", append = F)
+# 
+# 
+# # quilombola lands
+# setwd(paste0(wdmain,"/data/processed/"))
+# quilombola <- st_read("landTenure_QUI/")
+# quilombola <- st_transform(quilombola, my_crs_SAaea)
+# quilombola$id <- paste0("QUI-", 1:nrow(quilombola))
+# quilombola <- select(quilombola, c("LTcateg", "id", "geometry"))
+# setwd(paste0(wdmain,"/data/processed/processed2/private"))
+# st_write(quilombola, "quilombolaLands.shp", append = F)
+
+# # IRU - rural properties
+# setwd(paste0(wdmain,"/data/processed/landTenure_IRU-AST-PCT"))
+# l <- list.files()
+# iru <- lapply(l[grep(".shp", l)], st_read)
+# iru <- do.call(rbind, iru)
+# iru
+# unique(iru$LTcateg)
+# iru <- iru[which(iru$LTcateg == "IRU"),]
+# iru$id <- paste0("IRU-", 1:nrow(iru))
+# iru <- select(iru, c("LTcateg","id", "geometry"))
+# emptyGeos <- which(st_is_empty(iru))
+# iru <- iru[-emptyGeos,]
+# setwd(paste0(wdmain,"/data/processed/processed2/private"))
+# st_write(iru, "ruralProperties.shp", append = F)
+
+
+# any cleaning? ----
 setwd(paste0(wdmain,"/data/processed/processed2/private"))
-st_write(rppn, "private_protectedAreas.shp", append = F)
-# rppn.selfOVerlaps <- st_intersection(rppn)
-
-# sigef properties (around 1M)
-setwd(paste0(wdmain,"/data/processed/"))
-sigef <- st_read("landTenure_SIGEF/landTenure_SIGEF_20231312_SAalbers.shp")
-sigef <- st_transform(sigef, my_crs_SAaea)
-sigef$id <- paste0("SIGEF-", 1:nrow(sigef))
-sigef <- select(sigef, c("LTcateg", "id", "geometry"))
-setwd(paste0(wdmain,"/data/processed/processed2/private"))
-st_write(sigef, "SIGEF_properties.shp", append = F)
-
-# snci properties
-setwd(paste0(wdmain,"/data/processed/"))
-snci <- st_read("landTenure_SNCI/")
-snci <- st_transform(snci, my_crs_SAaea)
-snci$id <- paste0("SNCI-", 1:nrow(snci))
-snci <- select(snci, c("LTcateg", "id", "geometry"))
-setwd(paste0(wdmain,"/data/processed/processed2/private"))
-st_write(snci, "SNCI_properties.shp", append = F)
+l <- list.files()
+l[grep(".shp", l)]
 
 
-# quilombola lands
-setwd(paste0(wdmain,"/data/processed/"))
-quilombola <- st_read("landTenure_QUI/")
-quilombola <- st_transform(quilombola, my_crs_SAaea)
-quilombola$id <- paste0("QUI-", 1:nrow(quilombola))
-quilombola <- select(quilombola, c("LTcateg", "id", "geometry"))
-setwd(paste0(wdmain,"/data/processed/processed2/private"))
-st_write(quilombola, "quilombolaLands.shp", append = F)
 
 
+# non-overlaps ----
+
+
+
+
+
+# overlaps ----

@@ -182,7 +182,7 @@ st_write(und.selfOverlaps, "undesig-other_selfOverlaps.shp", append = F)
 
 
 
-# B.4) Clean self-overlaps within AST ----
+# B.4) Clean self-overlaps within AST? ----
 # I determined this was unnecessary bc while i could never get the self-intersection (st_intersection) to work with this huge dataset
 # I tested the intersections with all other categories and they worked fine - which is the main reason to run the self-intersection anyway
 # therefore, i just pass it on to the data folder used in the established workflow
