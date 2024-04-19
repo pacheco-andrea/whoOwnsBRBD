@@ -73,18 +73,120 @@ setwd(paste0(wdmain,"/data/processed/"))
 # st_write(iru, "ruralProperties.shp", append = F)
 
 
-# any cleaning? ----
+# Cleaning of self-overlaps from private lands data ----
 setwd(paste0(wdmain,"/data/processed/processed2/private"))
 l <- list.files()
 l[grep(".shp", l)]
 
 
+# RPPNs ----
+priPAs <- st_read("private_protectedAreas.shp")
+st_is_valid(priPAs)
+priPAs <- st_make_valid(priPAs)
+priPAs[which(st_is_valid(priPAs)),]
+priPAs.overlaps <- st_intersection(priPAs)
+plot(priPAs.overlaps[,"n.overlaps"])
 
+# df with no overlaps
+priPAs_no.overlaps <- priPAs.overlaps[which(priPAs.overlaps$n.overlaps == 1), c("LTcateg", "id", "geometry")]
+unique(st_geometry_type(priPAs_no.overlaps))
+# write out this data
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
+st_write(priPAs_no.overlaps, "private_protectedAreas.shp", append = F)
+
+# get the self-overlaps 
+unique(st_geometry_type(priPAs.overlaps[which(priPAs.overlaps$n.overlaps > 1),]))
+pgeometries <- priPAs.overlaps[which(priPAs.overlaps$n.overlaps > 1),] 
+# note, out of 1694 features, only 5 were actual polygons - the rest were linestrings, etc.
+# when plotted, these are practically insignificant
+extract.pgeometries <- st_collection_extract(pgeometries, "POLYGON")
+priPAs.selfOverlaps <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf()
+plot(priPAs.selfOverlaps$geometry)
+
+# write out this data
+setwd(paste0(wdmain, "data/processed/LT_overlaps"))
+st_write(priPAs.selfOverlaps, "privatePAs_selfOverlaps.shp", append = F)
+
+# Quilombola lands ----
+setwd(paste0(wdmain,"/data/processed/processed2/private"))
+
+qui <- st_read("quilombolaLands.shp")
+# st_is_valid(qui)
+qui.overlaps <- st_intersection(qui)
+# plot(qui.overlaps[,"n.overlaps"])
+
+# df with no overlaps
+qui_no.overlaps <- qui.overlaps[which(qui.overlaps$n.overlaps == 1), c("LTcateg", "id", "geometry")]
+unique(st_geometry_type(qui_no.overlaps))
+extract.pgeometries <- st_collection_extract(qui_no.overlaps, "POLYGON")
+qui_no.overlaps <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf()
+# write out this data
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
+st_write(qui_no.overlaps, "quilombolaLands.shp", append = F)
+
+# get the self-overlaps 
+unique(st_geometry_type(qui.overlaps[which(qui.overlaps$n.overlaps > 1),]))
+pgeometries <- qui.overlaps[which(qui.overlaps$n.overlaps > 1),] 
+# note, out of 1694 features, only 5 were actual polygons - the rest were linestrings, etc.
+# when plotted, these are practically insignificant
+extract.pgeometries <- st_collection_extract(pgeometries, "POLYGON")
+qui.selfOverlaps <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf()
+plot(qui.selfOverlaps$geometry)
+
+# write out this data
+setwd(paste0(wdmain, "data/processed/LT_overlaps"))
+st_write(priPAs.selfOverlaps, "quilombola_selfOverlaps.shp", append = F)
+
+# rural Properties ----
+# do not need cleaning for self-overlaps - so they should just be placed in the right folder... 
+
+# SIGEF properties ----
+# process for the sake of comparing - but don't ultimately use in analysis
+setwd(paste0(wdmain,"/data/processed/processed2/private"))
+sigef <- st_read("SIGEF_properties.shp")
+sigef
+# summary(st_is_valid(sigef)) # they're all valid
+# test <- st_intersection(sigef[1:10000,])
+sigef <- st_union(sigef)
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
+st_write(sigef, "SIGEF_properties.shp", append = F)
+
+# SNCI properies ----
+# maybe do this later as it's not a priority?
 
 # non-overlaps ----
+# **** i shouldn't have written the above into the no-overlaps folder
+# should have just been about writing into the overlaps folder - bc of the self overlaps
+# i basically need to straighten this out to keep my head straight
 
+# but first, let's overlap because that's the priority
 
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
+l <- list.files()
+l[grep(".shp", l)]
 
+# private PAs vs quilombola lands 
+priPAs <- st_read("private_protectedAreas.shp")
+qui <- st_read("quilombolaLands.shp")
 
+priPAs_x_qui <- rbind(priPAs, qui)
+priPAs_x_qui_overlaps <- st_intersection(priPAs, qui)
+plot(priPAs_x_qui_overlaps[,"LTcateg"]) # doesn't seem to be much overlap in any case - don't bother making the intersection
+sum(st_area(priPAs_x_qui_overlaps)) # essentially 15km2
 
-# overlaps ----
+# quilombola lands vs rural properties
+setwd(paste0(wdmain,"/data/processed/processed2/private"))
+iru <- st_read("ruralProperties.shp")
+iru <- st_transform(iru, my_crs_SAaea)
+qui <- st_transform(qui, my_crs_SAaea)
+test_intersection1 <- st_intersection(rbind(qui, iru))
+test_intersection <- st_intersection(qui, iru)
+plot(test_intersection$geometry)
+
+table <- data.frame("categ" = NA, "area_Int"= NA, "area_Categ" = NA,"area_B" = NA)
+table[1,2] <- sum(st_area(test_intersection)) # 8,000 km2
+table[1,3] <- sum(st_area(iru))
+table[1,4] <- sum(st_area(qui))
+table[1,2]/table[1,4] # 28% of quilombos are intersecting with rural properties
+
+# overlaps across categories ----

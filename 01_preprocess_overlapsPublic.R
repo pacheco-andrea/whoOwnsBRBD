@@ -88,19 +88,17 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 # B.1) Clean self-overlaps within UCs datasets ----
 setwd(paste0(wdmain,"/data/processed/processed2/public"))
+
 uc <- st_read("protectedAreas.shp")
 # first fix two features which prevented running st_intersection
 uc.p <- uc[which(uc$id == "UC-1047" | uc$id == "UC-1055"),]
 uc <- uc[which(uc$id != "UC-1047" & uc$id != "UC-1055"),,] # remove problem polygons from entire dataset
 uc.p <- st_simplify(uc.p, preserveTopology = T, dTolerance = 100) # fix the polygons by simplifying
 uc <- rbind(uc, uc.p) # add back to the original data
-
 # get the self-overlaps within UCs
 uc.overlaps <- st_intersection(uc)
-
 # create df with no overlaps within
 uc_no.overlaps <- uc.overlaps[which(uc.overlaps$n.overlaps == 1), c("LTcateg", "id", "geometry")]
-
 # create and clean df with only the self-overlaps, and make them their own category
 unique(st_geometry_type(uc.overlaps[which(uc.overlaps$n.overlaps > 1),]))
 pgeometries <- uc.overlaps[which(uc.overlaps$n.overlaps > 1),]
@@ -131,7 +129,6 @@ ind.p <- st_simplify(ind.p, preserveTopology = T, dTolerance = 100)
 ind.overlaps <- st_intersection(rbind(ind, ind.p))
 # create df with no overlaps
 ind_no.overlaps <- ind.overlaps[which(ind.overlaps$n.overlaps == 1), c("LTcateg", "id", "geometry")]
-
 # create and clean df with only the self-overlaps, and make them their own category
 unique(st_geometry_type(ind.overlaps[which(ind.overlaps$n.overlaps > 1),]))
 pgeometries <- ind.overlaps[which(ind.overlaps$n.overlaps > 1),]
@@ -147,37 +144,26 @@ st_write(ind.selfOverlaps, "indigenous_selfOverlaps.shp", append = F)
 
 # B.3) Clean self-overlaps within UND ----
 setwd(paste0(wdmain,"/data/processed/processed2/public"))
+
 und <- st_read("undesignated-oth.shp")
-
-# find issues in undesignated lands too
-st_is_valid(und)
+# issues in undesignated lands can be resolved with just making the geometries valid
+summary(st_is_valid(und))
 und2 <- st_make_valid(und)
-st_is_valid(und2)
-
+summary(st_is_valid(und2))
 und <- und2[which(st_is_valid(und2)),] # just making sure I only include what's valid
 und.overlaps <- st_intersection(und)
 length(unique(und.overlaps$id))
-plot(und.overlaps[,"n.overlaps"])
-
-# df with no overlaps
-und_no.overlaps <- und.overlaps[which(und.overlaps$n.overlaps == 1), c("LTcateg", "id", "geometry")]
-unique(st_geometry_type(und_no.overlaps))
-# write out this data
-setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
-st_write(und_no.overlaps, "undesig-other.shp", append = F)
-
+# plot(und.overlaps[,"n.overlaps"])
 # get the self-overlaps of undesignated lands
 unique(st_geometry_type(und.overlaps[which(und.overlaps$n.overlaps > 1),]))
 pgeometries <- und.overlaps[which(und.overlaps$n.overlaps > 1),] 
-# note, out of 1694 features, only 5 were actual polygons - the rest were linestrings, etc.
-# when plotted, these are practically insignificant
 extract.pgeometries <- st_collection_extract(pgeometries, "POLYGON")
 und.selfOverlaps <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf()
-plot(und.selfOverlaps[,"LTcateg"])
-
-# write out this data
-setwd(paste0(wdmain, "data/processed/LT_overlaps"))
-st_write(und.selfOverlaps, "undesig-other_selfOverlaps.shp", append = F)
+und.selfOverlaps# note these self-overlaps are essentially insignificant: 5 polygons, with a total of 17 m2
+# hence, i don't worry about these overlaps
+# create df with no overlaps
+und_no.overlaps <- und.overlaps[which(und.overlaps$n.overlaps == 1), c("LTcateg", "id", "geometry")]
+unique(st_geometry_type(und_no.overlaps))
 
 
 
@@ -191,7 +177,7 @@ ruset <- st_read("ruralSettlements.shp")
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
 st_write(ruset, "ruralSettlements.shp", append = F)
 
-# D) Get polygons that DO NOT overlap with each other ----
+# C) Get polygons that DO NOT overlap with each other ----
 
 # PAs and indigenous ----
 uc_x_ind <- rbind(uc_no.overlaps, ind_no.overlaps)
