@@ -171,23 +171,35 @@ sum(st_area(priPAs_x_qui_overlaps)) # essentially 15km2
 # this means it doesn't make much sense to make the actual intersection
 # meaning, in turn, that private PAs and quilombos don't overlap, and they belong in the no-overlaps_private folder
 
-# quilombola lands vs rural properties
+# AND since this is the extent of private lands - i can wrap up the overlaps here
+# EXCEPT i do need to overlap the two above with the rural properties!
+# Hence:
+
+# get rural properties data
 setwd(paste0(wdmain,"/data/processed/processed2/private"))
 iru <- st_read("ruralProperties.shp")
 iru <- st_transform(iru, my_crs_SAaea)
 qui <- st_transform(qui, my_crs_SAaea)
-
-# intersecting them as one object is my only way of getting the parts that don't intersect
+# remember, intersecting them as one object is my only way of getting the parts that don't intersect
 # i always doubt this again, and make myself think that i could get this using st_difference. but no. i need to intersect.
-test_diff <- st_difference(qui, iru)
-test_intersection1 <- st_intersection(rbind(qui, iru))
-test_intersection <- st_intersection(qui, iru)
+test_intersection <- st_intersection(qui, iru) # this is just to check how much of these intersect
+sum(st_area(test_intersection))/1000000 # to convert to km2, this is 8,000 km2. no es poca cosa
 plot(test_intersection$geometry)
+# test_intersection <- st_intersection(rbind(qui, iru))
+# test_intersection
 
 table <- data.frame("categ" = NA, "area_Int"= NA, "area_Categ" = NA,"area_B" = NA)
 table[1,2] <- sum(st_area(test_intersection)) # 8,000 km2
 table[1,3] <- sum(st_area(iru))
 table[1,4] <- sum(st_area(qui))
 table[1,2]/table[1,4] # 28% of quilombos are intersecting with rural properties
+
+# get rural properties that do not intersect
+qui_x_iru <- st_intersection(rbind(qui, iru))
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private"))
+st_write(qui_x_iru, "qui_x_iru.shp", append = F)
+
+
+
 
 # D) Find overlapping polygons across categories ----
