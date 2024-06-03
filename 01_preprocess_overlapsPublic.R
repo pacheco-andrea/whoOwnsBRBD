@@ -160,18 +160,20 @@ pgeometries <- und.overlaps[which(und.overlaps$n.overlaps > 1),]
 extract.pgeometries <- st_collection_extract(pgeometries, "POLYGON")
 und.selfOverlaps <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf()
 und.selfOverlaps# note these self-overlaps are essentially insignificant: 5 polygons, with a total of 17 m2
-# hence, i don't worry about these overlaps
+# hence, i don't really worry about accounting for these overlaps
 # create df with no overlaps
 und_no.overlaps <- und.overlaps[which(und.overlaps$n.overlaps == 1), c("LTcateg", "id", "geometry")]
 unique(st_geometry_type(und_no.overlaps))
-
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
+st_write(und_no.overlaps, "undesignated.shp", append = F)
 
 
 
 # B.4) Clean self-overlaps within AST? ----
-# I determined this was unnecessary bc while i could never get the self-intersection (st_intersection) to work with this huge dataset
+# I determined this was unnecessary bc while i could never get the self-intersection (st_intersection) to work with this huge dataset,
 # I tested the intersections with all other categories and they worked fine - which is the main reason to run the self-intersection anyway
-# therefore, i just pass it on to the data folder used in the established workflow
+# in theory these should be clean from imaflora/CSR anyway
+# therefore, i  should re-write these to the LT_no-overlaps folder to continue the established workflow
 setwd(paste0(wdmain,"/data/processed/processed2/public"))
 ruset <- st_read("ruralSettlements.shp")
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
@@ -262,9 +264,12 @@ setwd(paste0(wdmain, "data/processed/LT_overlaps"))
 overlap_indPAS <- st_read("PAs-indigenous.shp")
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
 l <- list.files()
+# this list should include 5 items: of public lands: indigenous, PA_strict, PA_sustuse, rural setts, undesginated lands
 l[grep(".shp", l)]
 LT_no.overlaps <- lapply(l[grep(".shp", l)], st_read)
 names(LT_no.overlaps) <- gsub(".shp", "", l[grep(".shp", l)])
+
+# place the overlap of indPAs in sixth place of this list of data
 LT_no.overlaps[[6]] <- overlap_indPAS
 names(LT_no.overlaps)[[6]] <- "overlap_indPAS"
 # find out percent overlaps of rural settlements
