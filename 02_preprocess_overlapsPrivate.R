@@ -182,22 +182,41 @@ iru <- st_transform(iru, my_crs_SAaea)
 qui <- st_transform(qui, my_crs_SAaea)
 # remember, intersecting them as one object is my only way of getting the parts that don't intersect
 # i always doubt this again, and make myself think that i could get this using st_difference. but no. i need to intersect.
-test_intersection <- st_intersection(qui, iru) # this is just to check how much of these intersect
-sum(st_area(test_intersection))/1000000 # to convert to km2, this is 8,000 km2. no es poca cosa
-plot(test_intersection$geometry)
-# test_intersection <- st_intersection(rbind(qui, iru))
-# test_intersection
-
-table <- data.frame("categ" = NA, "area_Int"= NA, "area_Categ" = NA,"area_B" = NA)
-table[1,2] <- sum(st_area(test_intersection)) # 8,000 km2
-table[1,3] <- sum(st_area(iru))
-table[1,4] <- sum(st_area(qui))
-table[1,2]/table[1,4] # 28% of quilombos are intersecting with rural properties
+# test_intersection <- st_intersection(qui, iru) # this is just to check how much of these intersect
+# sum(st_area(test_intersection))/1000000 # to convert to km2, this is 8,000 km2. no es poca cosa
+# plot(test_intersection$geometry)
+# # test_intersection <- st_intersection(rbind(qui, iru))
+# # test_intersection
+# 
+# table <- data.frame("categ" = NA, "area_Int"= NA, "area_Categ" = NA,"area_B" = NA)
+# table[1,2] <- sum(st_area(test_intersection)) # 8,000 km2
+# table[1,3] <- sum(st_area(iru))
+# table[1,4] <- sum(st_area(qui))
+# table[1,2]/table[1,4] # 28% of quilombos are intersecting with rural properties
 
 # get rural properties that do not intersect
-qui_x_iru <- st_intersection(rbind(qui, iru))
+iru <- rbind(qui, iru)
+# qui_x_iru_intersection <- st_intersection(iru)
+
+# only run in order to debug this intersection 
+for (i in 1:nrow(iru))
+{
+  intersection_issue <- st_intersection(iru[1:i,])
+  print(i)
+}
+
+
+# filter out the data that doesn't overlap
+no.overlaps <- qui_x_iru[which(qui_x_iru$n.overlaps == 1),]
+unique(st_geometry_type(no.overlaps))
+# get all the geometries which are not polygons (i.e., lines and points)
+pgeometries <- no.overlaps[which(st_geometry_type(no.overlaps) != "MULTIPOLYGON" &
+                                               st_geometry_type(no.overlaps) != "POLYGON"),]
+extract.pgeometries <- st_collection_extract(pgeometries, "POLYGON") # extract only the polygons
+fixed.pgeometries <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(geometry = st_union(geometry)) %>% ungroup() %>% st_as_sf() 
+
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private"))
-st_write(qui_x_iru, "qui_x_iru.shp", append = F)
+st_write(no.overlaps, "qui_x_iru.shp", append = F)
 
 
 
