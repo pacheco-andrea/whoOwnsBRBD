@@ -196,15 +196,17 @@ qui <- st_transform(qui, my_crs_SAaea)
 
 # get rural properties that do not intersect
 iru <- rbind(qui, iru)
+iru <- iru[which(iru$id != "IRU-3691"),]
+# summary(st_is_valid(iru)) takes a long time, but important to check
+iru <- st_make_valid(iru)
 # qui_x_iru_intersection <- st_intersection(iru)
-
 # only run in order to debug this intersection 
-for (i in 1:nrow(iru))
+for (i in 4075:nrow(iru))
 {
   intersection_issue <- st_intersection(iru[1:i,])
   print(i)
 }
-
+qui_x_iru_intersection <- st_intersection(iru)
 
 # filter out the data that doesn't overlap
 no.overlaps <- qui_x_iru[which(qui_x_iru$n.overlaps == 1),]
