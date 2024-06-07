@@ -148,3 +148,6 @@ mask <- r*0
 # uc.ind_diff # returns one feature - which is essentially feature 3 in the above example. the parts where they don't overlap! 
 #  (the parts of the x that don't overlap with y)
 
+
+# trick from eduardo?
+# acc_sf <- st_transform(acc_sf, crs = 3857)

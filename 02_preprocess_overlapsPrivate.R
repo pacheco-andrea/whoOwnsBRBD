@@ -194,32 +194,10 @@ qui <- st_transform(qui, my_crs_SAaea)
 # table[1,4] <- sum(st_area(qui))
 # table[1,2]/table[1,4] # 28% of quilombos are intersecting with rural properties
 
-# get rural properties that do not intersect
-iru <- rbind(qui, iru)
-iru <- iru[which(iru$id != "IRU-3691"),]
-# summary(st_is_valid(iru)) takes a long time, but important to check
-iru <- st_make_valid(iru)
-# qui_x_iru_intersection <- st_intersection(iru)
-# only run in order to debug this intersection 
-for (i in 4075:nrow(iru))
-{
-  intersection_issue <- st_intersection(iru[1:i,])
-  print(i)
-}
-qui_x_iru_intersection <- st_intersection(iru)
-
-# filter out the data that doesn't overlap
-no.overlaps <- qui_x_iru[which(qui_x_iru$n.overlaps == 1),]
-unique(st_geometry_type(no.overlaps))
-# get all the geometries which are not polygons (i.e., lines and points)
-pgeometries <- no.overlaps[which(st_geometry_type(no.overlaps) != "MULTIPOLYGON" &
-                                               st_geometry_type(no.overlaps) != "POLYGON"),]
-extract.pgeometries <- st_collection_extract(pgeometries, "POLYGON") # extract only the polygons
-fixed.pgeometries <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(geometry = st_union(geometry)) %>% ungroup() %>% st_as_sf() 
-
-setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private"))
-st_write(no.overlaps, "qui_x_iru.shp", append = F)
-
+# IN SUM:
+# the error "Error: GEOS exception" persists in this case as well. 
+# the problem is that it is completely unmanageable to debug the 6,000,000 iru properties
+# so i have decided to rasterize this. 
 
 
 
