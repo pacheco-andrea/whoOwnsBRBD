@@ -10,7 +10,7 @@ library(geos)
 library(dplyr)
 library(ggplot2)
 library(tidyverse)
-
+library(fasterize)
 
 # load directories and other settings
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
@@ -71,6 +71,8 @@ setwd(paste0(wdmain,"/data/processed/"))
 # iru <- iru[-emptyGeos,]
 # setwd(paste0(wdmain,"/data/processed/processed2/private"))
 # st_write(iru, "ruralProperties.shp", append = F)
+
+
 
 
 # B) Cleaning of self-overlaps from private lands data ----
@@ -172,14 +174,14 @@ sum(st_area(priPAs_x_qui_overlaps)) # essentially 15km2
 # meaning, in turn, that private PAs and quilombos don't overlap, and they belong in the no-overlaps_private folder
 
 # AND since this is the extent of private lands - i can wrap up the overlaps here
-# EXCEPT i do need to overlap the two above with the rural properties!
+# EXCEPT i do need to overlap the two above with the rural properties (iru)!
 # Hence:
 
 # get rural properties data
 setwd(paste0(wdmain,"/data/processed/processed2/private"))
 iru <- st_read("ruralProperties.shp")
 iru <- st_transform(iru, my_crs_SAaea)
-qui <- st_transform(qui, my_crs_SAaea)
+# qui <- st_transform(qui, my_crs_SAaea)
 # remember, intersecting them as one object is my only way of getting the parts that don't intersect
 # i always doubt this again, and make myself think that i could get this using st_difference. but no. i need to intersect.
 # test_intersection <- st_intersection(qui, iru) # this is just to check how much of these intersect
@@ -198,6 +200,33 @@ qui <- st_transform(qui, my_crs_SAaea)
 # the error "Error: GEOS exception" persists in this case as well. 
 # the problem is that it is completely unmanageable to debug the 6,000,000 iru properties
 # so i have decided to rasterize this. 
+
+# make test first
+iru_original <- iru
+iru <- iru[1:1000,]
+
+# get raster mask I already have from the getting started script
+r1 <- r*0
+# disaggregate so that it's a more fine resolution
+res(r1)
+disag_r1 <- disagg(r1, fact = 35.9293) # this is the level of disaggregation to have a 30m resolution
+
+  
+# # create the raster object
+# myExtent <- st_bbox(iru)
+# myRes <- .001
+# 
+# # r <- rast(xmin = myExtent["xmin"], xmax = myExtent["xmax"], 
+# #           ymin = myExtent["ymin"], ymax = myExtent["ymax"], resolution = myRes, crs = st_crs(iru)$proj4string)
+# 
+# r2 <- rast(iru_original, resolution = (200/500))
+# r2 <- rast(iru_original)
+
+iru_R <- rasterize(iru_original, disag_r1)
+setwd(paste0(wdmain,"/data/processed/processed2/private"))
+writeRaster(iru_R, "ruralProperties.tif")
+iru_R
+plot(iru_R)
 
 
 
