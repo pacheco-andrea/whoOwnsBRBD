@@ -210,19 +210,9 @@ r1 <- r*0
 # disaggregate so that it's a more fine resolution
 res(r1)
 disag_r1 <- disagg(r1, fact = 35.9293) # this is the level of disaggregation to have a 30m resolution
-
-  
-# # create the raster object
-# myExtent <- st_bbox(iru)
-# myRes <- .001
-# 
-# # r <- rast(xmin = myExtent["xmin"], xmax = myExtent["xmax"], 
-# #           ymin = myExtent["ymin"], ymax = myExtent["ymax"], resolution = myRes, crs = st_crs(iru)$proj4string)
-# 
-# r2 <- rast(iru_original, resolution = (200/500))
-# r2 <- rast(iru_original)
-
+# rasterize 30m res version
 iru_R <- rasterize(iru_original, disag_r1)
+# write out
 setwd(paste0(wdmain,"/data/processed/processed2/private"))
 writeRaster(iru_R, "ruralProperties.tif")
 iru_R
