@@ -11,6 +11,7 @@ library(dplyr)
 library(ggplot2)
 library(tidyverse)
 library(fasterize)
+library(exactextractr)
 
 # load directories and other settings
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
@@ -157,7 +158,7 @@ st_write(sigef, "SIGEF_properties.shp", append = F)
 
 
 
-# C) Get polygons that DO NOT overlap with each other
+# C) Get polygons that DO NOT overlap with each other ----
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private"))
 l <- list.files()
 l[grep(".shp", l)]
@@ -177,6 +178,10 @@ sum(st_area(priPAs_x_qui_overlaps)) # essentially 15km2
 # EXCEPT i do need to overlap the two above with the rural properties (iru)!
 # Hence:
 
+
+# D) Find overlapping polygons across categories ----
+
+# Upon first run: ----
 # get rural properties data
 setwd(paste0(wdmain,"/data/processed/processed2/private"))
 iru <- st_read("ruralProperties.shp")
@@ -218,6 +223,26 @@ writeRaster(iru_R, "ruralProperties.tif")
 iru_R
 plot(iru_R)
 
+# Upon second run: ----
+setwd(paste0(wdmain,"/data/processed/processed2/private"))
+iru_R <- rast("ruralProperties.tif")
+plot(iru_R)
 
-
-# D) Find overlapping polygons across categories ----
+# overlap rural properties RASTER with private PAs and quilombos
+# first try: for polygon + raster i'd have to do an extraction, then i'd get a df with all the polygons that intersect
+test <- exactextractr::exact_extract(x = iru_R, y = qui, fun = "count")
+head(test)
+hist(test,breaks =10000, xlim = c(0, 200000)) # most are under 10, which is 10 pixels of 30m2 
+hist(test, breaks = 1000)
+# relate specifically to area that overlaps
+test # if each of these (count) is 30m2
+km <- (test*30)/1000000 # then, i convert each count to the number of meters, then divide to convert to km2
+summary(km)
+# add this as a variable of overlaps to the quil sf
+qui$iru_Over <- km
+plot(qui[,"iru_Over"], border = NA) # this shows the number of km overlapping with each polygon
+# but actually, it would be the proportion of the polygon that we're interested in: what % is covered by rural properties?
+qui$area <- (st_area(qui))/1000000
+qui$perc_iruOver <- (qui$iru_Over/qui$area)*100
+plot(qui[,"perc_iruOver"], border = NA) 
+# ok, but this doesn't actually get me a shape/raster that is overlapping - which then i can relate to the BD vars
