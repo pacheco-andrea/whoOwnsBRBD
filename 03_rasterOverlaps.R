@@ -164,9 +164,6 @@ terra::plot(overlaps$`indigenous-ruralSettlements`,
 terra::lines(v, lwd=.1)
 dev.off()
 
-# PRIVATE ON PRIVATE? would this be figuring out the snci and sigef data?
-
-
 
 # Quantify these overlaps in amounts of km 
 count <- data.frame("tenure" = c(names(overlaps)),
@@ -190,3 +187,43 @@ ggplot(count, aes(tenure, overlaps, fill = tenure)) +
   theme(panel.background = element_rect(fill = "transparent"), legend.position = "inside")
 
 # next step: get the areas of all the individual categories in order to calculate percentages
+
+# VISUALIZE OVERLAPS VERSION 2: ----
+
+# read 30m2 rasterizations of data
+setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
+l <- list.files()
+r <- grep("30m.tif$", l)
+l[r]
+
+tenureRast <- lapply(l[r], rast)
+names(tenureRast) <- gsub("_SAalbers_30m.tif", "", l[r])
+names(tenureRast) <- gsub("_30m.tif", "", names(tenureRast))
+names(tenureRast) 
+# identify overlaps
+
+# test first with just two:
+overlapMask <- !is.na(tenureRast[[1]]) & !is.na(tenureRast[[3]])
+
+# run across all
+overlap_matrix <- matrix(FALSE, nrow = length(tenureRast), ncol = length(tenureRast))
+rownames(overlap_matrix) <- colnames(overlap_matrix) <- names(tenureRast)
+
+for (i in 1:(length(tenureRast) - 1)) {
+  for (j in (i + 1):length(tenureRast)) {
+    result <- try({
+      overlap <- !is.na(tenureRast[[i]]) & !is.na(tenureRast[[j]])
+      overlap_matrix[i, j] <- any(values(overlap), na.rm = TRUE)
+      overlap_matrix[j, i] <- overlap_matrix[i, j]  # Symmetric matrix
+    }, silent = TRUE)
+    
+    # If an error occurs, print a message and move on
+    if (inherits(result, "try-error")) {
+      message(paste("Error occurred while processing rasters:", names(tenureRast)[i], "and", names(tenureRast)[j]))
+    }
+    print(j)
+  }
+  print(i)
+}
+
+overlap_matrix
