@@ -58,6 +58,8 @@ tenureColors = c("#FC8D62", "#8DA0CB", "#8C7E5B", "#1B9E77", "#E78AC3", "#FFD700
 
 # PLOT THE OVERLAPS OF PRIVATE ON PUBLIC LANDS ----
 par(mfrow = c(1,1))
+setwd(paste0(wdmain, "output/maps/"))
+svg("ruralPropertiesOverlappingPublicLands.svg", width = 7, height = 7)
 
 terra::plot(overlaps$`indigenous-IRU`,
             col = c("transparent", "#E78AC3"),
@@ -98,7 +100,12 @@ terra::lines(v, lwd=.1)
 dev.off()
 
 # PLOT THE OVERLAPS OF PUBLIC ON PUBLIC ----
+
 tenureColors = c("#FC8D62", "#8DA0CB", "#8C7E5B", "#1B9E77", "#E78AC3", "#FFD700", "#1d6c7d") #, "#F0F0F0")
+
+setwd(paste0(wdmain, "output/maps/"))
+svg("PublicLandsOverlappingPublicLands.svg", width = 7, height = 7)
+
 par(mfrow = c(1,1))
 terra::plot(overlaps$`indigenous-PAs`,
             col = c("transparent", "#E78AC3"),
@@ -135,23 +142,25 @@ terra::plot(overlaps$`indigenous-ruralSettlements`,
             add=T,
             plg = list(legend = c("Rural settlements in indigenous", " "), x = "bottomright"))
 
-terra::plot(overlaps$`PAs-undesignated`,
-            col = c("transparent", "#1d6c7d"),
-            type = "classes",
-            mar=NA,
-            box = F,
-            axes = F,
-            add=T,
-            plg = list(legend = c("Rural settlements in PAs", " "), x = "bottomright"))
+# i think there are basically no overlaps in the two categories below - but should double check
 
-terra::plot(overlaps$`indigenous-undesignated`,
-            col = c("transparent", "#E78AC3"),
-            type = "classes",
-            mar=NA,
-            box = F,
-            axes = F,
-            add=T,
-            plg = list(legend = c("Rural settlements in PAs", " "), x = "bottomright"))
+# terra::plot(overlaps$`PAs-undesignated`, 
+#             col = c("transparent", "#1d6c7d",),
+#             type = "classes",
+#             mar=NA,
+#             box = F,
+#             axes = F,
+#             add=T,
+#             plg = list(legend = c("Rural settlements in PAs", " "), x = "top"))
+
+# terra::plot(overlaps$`indigenous-undesignated`,
+#             col = c("transparent", "#E78AC3"),
+#             type = "classes",
+#             mar=NA,
+#             box = F,
+#             axes = F,
+#             add=T,
+#             plg = list(legend = c("Rural settlements in PAs", " "), x = "bottomright"))
 terra::lines(v, lwd=.1)
 dev.off()
 

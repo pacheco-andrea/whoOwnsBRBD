@@ -1,12 +1,11 @@
 #### Biodiversity and Tenure in Brazil ####
 
-# FOR THE ONE WALL-TO-WALL with the minimum necessary of overlaps (as this will become one category)
-# i could st_union/combine each category and rasterize that for the map
-
 # this script brings together preprocessed tenure data and rasterizes them so they can be mapped
+# the main aim here is visualization because I've rasterized them at ~1km
 # outputs are: 
 # one categorical raster for each tenure category
 # a map of tenure categories (at this stage it should indicate overlaps!)
+
 
 # libraries
 library(terra)
@@ -18,7 +17,8 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 # 1. upon first run:
 # rasterize IRU-AST-PCT ----
-# setwd(paste0(wdmain,"/data/processed/landTenure_IRU-AST-PCT/"))
+# rasterization here at ~1km
+setwd(paste0(wdmain,"/data/processed/landTenure_IRU-AST-PCT/"))
 # need to bind all the state sfs into one in order to:
 # 1. rasterize without raster changing categories across states
 # 2. generate a unique ID for each polygon...?
@@ -36,7 +36,7 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 # }
 # # merge individual states into one whole map of brazil
 # s2 <- do.call(rbind, s)
-# # need to create a new id column 
+# # need to create a new id column
 # length(unique(s2$X_uid_)) == nrow(s2)
 # s2$id <- 1:nrow(s2)
 # setwd(paste0(wdmain,"/data/processed/landTenureCategs_v2023_allBR"))
@@ -51,8 +51,8 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 # plot(r)
 # setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
 # writeRaster(r, filename = "landTenure_IRU_SAalbers_1km.tif", overwrite = TRUE)
-
-#  deal with PCT lands: if i exclude them am i losing information? yes. D: this is so complicated.but don't have to deal with that for making the raster maps
+# 
+#  deal with PCT lands: 
 # importing this shapefile into qgis i can tell there's a lot, but not 100% overlap of PCTs and sustainable use areas. many are within SUs
 # shouldn't there be different rules for the FC for sustainable use areas?
 # setwd(paste0(wdmain,"/data/processed/PCT_landTenureCategs_v2023/"))
@@ -78,7 +78,7 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 #   setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
 #   writeRaster(r, filename = paste0(names(public)[i], "_SAalbers_1km.tif"), overwrite = TRUE)
 # }
-
+# 
 
 # # other private lands: private protected areas, sigef and snci registries, and quilombola lands
 # setwd(paste0(wdmain, "data/processed/processed2/private"))
@@ -93,6 +93,45 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 #   setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
 #   writeRaster(r, filename = paste0(names(private)[i], "_SAalbers_1km.tif"), overwrite = TRUE)
 # }
+
+# rasterize at 30m2 ----
+# note that for iru, private PAs and quilombos I've already done this in 02_preprocess private
+setwd(paste0(wdmain,"/data/processed/processed2/private"))
+iru <- rast("ruralProperties.tif")
+mask <- iru*0
+
+# rasterize public
+setwd(paste0(wdmain, "data/processed/processed2/public"))
+l <- list.files()
+public <- lapply(l[grep(".shp", l)], st_read)
+names(public) <- gsub(".shp","", l[grep(".shp", l)])
+# i actually want to keep each of these categories as separate rasters so that i can plot them systematically later
+for(i in 1:length(public))
+{
+  public[[i]] <- st_transform(public[[i]], my_crs_SAaea)
+  r <- rasterize(public[[i]], mask, "LTcateg")
+  setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
+  writeRaster(r, filename = paste0(names(public)[i], "_SAalbers_30m.tif"), overwrite = TRUE)
+}
+
+
+# other private lands: private protected areas, sigef and snci registries, and quilombola lands
+setwd(paste0(wdmain, "data/processed/processed2/private"))
+l <- list.files()
+l[grep(".shp", l)]
+files <- l[grep(".shp", l)][1:2]
+
+private <- lapply(files, st_read)
+names(private) <- gsub(".shp","", files)
+# i actually want to keep each of these categories as separate rasters so that i can plot them systematically later
+for(i in 1:length(private))
+{
+  private[[i]] <- st_transform(private[[i]], my_crs_SAaea)
+  r <- rasterize(private[[i]], mask, "LTcateg")
+  setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
+  writeRaster(r, filename = paste0(names(private)[i], "_SAalbers_30m.tif"), overwrite = TRUE)
+}
+
 
 
 # 2. Make tenure map  ----
@@ -113,7 +152,7 @@ plot(biomes)
 v <- vect(biomes)
 
 
-# plot maps one at a time, one on top of the other
+# plot maps one at a time, one on top of the other ----
 names(t)
 
 par(mfrow = c(1,1))
@@ -164,4 +203,4 @@ plot(t$`undesignated-oth`,
 terra::lines(v, lwd=.1)
 dev.off()
 
-# the "extra" private lands are missing from this map now
+# in sum this visualization, let me show where some of the most important overlaps were (visually)
