@@ -35,8 +35,8 @@ read_my_shp = function(f){
 # establish my projection: South America Albers Equal Area 
 my_crs_SAaea <- "+proj=aea +lat_0=-32 +lon_0=-60 +lat_1=-5 +lat_2=-42 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs"
 
-# 1. make mask to base rest of rasters on
-setwd(paste0(wdmain,"/data/raw/Biodiversity_v20231009")) # use my biodiversity data
+# 1. make 1 km2 mask to base rest of rasters on
+setwd(paste0(wdmain,"/data/raw/Biodiversity_v20231009")) # use my biodiversity data as a basis
 r <- rast(list.files()[grep("Richness", list.files())[1]])
 r <- project(r, my_crs_SAaea)
 mask <- r*0
@@ -84,7 +84,7 @@ mask <- r*0
 # aggregate and disagg are the same as before
 # resample (remember to not use this for creating a larger resolution - use aggregate for this.)
 
-# not sure i get how mask function works
+# mask function: punches holes from the mask to the desired raster
 # r <- rast(ncols=10, nrows=10)
 # m <- rast(ncols=10, nrows=10)
 # values(r) <- 1:100
@@ -92,7 +92,7 @@ mask <- r*0
 # x <- round(3 * runif(ncell(r)))
 # x[x==0] <- NA
 # values(m) <- x
-# mr <- mask(r,m) # so, this shows the mask function basically punches holes from the mask to the desired raster
+# mr <- mask(r,m) # so, this shows the mask function punches holes from the mask to the desired raster 
 
 # rasterize Polygons
 # f <- system.file("ex/lux.shp", package="terra")
@@ -133,10 +133,10 @@ mask <- r*0
 # uc.ind_intersection <- st_intersection(test_uc, test_ind) # returns geometry of the shared portion of x and y
 # uc.ind_intersection
 # plot(uc.ind_intersection$geometry) # can clearly see that it is indeed ONLY the areas that overlap
-# # is there a difference in behavior when using one or two objects in the function?
-# bound_intersection <- st_intersection(test) # clearly, yes. there is a difference. 
+# # difference in behavior when using one or two objects in the function:
+# bound_intersection <- st_intersection(test) 
 # # the bound_intersection has three observations instead of one. 
-# # it KEEPS the original features shapes!!!
+# # it KEEPS the original features shapes
 # plot(bound_intersection$geometry)
 # plot(bound_intersection["n.overlaps"]) # we get this column
 # plot(bound_intersection[1,]$geometry) # the first observation is all the indigenous with NO overlaps
@@ -145,7 +145,7 @@ mask <- r*0
 # 
 # # TEST difference bt UCs and IND
 # uc.ind_diff <- st_difference(test_uc, test_ind)
-# uc.ind_diff # returns one feature - which is essentially feature 3 in the above example. the parts where they don't overlap! 
+# uc.ind_diff # returns one feature - which is essentially feature 3 in the above example. the parts where they don't overlap
 #  (the parts of the x that don't overlap with y)
 
 

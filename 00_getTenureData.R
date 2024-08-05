@@ -21,16 +21,16 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 # 1. CAR properties sourced from CSR ----
 # these data were provided by the CSR (Centro de Sensoriamento Remoto) of UFMG and downloaded manually
-# the original source of these data is the SFB (servico florestal brasilero)
+# the original source of these data is the SFB (servico florestal brasilero), but they've been preprocessed by CSR and through their partnership with Imaflora
 # categories are: IRU, AST, PCT, (imovel rural, assentamentos, and povos e comunidades tradicionais)
-# after running exploratory analyses, i have decided to exclude the PCT category from the analysis as 
+# after running exploratory analyses, i  decided to exclude the PCT category from the analysis as these were better covered by more specific categs found elsewhere
 # data is split into a .shp for each state, and in general, i keep it this way to facilitate parallelization
 
 setwd(paste0(wdmain,"/data/raw/LandTenure/LandTenure_v20231009/"))
 l <- list.files()
 files <- l[grep(".shp", l)]
 
-# read and write out simpler files (exclude extraneous columns)
+# read and write out simpler files (exclude extraneous columns) 
 # loop through reading and writing simplified shapefiles
 for (i in 1:length(files))
 {
@@ -74,11 +74,11 @@ uc_mma2 <- uc_mma2[-grep("rea de Prote", uc_mma2$CATEGORI3),]
 setwd(paste0(wdmain,"/data/processed/landTenure_UC/"))
 st_write(uc_mma2, "landTenure_UCs_MMA_20231212_SAalbers.shp", append=FALSE)
 
-# # by the way, i run into the st_intersection GEOS exception issue even with the data downloaded from the geobr package 
+# # note, i run into the st_intersection GEOS exception issue even with the data downloaded from the geobr package 
 # # the two features with an issue are: code 267, and 964
 # # i'm keeping the following test as a reminder:
 # test <- read_conservation_units()
-# test <- test[which(test$category != "Reserva Particular do Patrim�nio Natural"),]
+# test <- test[which(test$category != "Reserva Particular do Patrim?nio Natural"),]
 # nrow(test)
 # test2 <- test[-grep("267", test$code_conservation_unit),]
 # test2 <- test2[grep("964", test$code_conservation_unit),]
@@ -86,7 +86,7 @@ st_write(uc_mma2, "landTenure_UCs_MMA_20231212_SAalbers.shp", append=FALSE)
 
 
 
-# add RPPNs:
+# 3. Private Protected areas: RPPNs ----
 setwd(paste0(wdmain,"/data/raw/landTenure/RPPN"))
 # unzip("total.zip")
 rppn <- st_read("total.shp")
@@ -97,7 +97,7 @@ rppn <- select(rppn, c("LTcateg", "group", "data_cadas"))
 setwd(paste0(wdmain,"/data/processed/landTenure_RPPN"))
 st_write(rppn, "landTenure_RPPN_20231212_SAalbers.shp", append=FALSE)
 
-# indigenous lands ----
+# 4. indigenous lands ----
 # according to this https://www.gov.br/funai/pt-br/atuacao/terras-indigenas/demarcacao-de-terras-indigenas
 # the following indigenous lands categories
 # Terras IndÃ­genas Tradicionalmente Ocupadas: SÃ£o as terras habitadas pelos indÃ­genas em carÃ¡ter permanente, utilizadas para atividades produtivas, culturais, bem-estar e reproduÃ§Ã£o fÃ­sica, segundo seus usos, costumes e tradiÃ§Ãµes.
@@ -116,7 +116,7 @@ ind2 <- select(ind, (c( "uf_sigla", "fase_ti","modalidade")))
 setwd(paste0(wdmain,"/data/processed/landTenure_IND/"))
 st_write(ind2, "landTenure_indigenous_20231212_SAalbers.shp", append=FALSE)
 
-# 3. INCRA data: SIGEF, SNCI, assentamentos, and quilombos ----
+# 5.. INCRA data: SIGEF, SNCI, assentamentos, and quilombos ----
 setwd(paste0(wdmain, "data/raw/landTenure/INCRA"))
 l <- list.files()
 # zips <- grep(".zip", l)
@@ -145,7 +145,7 @@ st_write(sigef2, "landTenure_SIGEF_20231312_SAalbers.shp", append = F)
 
 # SNCI
 setwd(paste0(wdmain, "data/raw/landTenure/INCRA"))
-snci <- st_read("Im�vel certificado SNCI Brasil.shp")
+snci <- st_read("Im?vel certificado SNCI Brasil.shp")
 summary(snci$data_certi) # goes from 2004-2021 which does hold up to what the Camara paper says (but has not been updated since, whereas sigef yes?)
 # # check histogram of dates certified
 # ggplot(snci, aes(x=data_certi)) + geom_histogram(binwidth=30, colour="white") +
@@ -169,7 +169,7 @@ st_write(snci2, "landTenure_SNCI_20240105_SAalbers.shp", append = F)
 # nrow(tinter)/nrow(sigef2) # so, 12% of overlap
 
 
-qui <- st_read("�reas de Quilombolas.shp")
+qui <- st_read("?reas de Quilombolas.shp")
 plot(qui$geometry)
 summary(qui)
 qui <- select(qui, c("dt_publica", "fase" , "nr_familia"))
@@ -178,8 +178,9 @@ setwd(paste0(wdmain,"/data/processed/landTenure_QUI/"))
 st_write(qui, "landTenure_quilombo_20240105_SAalbers.shp", append = F)
 
 
-# 4. Public forests ----
-# NOTE: according to the map from the cadaster of public forests: "As florestas não destinadas ocorrem em glebas arrecadadas pela União ou Estados"
+# 6. Public forests ----
+# NOTE: according to the map from the cadaster of public forests: 
+#"As florestas não destinadas ocorrem em glebas arrecadadas pela União ou Estados"
 # which means these are essentially the undesignated lands
 
 setwd(paste0(wdmain,"data/raw/landTenure/florestasPublicas/CNFP 2020 Shapefiles (5) (1)"))
@@ -197,10 +198,10 @@ setwd(paste0(wdmain,"/data/processed/landTenure_UND-OTH/"))
 st_write(flp2, "landTenure_UND-OTH_SAalbers.shp", append=FALSE)
 
 
-# 5. NOTE: ALTERNATIVE DATA SOURCES ----
+# NOTE: ALTERNATIVE DATA SOURCES ----
 # I also explored the harmonized dataset produced by Camara et al 2023 (ERL) 
 # the data is only for the amazon, and not very reproducible in the sense that their scripts do not show the raw data from start to finish
-# their prioritization levels could provide a justifiable basis for us, though
+# their prioritization levels could provide a justifiable basis for us that could be repeated, however
 # setwd(paste0(wdmain, "data/raw/landTenure/amz_fc/zip"))
 # l <- list.files()
 # lapply(l, unzip)

@@ -200,30 +200,96 @@ tenureRast <- lapply(l[r], rast)
 names(tenureRast) <- gsub("_SAalbers_30m.tif", "", l[r])
 names(tenureRast) <- gsub("_30m.tif", "", names(tenureRast))
 names(tenureRast) 
+
+# i want to check:
+#1) whether the problem is just the RPPNs 
+#2) whether the problem is the IRU
+
+tenureRast$private_protectedAreas <- NULL
+
+# tests outside of this messy loop
+# make categorical rast a numerical one:
+ast <- tenureRast$ruralSettlements 
+ast <- as.numeric(ast)
+
+ast <- terra::subst(tenureRast$ruralSettlements, from = "AST", to = 10)
+
+par(mfrow = c(1,2))
+plot(ast)
+plot(tenureRast$ruralSettlements, col = "green")
+dev.off()
+
+# sum ast + iru
+ast[ast == 0] <- 10
+ast
+ast_iru <- ast + tenureRast$ruralProperties
+
+
+# create output file
+setwd(paste0(wdmain, "output/"))
+output_file <- "30mraster_overlap_results.txt"
+writeLines("Raster Overlap Results\n", con = output_file)
+
 # identify overlaps
-
-# test first with just two:
-overlapMask <- !is.na(tenureRast[[1]]) & !is.na(tenureRast[[3]])
-
-# run across all
 overlap_matrix <- matrix(FALSE, nrow = length(tenureRast), ncol = length(tenureRast))
 rownames(overlap_matrix) <- colnames(overlap_matrix) <- names(tenureRast)
 
+# write function to calculate the area in km2 
+calculate_area <- function(raster, resolution) {
+  cell_area_m2 <- resolution^2
+  total_area_km2 <- sum(!is.na(values(raster)))*(cell_area_m2 /1e6)
+  return(total_area_km2)
+}
+i=4
+j=5
+# loop through each pair of rasters and check for overlaps
 for (i in 1:(length(tenureRast) - 1)) {
   for (j in (i + 1):length(tenureRast)) {
     result <- try({
-      overlap <- !is.na(tenureRast[[i]]) & !is.na(tenureRast[[j]])
-      overlap_matrix[i, j] <- any(values(overlap), na.rm = TRUE)
-      overlap_matrix[j, i] <- overlap_matrix[i, j]  # Symmetric matrix
+      # 1. Check for overlap using logical comparison
+      print(tenureRast[[i]])
+      print(tenureRast[[j]])
+      # overlap <- !is.na(tenureRast[[i]]) & !is.na(tenureRast[[j]]) # this never works, computationally
+      # has_overlap <- any(values(overlap), na.rm = TRUE)
+
+      if (has_overlap) {
+        # 2. If there is an overlap, run an intersection
+        overlap_raster <- terra::intersect(tenureRast[[i]], tenureRast[[j]])
+
+        # 3. Quantify the area of the intersection in km²
+        resolution <- res(tenureRast[[i]])[1]  # Assume square pixels, resolution in meters
+        overlap_area_km2 <- calculate_area(overlap_raster, resolution)
+
+        # Calculate total areas of the rasters
+        area_raster_i <- calculate_area(tenureRast[[i]], resolution)
+        area_raster_j <- calculate_area(tenureRast[[j]], resolution)
+
+        # Calculate percentage of the total area
+        overlap_percent_i <- (overlap_area_km2 / area_raster_i) * 100
+        overlap_percent_j <- (overlap_area_km2 / area_raster_j) * 100
+
+        # Record the overlap information in the matrix (optional)
+        overlap_matrix[i, j] <- TRUE
+        overlap_matrix[j, i] <- TRUE  # Symmetric matrix
+
+
+      # Write the result to the file
+      writeLines(paste("Overlap between", names(tenureRast)[i], "and", names(tenureRast)[j], ":\n",
+                       " - Overlap Area: ", overlap_area_km2, "km²\n",
+                       " - Overlap as % of Raster", names(tenureRast)[i], ": ", overlap_percent_i, "%\n",
+                       " - Overlap as % of Raster", names(tenureRast)[j], ": ", overlap_percent_j, "%\n"),
+                 con = output_file, append = TRUE)
+      }
     }, silent = TRUE)
     
     # If an error occurs, print a message and move on
     if (inherits(result, "try-error")) {
-      message(paste("Error occurred while processing rasters:", names(tenureRast)[i], "and", names(tenureRast)[j]))
+      message(paste("Error occurred while processing rasters:", names(tenureRast)[i], "and", names(tenureRast)[j]),
+              con = output_file, append = TRUE)
     }
-    print(j)
   }
-  print(i)
 }
 
 overlap_matrix
+
+# terra::expanse should calculate the area of the rasters
