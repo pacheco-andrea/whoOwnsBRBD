@@ -6,7 +6,7 @@
 # indigenous lands, protected areas, other undesignated lands, and finally AST from CSR
 
 # and 
-# 1) cleans and fixes self-overlaps of data
+# 1) cleans and fixes self-overlaps of data (indigenous, PAs, undesignated)
 # 2) identifies the overlapping areas across datasets: NOTE, should do this one at a time in order to keep track of overlaps
 # 3) creates the categories for these overlaps themselves
 
@@ -159,7 +159,9 @@ unique(st_geometry_type(und.overlaps[which(und.overlaps$n.overlaps > 1),]))
 pgeometries <- und.overlaps[which(und.overlaps$n.overlaps > 1),] 
 extract.pgeometries <- st_collection_extract(pgeometries, "POLYGON")
 und.selfOverlaps <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf()
-und.selfOverlaps# note these self-overlaps are essentially insignificant: 5 polygons, with a total of 17 m2
+und.selfOverlaps
+
+# note, here i find that the self-overlaps of undesignated lands are essentially insignificant: 5 polygons, with a total of 17 m2
 # hence, i don't really worry about accounting for these overlaps
 # create df with no overlaps
 und_no.overlaps <- und.overlaps[which(und.overlaps$n.overlaps == 1), c("LTcateg", "id", "geometry")]
@@ -184,7 +186,7 @@ st_write(ruset, "ruralSettlements.shp", append = F)
 # PAs and indigenous ----
 uc_x_ind <- rbind(uc_no.overlaps, ind_no.overlaps)
 # remove these polygons from the data because they prevent st_intersection to run
-# no worries, they will be inserted back in later
+# they will be inserted back in later
 uc_x_ind2 <- uc_x_ind[which(uc_x_ind$id != "IN-183" & uc_x_ind$id != "IN-294" & uc_x_ind$id != "IN-295" & uc_x_ind$id != "IN-424" &
                               uc_x_ind$id != "IN-314" & uc_x_ind$id != "UC-770" & uc_x_ind$id != "UC-1104"& uc_x_ind$id != "UC-859"),]
 # # only run in order to debug this intersection 
@@ -272,7 +274,8 @@ names(LT_no.overlaps) <- gsub(".shp", "", l[grep(".shp", l)])
 # place the overlap of indPAs in sixth place of this list of data
 LT_no.overlaps[[6]] <- overlap_indPAS
 names(LT_no.overlaps)[[6]] <- "overlap_indPAS"
-# find out percent overlaps of rural settlements
+
+# find out percent overlaps with rural settlements ----
 table_rSettlements <- data.frame("categ" = NA, "area_Int"= NA, "area_Categ" = NA,"area_B" = NA)
 for(i in 1:length(names(LT_no.overlaps))){
   if(names(LT_no.overlaps)[i] == "ruralSettlements"){next}
@@ -290,7 +293,8 @@ for(i in 1:length(names(LT_no.overlaps))){
   table_rSettlements[i,4] <- sum(st_area(LT_no.overlaps[[4]]))/1000
 }
 table_rSettlements
-# find out percent overlaps of undesignated lands
+
+# find out percent overlaps of undesignated lands ----
 table_undesignated <- data.frame("categ" = NA, "area_Int"= NA, "area_Categ" = NA,"area_B" = NA)
 for(i in 1:length(names(LT_no.overlaps))){
   if(names(LT_no.overlaps)[i] == "undesig-other"){next}
@@ -317,8 +321,8 @@ rbind(table_rSettlements, table_undesignated)
 setwd(paste0(wdmain, "/output/"))
 # also note, i'm using "B" for "base" comparison
 write.csv(rbind(table_rSettlements, table_undesignated), "publicLandOverlaps_areakm2.csv", row.names = F)
-# this also means that I should write the rural settlements overlap with sust use PAs in the overlaps folder
-# as well as the rural settlements overlap with the overlaps of indigenous + PAs
+# this also means that I should write the rural settlements overlap with sust use PAs in the overlaps folder - DONE
+# as well as the rural settlements overlap with the overlaps of indigenous + PAs - DONE
 
 
 

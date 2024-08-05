@@ -1,7 +1,7 @@
 #### Biodiversity and Tenure in Brazil ####
 
 # private lands # 
-
+# same processing of self-overlaps and no-overlaps as done for public lands
 
 # libraries
 library(terra)
@@ -101,7 +101,7 @@ st_write(priPAs_no.overlaps, "private_protectedAreas.shp", append = F)
 unique(st_geometry_type(priPAs.overlaps[which(priPAs.overlaps$n.overlaps > 1),]))
 pgeometries <- priPAs.overlaps[which(priPAs.overlaps$n.overlaps > 1),] 
 # note, out of 1694 features, only 5 were actual polygons - the rest were linestrings, etc.
-# when plotted, these are practically insignificant
+# when plotted, these are practically insignificant, but == 125km2 
 extract.pgeometries <- st_collection_extract(pgeometries, "POLYGON")
 priPAs.selfOverlaps <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf()
 plot(priPAs.selfOverlaps$geometry)
@@ -129,8 +129,7 @@ st_write(qui_no.overlaps, "quilombolaLands.shp", append = F)
 # get the self-overlaps 
 unique(st_geometry_type(qui.overlaps[which(qui.overlaps$n.overlaps > 1),]))
 pgeometries <- qui.overlaps[which(qui.overlaps$n.overlaps > 1),] 
-# note, out of 1694 features, only 5 were actual polygons - the rest were linestrings, etc.
-# when plotted, these are practically insignificant
+# these summed to 62
 extract.pgeometries <- st_collection_extract(pgeometries, "POLYGON")
 qui.selfOverlaps <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf()
 plot(qui.selfOverlaps$geometry)
@@ -154,7 +153,7 @@ setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private"))
 st_write(sigef, "SIGEF_properties.shp", append = F)
 
 # SNCI properies ----
-# maybe do this later as it's not a priority?
+# not a priority either
 
 
 
@@ -171,45 +170,55 @@ qui <- st_read("quilombolaLands.shp")
 priPAs_x_qui_overlaps <- st_intersection(priPAs, qui)
 plot(priPAs_x_qui_overlaps[,"LTcateg"]) # doesn't seem to be much overlap in any case (15km2) 
 sum(st_area(priPAs_x_qui_overlaps)) # essentially 15km2
-# this means it doesn't make much sense to make the actual intersection
-# meaning, in turn, that private PAs and quilombos don't overlap, and they belong in the no-overlaps_private folder
+# this means it doesn't make much sense to write out the overlapping polygons
 
-# AND since this is the extent of private lands - i can wrap up the overlaps here
-# EXCEPT i do need to overlap the two above with the rural properties (iru)!
+# in theory, i would also carry on by finding the private PAs and quilombos that do not (and do) 
+# overlap with rural properties (IRU). 
+# the problem is that this is computationally a lot more challenging 
 # Hence:
 
 
-# D) Find overlapping polygons across categories ----
+# D) Find overlapping polygons across 3 categories ----
+# private PAs, quilombolas, and rural properties
 
 # Upon first run: ----
 # get rural properties data
 setwd(paste0(wdmain,"/data/processed/processed2/private"))
 iru <- st_read("ruralProperties.shp")
 iru <- st_transform(iru, my_crs_SAaea)
-# qui <- st_transform(qui, my_crs_SAaea)
-# remember, intersecting them as one object is my only way of getting the parts that don't intersect
+qui <- st_transform(qui, my_crs_SAaea)
+# remember, intersecting them as one object is my only way of getting the parts that don't intersect with each other
 # i always doubt this again, and make myself think that i could get this using st_difference. but no. i need to intersect.
-# test_intersection <- st_intersection(qui, iru) # this is just to check how much of these intersect
-# sum(st_area(test_intersection))/1000000 # to convert to km2, this is 8,000 km2. no es poca cosa
+# just to check how much *area* actually intersects I can run the intersection with the two as separate objects
+# test_intersection <- st_intersection(qui, iru) 
+# sum(st_area(test_intersection))/1000000 # this is 8,000 km2, which is significant
 # plot(test_intersection$geometry)
-# # test_intersection <- st_intersection(rbind(qui, iru))
-# # test_intersection
-# 
+
 # table <- data.frame("categ" = NA, "area_Int"= NA, "area_Categ" = NA,"area_B" = NA)
 # table[1,2] <- sum(st_area(test_intersection)) # 8,000 km2
 # table[1,3] <- sum(st_area(iru))
 # table[1,4] <- sum(st_area(qui))
 # table[1,2]/table[1,4] # 28% of quilombos are intersecting with rural properties
 
+# try to run the intersection as one object:
+# test_intersection <- st_intersection(rbind(qui, iru))
+# test_intersection
 # IN SUM:
 # the error "Error: GEOS exception" persists in this case as well. 
 # the problem is that it is completely unmanageable to debug the 6,000,000 iru properties
-# so i have decided to rasterize this. 
+# so there's no manageable way to get the *polygon-level* information on which polygons do NOT intersect with each other
+# i.e., a dataset with the column that provides the number of intersections, allowing me to 
+# write out (semi) "clean" versions of: 1) overlapping and 2) non-overlapping IRU (against private PAs and quilombos)
 
-# make test first
-iru_original <- iru
-iru <- iru[1:1000,]
+# BUT i can still run the one-object intersections in order to write out the overlapping parts
 
+
+
+# Rasterization of rural properties (IRU) ----
+
+# upon first run, rasterize IRU is computationally heavy:
+iru_original <- iru # keep a copy of original
+iru <- iru[1:1000,]# make test first
 # get raster mask I already have from the getting started script
 r1 <- r*0
 # disaggregate so that it's a more fine resolution
@@ -224,18 +233,19 @@ iru_R
 plot(iru_R)
 
 # Upon second run: ----
+# overlap rural properties RASTER with private PAs and quilombos
+# second try: rasterize everything to 30m
+# get raster mask I already have from iru
 setwd(paste0(wdmain,"/data/processed/processed2/private"))
 iru_R <- rast("ruralProperties.tif")
 plot(iru_R)
 
-# overlap rural properties RASTER with private PAs and quilombos
-# second try: rasterize everything to 30m. this means not getting the precise properties that are overlapping, but rather the 30m pixels. 
-# get raster mask I already have from iru
-# # rasterize 30m res version
+# rasterize 30m res version
 qui_R <- rasterize(qui, iru_R)
 priPAs_r <- rasterize(priPAs, iru_R)
 
 # write and plot overlaps of the rasters 
+# NOTE, I DON'T THINK THESE ACTUALLY EVERY WORKED SO THIS NEEDS TO BE FIXED
 quiru <- qui_R+iru_R
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
 writeRaster(quiru, "quilombola-ruralProperties.tif")
