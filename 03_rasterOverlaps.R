@@ -220,10 +220,9 @@ plot(tenureRast$ruralSettlements, col = "green")
 dev.off()
 
 # sum ast + iru
-ast[ast == 0] <- 10
-ast
 ast_iru <- ast + tenureRast$ruralProperties
 
+test <- mosaic(ast, tenureRast$ruralProperties, fun = "sum")
 
 # create output file
 setwd(paste0(wdmain, "output/"))

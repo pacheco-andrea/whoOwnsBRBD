@@ -181,11 +181,12 @@ sum(st_area(priPAs_x_qui_overlaps)) # essentially 15km2
 # D) Find overlapping polygons across 3 categories ----
 # private PAs, quilombolas, and rural properties
 
-# Upon first run: ----
+# Upon first run: 
 # get rural properties data
 setwd(paste0(wdmain,"/data/processed/processed2/private"))
 iru <- st_read("ruralProperties.shp")
 iru <- st_transform(iru, my_crs_SAaea)
+qui <- st_read("quilombolaLands.shp")
 qui <- st_transform(qui, my_crs_SAaea)
 # remember, intersecting them as one object is my only way of getting the parts that don't intersect with each other
 # i always doubt this again, and make myself think that i could get this using st_difference. but no. i need to intersect.
@@ -211,6 +212,36 @@ qui <- st_transform(qui, my_crs_SAaea)
 # write out (semi) "clean" versions of: 1) overlapping and 2) non-overlapping IRU (against private PAs and quilombos)
 
 # BUT i can still run the one-object intersections in order to write out the overlapping parts
+
+# overlap IRU x quilombolas ----
+quiru <- st_intersection(qui, iru)
+quiru
+plot(quiru$geometry)
+unique(st_geometry_type(quiru))
+extract.pgeometries <- st_collection_extract(quiru, "POLYGON")
+quiru2 <- extract.pgeometries %>% group_by(LTcateg, id, LTcateg.1, id.1) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf()
+# check if any empty features?
+empty <- st_is_empty(quiru2)
+quiru2[empty,]
+setwd(paste0(wdmain, "data/processed/LT_overlaps"))
+st_write(quiru2, "quilombola-ruralProperties.shp", append = F)
+rm(quiru2)
+
+# overlap IRU x priv PAs ----
+# ok, clearly there will be errors and intersections here. 
+# need to think about what it means (legally) private PAs in rural properties...
+setwd(paste0(wdmain,"/data/processed/processed2/private"))
+priPAs <- st_read("private_protectedAreas.shp")
+priPAs <- st_transform(priPAs, my_crs_SAaea)
+pairu <- st_intersection(priPAs, iru)
+pairu
+plot(pairu$geometry)
+unique(st_geometry_type(pairu))
+extract.pgeometries <- st_collection_extract(pairu, "POLYGON")
+pairu2 <- extract.pgeometries %>% group_by(LTcateg, id, LTcateg.1, id.1) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf()
+setwd(paste0(wdmain, "data/processed/LT_overlaps"))
+st_write(quiru2, "privatePAs-ruralProperties.shp", append = F)
+
 
 
 
