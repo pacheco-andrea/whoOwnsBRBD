@@ -63,17 +63,79 @@ for(i in 1:length(shps))
 }
 df_noOverlapsPrivate
 
+df_noOverlaps <- rbind(df_noOverlapsPublic, df_noOverlapsPrivate)
+sum(df_noOverlaps$areakm2) # yes, 7,932,964 km2 seems right, as all BR is ~8,500,000km2
+# quick visualization:
+ggplot(df_noOverlaps, aes(x=categ, y=areakm2)) +
+  geom_bar(stat = "identity")
+
 # Overlaps across categories (but within public and private lands) LT_overlaps ----
+setwd(paste0(wdmain, "data/processed/LT_overlaps"))
+l <- list.files()
 
 # self overlaps
+self <- l[grep("selfOverlaps.shp", l)]
+
+# make matrix for results
+df_self <- matrix(nrow = 1, ncol = length(self))
+colnames(df_self) <- gsub("_selfOverlaps.shp", "", self)
+df_self <- as.data.frame(df_self)
+# loop for calcs
+for(i in 1:length(self))
+{
+  s <- st_read(l[grep("selfOverlaps.shp", l)][i])
+  a <- st_area(s)
+  df_self[1,i] <- sum(a)/1000000
+}
+df_self
 
 # across categories
-
-
-# Overlaps ACROSS PUBLIC AND PRIVATE categories ----
-
+across_shps <- l[-grep("selfOverlaps", l)]
+across_shps <- across_shps[grep(".shp", across_shps)]
+df_across <- matrix(nrow = 1, ncol = length(across_shps))
+colnames(df_across) <- gsub(".shp", "", across_shps)
+df_across <- as.data.frame(df_across)
+# loop calcs
+for(i in 1:length(across_shps))
+{
+  s <- st_read(across_shps[i])
+  a <- st_area(s)
+  df_across[1,i] <- sum(a)/1000000
+}
+df_across
 
 
 # PUT INDIVIDUAL DATA FRAMES TOGETHER HERE!
+df_noOverlaps
+df_self
+df_across
+
+# place in right place:
+df <- df_noOverlaps
+for(i in 1:length(df_self))
+{
+  # get column name: needs to start with the df_self rather than the total categs
+  newCol <- colnames(df_self)[i]
+  # creates the new column
+  df[[newCol]] <- NA
+  # it needs to find the place in the df$categ
+  colPlace <- grep(paste0(newCol), df$categ)
+  df[colPlace,2+i] <- df_self[,grep(newCol, colnames(df_self))]
+}
+df_across
+# for(i in 2:length(df_across)) # note, starting at 2, going to skip the ind-PA-rural-sett overlap bc that would be a 3-dimensional table
+# {
+#   nameOverlap <- colnames(df_across)[i]
+#   rowPlace <- grep(df_across[i])
+# }
+# OK - adding the df_across gets quite complicated, and unnecessary energy right now...
+# just remember the important ones are 1) PAs-indigenous and 2) sustUse PAs and rural settlements
+setwd(paste0(wdmain, "output/"))
+write.csv(df, "OverlapsAcrossCategs_20240806.csv", row.names = F)
+
+# Overlaps ACROSS PUBLIC AND PRIVATE categories ----
+# this is the part that I haven't really done yet
+# should i be deciding based on the information above?
+
 
 # B) folder structuring for extractions

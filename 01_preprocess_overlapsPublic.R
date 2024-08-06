@@ -108,8 +108,8 @@ uc.selfOverlaps <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(g
 
 # write out this data
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
-st_write(uc.selfOverlaps, "PAs_selfOverlaps.shp", append = F)
-
+st_write(uc.selfOverlaps[which(uc.selfOverlaps$LTcateg == "PI"),], "PA_strict_selfOverlaps.shp", append = F)
+st_write(uc.selfOverlaps[which(uc.selfOverlaps$LTcateg == "US"),], "PA_sustuse_selfOverlaps.shp", append = F)
 
 
 # B.2) Clean self-overlaps within indigenous lands ----
@@ -368,4 +368,22 @@ colnames(overall.overlaps) <- c("LTcateg", "id" , "LTcateg_2", "id_2", "LTcateg_
 # write out in folder of overlaps
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
 st_write(overall.overlaps, "indPAoverlap-ruralSettlements.shp", append = F)
+
+# D.5) Overlaps bt undesignated lands and rural settlements - is there a reason I hadn't done this before?
+# this is a repeat of the process used in C.1
+# using the polygons that have been pre-cleaned from self-intersections
+LT_no.overlaps$undesignated <- st_transform(LT_no.overlaps$undesignated, my_crs_SAaea)
+LT_no.overlaps$ruralSettlements <- st_transform(LT_no.overlaps$ruralSettlements, my_crs_SAaea)
+# intersect
+overall.overlaps <- st_intersection(LT_no.overlaps$undesignated, LT_no.overlaps$ruralSettlements)
+unique(st_geometry_type(overall.overlaps))
+# identify these linestrings and fix
+# polys <- overall.overlaps[grep("GEOMETRY", (st_geometry_type(overall.overlaps))),]
+polys.extract <- st_collection_extract(overall.overlaps, "POLYGON") # fix
+# aggregate resulting extra polygons by the id
+polys.extract <- polys.extract %>% group_by(LTcateg, id, LTcateg.1, id.1) %>% summarise(geometry = st_union(geometry)) %>% st_as_sf()
+
+# write out in folder of overlaps
+setwd(paste0(wdmain, "data/processed/LT_overlaps"))
+st_write(polys.extract, "undesignated-ruralSettlements.shp", append = F)
 

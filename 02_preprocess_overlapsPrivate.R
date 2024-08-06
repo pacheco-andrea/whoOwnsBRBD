@@ -95,7 +95,7 @@ priPAs_no.overlaps <- priPAs.overlaps[which(priPAs.overlaps$n.overlaps == 1), c(
 unique(st_geometry_type(priPAs_no.overlaps))
 # write out this data
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private"))
-st_write(priPAs_no.overlaps, "private_protectedAreas.shp", append = F)
+st_write(priPAs_no.overlaps, "privatePAs.shp", append = F)
 
 # get the self-overlaps 
 unique(st_geometry_type(priPAs.overlaps[which(priPAs.overlaps$n.overlaps > 1),]))
@@ -124,7 +124,7 @@ extract.pgeometries <- st_collection_extract(qui_no.overlaps, "POLYGON")
 qui_no.overlaps <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf()
 # write out this data
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private"))
-st_write(qui_no.overlaps, "quilombolaLands.shp", append = F)
+st_write(qui_no.overlaps, "quilombola.shp", append = F)
 
 # get the self-overlaps 
 unique(st_geometry_type(qui.overlaps[which(qui.overlaps$n.overlaps > 1),]))
@@ -145,8 +145,8 @@ st_write(qui.selfOverlaps, "quilombola_selfOverlaps.shp", append = F)
 # (don't further process SIGEF or SNCI because unneeded and burdensome) ----
 
 # private PAs vs quilombola lands 
-priPAs <- st_read("private_protectedAreas.shp")
-qui <- st_read("quilombolaLands.shp")
+priPAs <- st_read("privatePAs.shp")
+qui <- st_read("quilombola.shp")
 # normally, I would do the following: priPAs_x_qui <- rbind(priPAs, qui)
 # but i first check how much overlap there is to begin with by doing:
 priPAs_x_qui_overlaps <- st_intersection(priPAs, qui)
@@ -213,7 +213,7 @@ rm(quiru2)
 # ok, clearly there will be errors and intersections here. - bc using not clean priPAs??
 # need to think about what it means (legally) private PAs in rural properties...
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private"))
-priPAs <- st_read("private_protectedAreas.shp")
+priPAs <- st_read("privatePAs.shp")
 priPAs <- st_transform(priPAs, my_crs_SAaea)
 pairu <- st_intersection(priPAs, iru)
 pairu
