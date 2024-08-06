@@ -228,9 +228,9 @@ st_write(quiru2, "quilombola-ruralProperties.shp", append = F)
 rm(quiru2)
 
 # overlap IRU x priv PAs ----
-# ok, clearly there will be errors and intersections here. 
+# ok, clearly there will be errors and intersections here. - bc using not clean priPAs??
 # need to think about what it means (legally) private PAs in rural properties...
-setwd(paste0(wdmain,"/data/processed/processed2/private"))
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private"))
 priPAs <- st_read("private_protectedAreas.shp")
 priPAs <- st_transform(priPAs, my_crs_SAaea)
 pairu <- st_intersection(priPAs, iru)
@@ -240,51 +240,22 @@ unique(st_geometry_type(pairu))
 extract.pgeometries <- st_collection_extract(pairu, "POLYGON")
 pairu2 <- extract.pgeometries %>% group_by(LTcateg, id, LTcateg.1, id.1) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf()
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
-st_write(quiru2, "privatePAs-ruralProperties.shp", append = F)
-
-
+st_write(pairu2, "privatePAs-ruralProperties.shp", append = F)
 
 
 # Rasterization of rural properties (IRU) ----
 
-# upon first run, rasterize IRU is computationally heavy:
-iru_original <- iru # keep a copy of original
-iru <- iru[1:1000,]# make test first
+# upon first run, rasterization of IRU (note, computationally heavy)
 # get raster mask I already have from the getting started script
 r1 <- r*0
 # disaggregate so that it's a more fine resolution
 res(r1)
 disag_r1 <- disagg(r1, fact = 35.9293) # this is the level of disaggregation to have a 30m resolution
 # rasterize 30m res version
-iru_R <- rasterize(iru_original, disag_r1)
+iru_R <- rasterize(iru, disag_r1)
 # write out
 setwd(paste0(wdmain,"/data/processed/processed2/private"))
 writeRaster(iru_R, "ruralProperties.tif")
 iru_R
 plot(iru_R)
-
-# Upon second run: ----
-# overlap rural properties RASTER with private PAs and quilombos
-# second try: rasterize everything to 30m
-# get raster mask I already have from iru
-setwd(paste0(wdmain,"/data/processed/processed2/private"))
-iru_R <- rast("ruralProperties.tif")
-plot(iru_R)
-
-# rasterize 30m res version
-qui_R <- rasterize(qui, iru_R)
-priPAs_r <- rasterize(priPAs, iru_R)
-
-# write and plot overlaps of the rasters 
-# NOTE, I DON'T THINK THESE ACTUALLY EVERY WORKED SO THIS NEEDS TO BE FIXED
-quiru <- qui_R+iru_R
-setwd(paste0(wdmain, "data/processed/LT_overlaps"))
-writeRaster(quiru, "quilombola-ruralProperties.tif")
-
-# plot(quiru[which(quiru>1)])
-
-pairu <- priPAs_r+iru_R
-setwd(paste0(wdmain, "data/processed/LT_overlaps"))
-writeRaster(pairu, "privatePAs-ruralProperties.tif")
-
 
