@@ -141,26 +141,8 @@ st_write(qui.selfOverlaps, "quilombola_selfOverlaps.shp", append = F)
 # rural Properties ----
 # do not need cleaning for self-overlaps - so they should just be placed in the right folder... 
 
-# SIGEF properties ----
-# process for the sake of comparing - but don't ultimately use in analysis
-setwd(paste0(wdmain,"/data/processed/processed2/private"))
-sigef <- st_read("SIGEF_properties.shp")
-sigef
-# summary(st_is_valid(sigef)) # they're all valid
-# test <- st_intersection(sigef[1:10000,])
-sigef <- st_union(sigef) # to simplify?
-setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private"))
-st_write(sigef, "SIGEF_properties.shp", append = F)
 
-# SNCI properies ----
-# not a priority either
-
-
-
-# C) Get polygons that DO NOT overlap with each other ----
-setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private"))
-l <- list.files()
-l[grep(".shp", l)]
+# (don't further process SIGEF or SNCI because unneeded and burdensome) ----
 
 # private PAs vs quilombola lands 
 priPAs <- st_read("private_protectedAreas.shp")
