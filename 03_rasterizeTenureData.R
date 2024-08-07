@@ -97,40 +97,39 @@ setwd(paste0(wdmain,"/data/processed/landTenure_IRU-AST-PCT/"))
 # rasterize at 30m2 ----
 # note that for iru, private PAs and quilombos I've already done this in 02_preprocess private
 setwd(paste0(wdmain,"/data/processed/processed2/private"))
-iru <- rast("ruralProperties.tif")
-mask <- iru*0
-
-# rasterize public
-setwd(paste0(wdmain, "data/processed/processed2/public"))
-l <- list.files()
-public <- lapply(l[grep(".shp", l)], st_read)
-names(public) <- gsub(".shp","", l[grep(".shp", l)])
-# i actually want to keep each of these categories as separate rasters so that i can plot them systematically later
-for(i in 1:length(public))
-{
-  public[[i]] <- st_transform(public[[i]], my_crs_SAaea)
-  r <- rasterize(public[[i]], mask, "LTcateg")
-  setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
-  writeRaster(r, filename = paste0(names(public)[i], "_SAalbers_30m.tif"), overwrite = TRUE)
-}
-
-
-# other private lands: private protected areas, sigef and snci registries, and quilombola lands
-setwd(paste0(wdmain, "data/processed/processed2/private"))
-l <- list.files()
-l[grep(".shp", l)]
-files <- l[grep(".shp", l)][1:2]
-
-private <- lapply(files, st_read)
-names(private) <- gsub(".shp","", files)
-# i actually want to keep each of these categories as separate rasters so that i can plot them systematically later
-for(i in 1:length(private))
-{
-  private[[i]] <- st_transform(private[[i]], my_crs_SAaea)
-  r <- rasterize(private[[i]], mask, "LTcateg")
-  setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
-  writeRaster(r, filename = paste0(names(private)[i], "_SAalbers_30m.tif"), overwrite = TRUE)
-}
+# iru <- rast("ruralProperties.tif")
+# mask <- iru*0
+# 
+# # rasterize public
+# setwd(paste0(wdmain, "data/processed/processed2/public"))
+# l <- list.files()
+# public <- lapply(l[grep(".shp", l)], st_read)
+# names(public) <- gsub(".shp","", l[grep(".shp", l)])
+# # i actually want to keep each of these categories as separate rasters so that i can plot them systematically later
+# for(i in 1:length(public))
+# {
+#   public[[i]] <- st_transform(public[[i]], my_crs_SAaea)
+#   r <- rasterize(public[[i]], mask, "LTcateg")
+#   setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
+#   writeRaster(r, filename = paste0(names(public)[i], "_SAalbers_30m.tif"), overwrite = TRUE)
+# }
+# 
+# # other private lands: private protected areas, sigef and snci registries, and quilombola lands
+# setwd(paste0(wdmain, "data/processed/processed2/private"))
+# l <- list.files()
+# l[grep(".shp", l)]
+# files <- l[grep(".shp", l)][1:2]
+# 
+# private <- lapply(files, st_read)
+# names(private) <- gsub(".shp","", files)
+# # i actually want to keep each of these categories as separate rasters so that i can plot them systematically later
+# for(i in 1:length(private))
+# {
+#   private[[i]] <- st_transform(private[[i]], my_crs_SAaea)
+#   r <- rasterize(private[[i]], mask, "LTcateg")
+#   setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
+#   writeRaster(r, filename = paste0(names(private)[i], "_SAalbers_30m.tif"), overwrite = TRUE)
+# }
 
 
 

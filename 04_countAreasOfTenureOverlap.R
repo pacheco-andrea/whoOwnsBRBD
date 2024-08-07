@@ -1,14 +1,16 @@
 #### Biodiversity and Tenure in Brazil ####
 
-# this script was the origin of me carrying out these complicated series of polygon intersections across categories 
-# i think  because it was the most accurate way to get the overlaps across polygon-based data (and keeping the individual property data) 
-
 # this script should now:
 # bring together all the diff datasets that i've preprocessed, takes stock of these and:
 # 1) summarizes their area in a table
-# 2) writes them out in a file format this is easy to handle for further BD extractions
+# 2) intersects the areas of overlap across public and private categories
+
+# note, here, does this mean that i write out the polygons as a separate dataset?
+
+
+# 3) writes them out in a file format this is easy to handle for further BD extractions
 # KEEP IN MIND: THE WHOLE POINT OF THIS WAS TO TREAT THE OVERLAPS AS SEPARATE CATEGORIES
-# THIS JUSTIFIES ALL THE MESS OF DATA CLEANING I HAD TO DO - so the folder structure should reflect these distinct categories
+# (which was the point of all the public and private preprocessing i did in step 02 so the folder structure should reflect these distinct categories)
 
 # libraries
 library(sf)
@@ -16,6 +18,7 @@ library(terra)
 library(ggplot2)
 library(geobr)
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
+rm(mask)
 
 # preprocessed tenure data
 setwd(paste0(wdmain, "data/processed/"))
@@ -24,10 +27,6 @@ l[grep("LT_", l)]
 
 list.files()
 # A) area calculations ----
-# create a matrix for these calculations:
-overlap_matrix <- matrix(FALSE, nrow = length(tenureRast), ncol = length(tenureRast))
-rownames(overlap_matrix) <- colnames(overlap_matrix) <- names(tenureRast)
-
 
 # Public lands: no overlaps (LT_no-overlaps) ----
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
@@ -64,10 +63,12 @@ for(i in 1:length(shps))
 df_noOverlapsPrivate
 
 df_noOverlaps <- rbind(df_noOverlapsPublic, df_noOverlapsPrivate)
-sum(df_noOverlaps$areakm2) # yes, 7,932,964 km2 seems right, as all BR is ~8,500,000km2
+sum(df_noOverlaps$areakm2) # yes, 7,932,964 km2 seems right, as all BR is ~8,500,000 km2
 # quick visualization:
 ggplot(df_noOverlaps, aes(x=categ, y=areakm2)) +
   geom_bar(stat = "identity")
+rm(s)
+gc()
 
 # Overlaps across categories (but within public and private lands) LT_overlaps ----
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
@@ -104,7 +105,7 @@ for(i in 1:length(across_shps))
 }
 df_across
 
-
+rm(s)
 # PUT INDIVIDUAL DATA FRAMES TOGETHER HERE!
 df_noOverlaps
 df_self
@@ -128,7 +129,7 @@ df_across
 #   nameOverlap <- colnames(df_across)[i]
 #   rowPlace <- grep(df_across[i])
 # }
-# OK - adding the df_across gets quite complicated, and unnecessary energy right now...
+# OK - adding the df_across gets quite complicated, and unnecessary energy right now... so i just inputted these manually in an excel table
 # just remember the important ones are 1) PAs-indigenous and 2) sustUse PAs and rural settlements
 setwd(paste0(wdmain, "output/"))
 write.csv(df, "OverlapsAcrossCategs_20240806.csv", row.names = F)
@@ -137,5 +138,71 @@ write.csv(df, "OverlapsAcrossCategs_20240806.csv", row.names = F)
 # this is the part that I haven't really done yet
 # should i be deciding based on the information above?
 
+# create lists of public and private files i want to overlap
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps/"))
+l <- list.files()
+pubList <- l[grep(".shp", l)]
+
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private/"))
+l <- list.files()
+priList <- l[grep(".shp", l)]
+
+# make matrix for results
+overlap_matrix <- matrix(FALSE, nrow = length(priList), ncol = length(pubList))
+rownames(overlap_matrix) <- gsub(".shp", "", priList)
+colnames(overlap_matrix) <- gsub(".shp", "", pubList)
+overlap_matrix  
+
+
+# loop through each pair to intersect
+for(i in 1:length(priList)) 
+{
+  # start with private data so that it doesn't have to read the rural properties 4 times
+  # get private data:
+  setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private/"))
+  priData <- st_read(priList[i])
+  priData <- st_transform(priData, my_crs_SAaea)
+
+  for(j in 1:length(pubList))
+  {
+    # get public data:
+    setwd(paste0(wdmain, "data/processed/LT_no-overlaps/"))
+    pubData <- st_read(pubList[j])
+    pubData <- st_transform(pubData, my_crs_SAaea)
+    
+    # intersection
+    overlap <- st_intersection(priData, pubData)
+    print(overlap)
+    a <- st_area(overlap)
+    
+    # place in matrix
+    overlap_matrix[i,j] <- sum(a)/1000000
+    print(overlap_matrix)
+    
+    # identified i need to write out the ruralProperties (iru) and undesignated lands overlap
+    if(priList[i] == "ruralProperties.shp" & pubList[j] == "undesignated.shp"){
+      unique(st_geometry_type(overlap))
+      extract.pgeometries <- st_collection_extract(overlap, "POLYGON")
+      overlap <- extract.pgeometries %>% group_by(LTcateg, id, LTcateg.1, id.1) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf()
+      overlap
+      setwd(paste0(wdmain, "data/processed/LT_pubxpri_overlaps"))
+      st_write(overlap, "ruralProperties-undesignated.shp", append = F)
+      
+    }
+  }
+}
+
+# depending on how much they overlap, i can decide whether it's worth actually analyzing the overlap
+
+
+
+
+
+
+
+
+
+
 
 # B) folder structuring for extractions
+
