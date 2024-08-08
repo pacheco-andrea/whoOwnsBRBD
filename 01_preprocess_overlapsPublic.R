@@ -288,9 +288,9 @@ for(i in 1:length(names(LT_no.overlaps))){
   print(intersection)
   # get the sums of the areas in order to calculate percentages and also have the areas
   # note everything is converted to km2
-  table_rSettlements[i,2] <- sum(st_area(intersection))/1000
-  table_rSettlements[i,3] <- sum(st_area(LT_no.overlaps[[i]]))/1000
-  table_rSettlements[i,4] <- sum(st_area(LT_no.overlaps[[4]]))/1000
+  table_rSettlements[i,2] <- sum(st_area(intersection))/1000000
+  table_rSettlements[i,3] <- sum(st_area(LT_no.overlaps[[i]]))/1000000
+  table_rSettlements[i,4] <- sum(st_area(LT_no.overlaps[[4]]))/1000000
 }
 table_rSettlements
 
@@ -307,9 +307,9 @@ for(i in 1:length(names(LT_no.overlaps))){
   print(intersection)
   # get the sums of the areas in order to calculate percentages and also have the areas
   # note everything is converted to km2
-  table_undesignated[i,2] <- sum(st_area(intersection))/1000
-  table_undesignated[i,3] <- sum(st_area(LT_no.overlaps[[i]]))/1000
-  table_undesignated[i,4] <- sum(st_area(LT_no.overlaps[[5]]))/1000
+  table_undesignated[i,2] <- sum(st_area(intersection))/1000000
+  table_undesignated[i,3] <- sum(st_area(LT_no.overlaps[[i]]))/1000000
+  table_undesignated[i,4] <- sum(st_area(LT_no.overlaps[[5]]))/1000000
 }
 table_undesignated
 # these tables show me that there are 3 overlaps that represent more than 1% area overlap:
@@ -369,7 +369,7 @@ colnames(overall.overlaps) <- c("LTcateg", "id" , "LTcateg_2", "id_2", "LTcateg_
 setwd(paste0(wdmain, "data/processed/LT_overlaps"))
 st_write(overall.overlaps, "indPAoverlap-ruralSettlements.shp", append = F)
 
-# D.5) Overlaps bt undesignated lands and rural settlements - is there a reason I hadn't done this before?
+# D.5) Overlaps bt undesignated lands and rural settlements 
 # this is a repeat of the process used in C.1
 # using the polygons that have been pre-cleaned from self-intersections
 LT_no.overlaps$undesignated <- st_transform(LT_no.overlaps$undesignated, my_crs_SAaea)

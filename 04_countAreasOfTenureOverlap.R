@@ -135,8 +135,6 @@ setwd(paste0(wdmain, "output/"))
 write.csv(df, "OverlapsAcrossCategs_20240806.csv", row.names = F)
 
 # Overlaps ACROSS PUBLIC AND PRIVATE categories ----
-# this is the part that I haven't really done yet
-# should i be deciding based on the information above?
 
 # create lists of public and private files i want to overlap
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps/"))
@@ -170,6 +168,7 @@ for(i in 1:length(priList))
     pubData <- st_read(pubList[j])
     pubData <- st_transform(pubData, my_crs_SAaea)
     
+    # fix bug in strict PAs
     if(pubList[j] == "PA_strict.shp"){
       pubData <- st_make_valid(pubData)
     }
@@ -188,13 +187,14 @@ for(i in 1:length(priList))
     # i need to write these out in the folder LT_pubxpri_overlaps
     
     if(priList[i] == "ruralProperties.shp" & pubList[j] == "PA_strict.shp" | pubList[j] == "PA_sustuse.shp"| pubList[j] == "undesignated.shp"){
+      # unique(st_geometry_type(overlap))
       print(overlap)
       extract.pgeometries <- st_collection_extract(overlap, "POLYGON")
       overlap <- extract.pgeometries %>% group_by(LTcateg, id, LTcateg.1, id.1) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf()
       print(overlap)
       
       setwd(paste0(wdmain, "data/processed/LT_pubxpri_overlaps"))
-      st_write(overlap, "ruralProperties-undesignated.shp", append = F)
+      st_write(overlap, paste0("ruralProperties-", pubList[j]), append = F)
       
     }
   }
@@ -202,10 +202,19 @@ for(i in 1:length(priList))
 
 setwd(paste0(wdmain, "output/"))
 write.csv(as.data.frame(overlap_matrix), "overlapMatrix-Pri-Pub.csv")
+rm(priData)
 
-# taking advantage that i already have iru in memory, do i need to intersect it against any other categories? no
 # missing comparisons:
 # private PAs x quilombos
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private/"))
+priPAS <- st_read(priList[1])
+qui <- st_read(priList[2])
+# intersection
+overlap <- st_intersection(priPAS, qui)
+print(overlap)
+a <- st_area(overlap)
+sum(a)/1000000
+# rural settlements x indigenous, x PA_strict - this was already done in previous script 01 preprocess public
 
 
 
