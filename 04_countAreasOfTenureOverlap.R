@@ -170,6 +170,10 @@ for(i in 1:length(priList))
     pubData <- st_read(pubList[j])
     pubData <- st_transform(pubData, my_crs_SAaea)
     
+    if(pubList[j] == "PA_strict.shp"){
+      pubData <- st_make_valid(pubData)
+    }
+    
     # intersection
     overlap <- st_intersection(priData, pubData)
     print(overlap)
@@ -179,12 +183,16 @@ for(i in 1:length(priList))
     overlap_matrix[i,j] <- sum(a)/1000000
     print(overlap_matrix)
     
-    # identified i need to write out the ruralProperties (iru) and undesignated lands overlap
-    if(priList[i] == "ruralProperties.shp" & pubList[j] == "undesignated.shp"){
-      unique(st_geometry_type(overlap))
+    # depending on how much they overlap, i can decide whether it's worth actually analyzing the overlap
+    # it turns out the overlaps between IRU and 1) PA_strict, 2) PA_sustuse, 3) undesignated are so significant
+    # i need to write these out in the folder LT_pubxpri_overlaps
+    
+    if(priList[i] == "ruralProperties.shp" & pubList[j] == "PA_strict.shp" | pubList[j] == "PA_sustuse.shp"| pubList[j] == "undesignated.shp"){
+      print(overlap)
       extract.pgeometries <- st_collection_extract(overlap, "POLYGON")
       overlap <- extract.pgeometries %>% group_by(LTcateg, id, LTcateg.1, id.1) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf()
-      overlap
+      print(overlap)
+      
       setwd(paste0(wdmain, "data/processed/LT_pubxpri_overlaps"))
       st_write(overlap, "ruralProperties-undesignated.shp", append = F)
       
@@ -192,9 +200,12 @@ for(i in 1:length(priList))
   }
 }
 
-# depending on how much they overlap, i can decide whether it's worth actually analyzing the overlap
+setwd(paste0(wdmain, "output/"))
+write.csv(as.data.frame(overlap_matrix), "overlapMatrix-Pri-Pub.csv")
 
-
+# taking advantage that i already have iru in memory, do i need to intersect it against any other categories? no
+# missing comparisons:
+# private PAs x quilombos
 
 
 
