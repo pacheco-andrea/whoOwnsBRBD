@@ -13,10 +13,13 @@ tenureColors = c("#FC8D62", "#8DA0CB", "#8C7E5B", "#1B9E77", "#E78AC3", "#FFD700
 
 # get tenure rasters:
 setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
-l <- grep(".tif$", list.files())
-t <- lapply(list.files()[l], rast) # very weird, changing behavior with lists from terra
+l <- list.files()
+tifs <- grep(".tif$", l)
+R1km <- l[tifs][grep("1km", l[tifs])] 
+# exclude SIGEF and SNCI properties
+t <- lapply(R1km[-grep("properties", R1km)], rast)
 # terra::plot(t)
-names(t) <- gsub("landTenure_", "", gsub("_SAalbers_1km.tif","", list.files()[l]))
+names(t) <- gsub("landTenure_", "", gsub("_SAalbers_1km.tif","", R1km[-grep("properties", R1km)]))
 
 # add biomes 
 biomes <- read_biomes(year=2019)
@@ -28,33 +31,51 @@ v <- vect(biomes)
 # overlap all the possible combinations ----
 names(t) # the number of categories to map
 
-# NOTE: IF THERE IS A CHANGE IN THE AMOUNT OF DATA THE CODE BELOW NEEDS CAREFUL MANUAL ATTENTION TO ENSURE ALL COMBINATIONS AND NAMES MAKE SENSE
-overlaps <- list()
-for(i in 1:(length(t)-1))
-{
-  overlaps[[i]] <- terra::intersect(t[[i]], t[[i+1]]) # 1+2, 2+3, 3+4, 4+5 BUT ALSO NEED
+overlap_palette <- c("gray75", "red")
+overlaps1km_results <- list()
+
+# loop through all the combinations & plot at the same time
+setwd(paste0(wdmain, "output/"))
+png("overlap_plots_1km.png", width = 3000, height = 1500, units = "px", pointsize = 18)
+par(mfrow = c(3,6))
+for(i in 1:(length(t)-1)){
+  for(j in (i+1):length(t)) {
+    
+    # check if there is an overlap
+    overlap <- terra::intersect(t[[i]], t[[j]])
+    
+    # if there is overlap
+    if(!is.null(overlap)) {
+      overlap_area <- sum(values(overlap), na.rm = T) # i can just sum here bc using AEA proj at 1km res
+      # write result
+      overlaps1km_results[[paste0("overlap_", i, "_", j)]] <- list(
+        "raster1" = names(t)[i],
+        "raster2" = names(t)[j],
+        "areakm2" = overlap_area
+      )
+      # plot the overlap
+      plot(overlap, col = overlap_palette, main = paste("Overlap between", names(t)[i], "and", names(t)[j]))
+      
+    }
+  }
 }
-length2 <- length(overlaps)
-for(i in length2:6)
-{
-  overlaps[[i+1]] <- terra::intersect(t[[1]], t[[i-1]]) # 1+3 and 1+4 and 1+5 Now missing 
-}
-overlaps[[8]] <- terra::intersect(t[[2]], t[[4]]) # 2+4 
-overlaps[[9]] <- terra::intersect(t[[2]], t[[5]]) # 2+5
-overlaps[[10]] <- terra::intersect(t[[3]], t[[5]]) # 3+5
-names(t)
+dev.off()
 
-names(overlaps) <- c("indigenous-IRU", "IRU-PAs", "PAS-ruralSettlements", "ruralSettlements-undesignated",
-                     "indigenous-PAs", "indigenous-ruralSettlements", "indigenous-undesignated",
-                     "IRU-ruralSettlements", "IRU-undesignated", "PAs-undesignated")
+overlap1km_df <- do.call(rbind, lapply(overlaps1km_results, as.data.frame))
+overlap1km_df
 
-# join using mosaic in order to see overall overlaps
-# myOverlaps <- mosaic(sprc(overlaps), fun = sum)
-# plot(myOverlaps) 
+# alright, upon manual inspection this checks out pretty well against polygon intersections
+# at 1km2 raster, these estimated intersections are consistently smaller than the polygons (likely bc they're less precise)
 
-# However, what is more important is to identify which specific layers overlap
+# visualize overlaps ----
 
 tenureColors = c("#FC8D62", "#8DA0CB", "#8C7E5B", "#1B9E77", "#E78AC3", "#FFD700", "#1d6c7d") #, "#F0F0F0")
+
+
+# someday i'll likely want to choose which plots to highlight for a presentation/paper
+# PAs and rural properties?
+# undesignated lands and rural properties
+
 
 # PLOT THE OVERLAPS OF PRIVATE ON PUBLIC LANDS ----
 par(mfrow = c(1,1))
