@@ -1,7 +1,7 @@
 #### Biodiversity and Tenure in Brazil ####
 
 # this script brings together preprocessed tenure data and rasterizes them so they can be mapped
-# the main aim here is visualization because I've rasterized them at ~1km
+# I've rasterized once at 1km, and another at 30m
 # outputs are: 
 # one categorical raster for each tenure category
 # a map of tenure categories (at this stage it should indicate overlaps!)

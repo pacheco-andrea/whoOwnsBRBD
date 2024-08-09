@@ -1,7 +1,7 @@
 #### Biodiversity and Tenure in Brazil ####
 
-# this script should now:
-# bring together all the diff datasets that i've preprocessed, takes stock of these and:
+# this script:
+# bring together all the diff polygon datasets that i've preprocessed, takes stock of these and:
 # 1) summarizes their area in a table
 # 2) intersects the areas of overlap across public and private categories
 
@@ -219,10 +219,5 @@ sum(a)/1000000
 
 
 
-
-
-
-
-
-# B) folder structuring for extractions
+# B) folder structuring for extractions??? ----
 
