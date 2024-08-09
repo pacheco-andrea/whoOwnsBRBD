@@ -14,6 +14,7 @@ library(ggplot2)
 library(sf)
 library(geobr)
 library(dplyr)
+library(tidyr)
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 # get tenure rasters: ----
@@ -82,5 +83,69 @@ overlap1km_df
 # 5) rural properties on indigenous lands
 
 
-# visualize overlaps ----
+# make barplot with data I've prepared ----
+# i pre-prepared this data in excel, just putting together the tables in a way that made sense 
+# (bc i had made some of those calculations in earlier scripts)
 
+# get data
+
+
+specie <- c(rep("sorgho" , 3) , rep("poacee" , 3) , rep("banana" , 3) , rep("triticum" , 3) )
+condition <- rep(c("normal" , "stress" , "Nitrogen") , 4)
+value <- abs(rnorm(12 , 0 , 15))
+data <- data.frame(specie,condition,value)
+
+# Grouped
+ggplot(data, aes(fill=condition, y=value, x=specie)) + 
+  geom_bar(stat="identity")
+
+
+setwd(paste0(wdmain, "data/"))
+d <- read.csv("processed/LT_overlapsSummary.csv")
+colnames(d)[1] <- "categ"
+# pivot table
+d2 <- as.data.frame(d %>%
+                pivot_longer(cols = -all_of(c("areakm2", "categ")),
+                             names_to = "overlap",
+                             values_to = "overlapkm2"))
+head(d2) 
+# d2$overlapkm2 <- as.numeric(d2$overlapkm2)
+d2$overlapkm2 <- base::round(d2$overlapkm2, digits = 0)
+# i need to add a row which gives the sum of the area that is not under overlap
+d3 <- matrix(nrow = length(unique(d2$categ)), ncol = length(colnames(d2)))
+d3 <- as.data.frame(d3)
+colnames(d3) <- colnames(d2)
+for(i in 1:length(unique(d2$categ)))
+{
+  category <- unique(d2$categ)[i]
+  total_area_overlapped <- sum(d2$overlapkm2[grep(category, d2$categ)], na.rm = T)
+  area_total <- d2$areakm2[grep(category, d2$categ)][1]
+  # fill table
+  d3[i,] <- c(category, area_total, "non-overlapped", (area_total-total_area_overlapped))
+}
+d3
+d3$overlapkm2 <- as.numeric(d3$overlapkm2)
+d3$overlapkm2 <- base::round(d3$overlapkm2, digits = 0)
+
+# join to original wider table
+d4 <- rbind(d2,d3)
+d4$categ <- factor(d4$categ, levels = c("quilombola", "privatePAs", "indigenous" ,"PA_sustuse", "PA_strict", "ruralSettlements", "undesignated",  "ruralProperties"))
+# make barplot to visualize magnitude of overlaps compared to total area under different tenure categories
+# NOTE: I NEED TO FIX THE DOUBLE COUNTING PAS-INDIG OVERLAP!!!
+
+tenureColors <- c("indigenous" = "#E78AC3",
+                  "non-overlapped" = "gray70",   
+                  "PA_strict" = "#1B9E77",       
+                  "PA_sustuse" =  "#8C7E5B",
+                  "privatePAs"  = "#99d8c9",  
+                  "quilombola" =  "#FFD700",
+                  "ruralProperties" = "#8DA0CB",
+                  "ruralSettlements" = "#FC8D62",
+                  "undesignated" ="#1d6c7d")
+
+ggplot(d4, aes(fill = overlap, y = overlapkm2, x = categ)) +
+  geom_bar(stat = "identity") + 
+  scale_fill_manual(values = tenureColors) +
+  scale_y_continuous(labels = scales::comma) +
+  coord_flip() +
+  theme(legend.position = c(0.85, 0.35), panel.background = element_blank()) 
