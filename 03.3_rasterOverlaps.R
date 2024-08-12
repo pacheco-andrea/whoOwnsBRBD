@@ -89,7 +89,7 @@ overlap1km_df
 
 # get data
 setwd(paste0(wdmain, "data/"))
-d <- read.csv("processed/LT_overlapsSummary.csv", sep = "")
+d <- read.csv("processed/LT_overlapsSummary.csv")
 colnames(d)[1] <- "categ"
 # pivot table
 d2 <- as.data.frame(d %>%
@@ -118,6 +118,7 @@ d3$overlapkm2 <- base::round(d3$overlapkm2, digits = 0)
 # join to original wider table
 d4 <- rbind(d2,d3)
 d4$categ <- factor(d4$categ, levels = c("quilombola", "privatePAs", "indigenous" ,"PA_sustuse", "PA_strict", "ruralSettlements", "undesignated",  "ruralProperties"))
+
 # make barplot to visualize magnitude of overlaps compared to total area under different tenure categories
 # NOTE: I NEED TO FIX THE DOUBLE COUNTING PAS-INDIG OVERLAP!!!
 
@@ -131,9 +132,18 @@ tenureColors <- c("indigenous" = "#E78AC3",
                   "ruralSettlements" = "#FC8D62",
                   "undesignated" ="#1d6c7d")
 
-ggplot(d4, aes(fill = overlap, y = overlapkm2, x = categ)) +
+overlapsBarplot <- ggplot(d4, aes(fill = overlap, y = overlapkm2, x = categ)) +
   geom_bar(stat = "identity") + 
   scale_fill_manual(values = tenureColors) +
-  scale_y_continuous(labels = scales::comma) +
+  scale_y_continuous(labels = scales::comma, expand = c(0,0), breaks = seq(0,5000000, by = 500000))+
+  ylab(expression(Area~(km^2))) +
+  xlab("Land tenure category") + 
   coord_flip() +
-  theme(legend.position = c(0.85, 0.35), panel.background = element_blank()) 
+  theme(legend.position = c(0.90, 0.45), panel.background = element_blank(), legend.title = element_blank()) 
+overlapsBarplot
+
+# write out barplot
+setwd(paste0(wdmain, "/output"))
+svg("OverlapsAreakm2_barplot.svg", width = 12, height = 4)
+overlapsBarplot
+dev.off()

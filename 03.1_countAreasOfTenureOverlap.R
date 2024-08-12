@@ -4,10 +4,6 @@
 # bring together all the diff polygon datasets that i've preprocessed, takes stock of these and:
 # 1) summarizes their area in a table
 # 2) intersects the areas of overlap across public and private categories
-
-# note, here, does this mean that i write out the polygons as a separate dataset?
-
-
 # 3) writes them out in a file format this is easy to handle for further BD extractions
 # KEEP IN MIND: THE WHOLE POINT OF THIS WAS TO TREAT THE OVERLAPS AS SEPARATE CATEGORIES
 # (which was the point of all the public and private preprocessing i did in step 02 so the folder structure should reflect these distinct categories)
@@ -104,8 +100,8 @@ for(i in 1:length(across_shps))
   df_across[1,i] <- sum(a)/1000000
 }
 df_across
-
 rm(s)
+
 # PUT INDIVIDUAL DATA FRAMES TOGETHER HERE!
 df_noOverlaps
 df_self
@@ -204,7 +200,7 @@ setwd(paste0(wdmain, "output/"))
 write.csv(as.data.frame(overlap_matrix), "overlapMatrix-Pri-Pub.csv")
 rm(priData)
 
-# missing comparisons:
+# missing comparisons: ----
 # private PAs x quilombos
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private/"))
 priPAS <- st_read(priList[1])
@@ -216,5 +212,9 @@ a <- st_area(overlap)
 sum(a)/1000000
 # rural settlements x indigenous, x PA_strict - this was already done in previous script 01 preprocess public
 
+# missing "cut-out": undesignated which doesn't overlap with IRU
 
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private/"))
+iru <- st_read("ruralProperties.shp")
+# try to do an st_difference
 
