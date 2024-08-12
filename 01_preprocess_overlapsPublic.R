@@ -252,9 +252,10 @@ overall.overlaps <- overall.overlaps[-grep("GEOMETRY", (st_geometry_type(overall
 # bind the correct geometries back in
 overall.overlaps <- rbind(overall.overlaps, polys.fixed)
 
-setwd(paste0(wdmain, "data/processed/LT_overlaps"))
-st_write(overall.overlaps, "PAs-indigenous.shp", append = F)
 
+setwd(paste0(wdmain, "data/processed/LT_overlaps"))
+st_write(overall.overlaps[which(overall.overlaps$LTcateg == "PI"),], "PA_strict-indigenous.shp", append = F)
+st_write(overall.overlaps[which(overall.overlaps$LTcateg == "US"),], "PA_sustuse-indigenous.shp", append = F)
 # D.2) Other public land overlaps ----
 # since a lot of these overlaps will actually just be slivers of polygons overlapping
 # i need to know how "seriously" to take these. 
