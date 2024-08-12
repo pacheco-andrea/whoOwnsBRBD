@@ -218,6 +218,3 @@ sum(a)/1000000
 
 
 
-
-# B) folder structuring for extractions??? ----
-

@@ -88,20 +88,8 @@ overlap1km_df
 # (bc i had made some of those calculations in earlier scripts)
 
 # get data
-
-
-specie <- c(rep("sorgho" , 3) , rep("poacee" , 3) , rep("banana" , 3) , rep("triticum" , 3) )
-condition <- rep(c("normal" , "stress" , "Nitrogen") , 4)
-value <- abs(rnorm(12 , 0 , 15))
-data <- data.frame(specie,condition,value)
-
-# Grouped
-ggplot(data, aes(fill=condition, y=value, x=specie)) + 
-  geom_bar(stat="identity")
-
-
 setwd(paste0(wdmain, "data/"))
-d <- read.csv("processed/LT_overlapsSummary.csv")
+d <- read.csv("processed/LT_overlapsSummary.csv", sep = "")
 colnames(d)[1] <- "categ"
 # pivot table
 d2 <- as.data.frame(d %>%

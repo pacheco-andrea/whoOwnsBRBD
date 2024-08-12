@@ -19,6 +19,7 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 # Biodiversity indicators ----
 setwd(paste0(wdmain,"/data/raw/Biodiversity_v20231009"))
 rasters <- list.files()[grep("tif$", list.files())]
+rasters
 richness <- rast(rasters[grep("Rich", rasters)])
 endemism <- rast(rasters[grep("Ende", rasters)])
 names(endemism) <- gsub("_All_groups_RF.tif", "", rasters[grep("Ende", rasters)])
