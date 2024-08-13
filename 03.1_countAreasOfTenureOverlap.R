@@ -200,7 +200,7 @@ setwd(paste0(wdmain, "output/"))
 write.csv(as.data.frame(overlap_matrix), "overlapMatrix-Pri-Pub.csv")
 rm(priData)
 
-# missing comparisons: ----
+# B) missing comparisons: ----
 # private PAs x quilombos
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private/"))
 priPAS <- st_read(priList[1])
@@ -212,9 +212,29 @@ a <- st_area(overlap)
 sum(a)/1000000
 # rural settlements x indigenous, x PA_strict - this was already done in previous script 01 preprocess public
 
-# missing "cut-out": undesignated which doesn't overlap with IRU
+# missing "cut-out": undesignated which doesn't overlap with IRU ----
 
-setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private/"))
-iru <- st_read("ruralProperties.shp")
-# try to do an st_difference
+# read the undesignated lands
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps/"))
+undesignated <- st_read("undesignated.shp")
+undesignated <- st_transform(undesignated, my_crs_SAaea)
 
+# computational issues:
+# st_intersection bt undesignated lands and IRU doesn't work (obvi)
+# trying to run an st_difference bt undesignated lands and the overlapped part of iru + undesignated that was previously processed
+# to do this: 
+# read in the overlapped area
+setwd(paste0(wdmain, "data/processed/LT_pubxpri_overlaps"))
+overlapped <- st_read("ruralProperties-undesignated.shp")
+overlapped <- st_transform(overlapped, my_crs_SAaea)
+
+# try the st_difference
+test <- st_difference(undesignated, overlapped) # parts of x that don't overlap with y
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps/"))
+st_write("undesignated_noOverlaps.shp", test, append = F)
+
+# note, computationally, 100 features ran for ~30m on the server.
+# this *should* indicate that 1841 features should process for around 9h. 
+# however, this has been now running for ~13h
+
+#if/when this crashes, i could just repeat the st_difference with (x, overlapped)

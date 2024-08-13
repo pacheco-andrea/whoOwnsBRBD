@@ -6,6 +6,7 @@ library(dplyr)
 library(ggplot2)
 library(sf)
 library(stringr)
+source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 # i can start with bar and boxplots - which will likely show outliers
 # in a second step need to count the deficit data 
@@ -15,21 +16,29 @@ setwd(paste0(wdmain, "/data/processed/bdExtractions-perPolygon"))
 l <- list.files()
 shps <- grep(".shp", l)
 l[shps]
+
 tables <- list()
-for(i in 1:length(l[shps]))
+for(i in 4:8)
 {
-  tables[[i]] <- st_read(l[shps][i], geometry = FALSE) # read in just the information without the geometry
+  tables[[i]] <- st_read(l[shps][i]) # read in just the information without the geometry
+  tables[[i]] <- st_drop_geometry(tables[[i]])
   print(colnames(tables[[i]]))
 }
 
 test <- do.call(rbind, tables)
 head(test)
 
-# filter out polygons that are < 1km in area
+# filter out polygons that are < 1km in area - done in previous script
 
 # figure out the NAs (places where there was no value extracted)
+summary(test)
+test[which(is.na(test$mn_Sp_R)),]
 
-# who owns plot ----
+# who owns BRBD boxplot ----
+ggplot(test, aes(x = LTcateg, y = mn_Sp_R, color = LTcateg)) +
+  geom_boxplot()
+
+
 
 # last version could be useful for the raster overlaps
 whoOwnsPlot <- ggplot(table2.2, aes(tenCateg, (sum/1000), fill = BDCateg))+

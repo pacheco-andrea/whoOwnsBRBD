@@ -5,7 +5,8 @@
 # note run time? 
 
 # issues:
-# - need to filter out properties that are <1km
+# because i will need to filter out properties that are <1km, i calculate the variable for area
+# also, DONT WRITE THE GEOMETRY
 
 # libraries
 library(terra)
@@ -16,8 +17,6 @@ library(exactextractr)
 # load directories and etc.
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
-# things to consider:
-# what is the best solution for polygons with an area <1km?
 
 # biodiversity data ----
 # for whatever reason, the re-projected data wasnt working with the extraction
@@ -39,25 +38,20 @@ for(i in 1:length(f))
 {
   setwd(paste0(wdmain,"/data/processed/LT_no-overlaps/"))
   s <- st_read(list.files()[f][i])
+  # get area of the features
+  s$areakm2 <- st_area(s)/1000000
   name <- list.files()[f][i]
   s <- st_transform(s, crs(biodiv[[1]]))
-  
-  # # check if there are empty geometries
-  # empties <- grep("TRUE", is.na(st_dimension(s)))
-  # if(length(empties) > 0) {s <- s[-empties,] }
-  
   # extraction
   bd <- exactextractr::exact_extract(biodiv, s, "mean")
-  lapply(bd, class)
-  
   # join data to features
-  s2 <- cbind(s, bd)
+  s2 <- cbind(st_drop_geometry(s), bd)
   # lapply(s2, class)
   # plot(s2)
   
   # write out table
   setwd(paste0(wdmain,"/data/processed/bdExtractions-perPolygon/"))
-  st_write(s2, paste0("public_no-overlaps_", name), append = FALSE)
+  write.csv(s2, file = paste0("public_no-overlaps_", name), row.names = FALSE)
   print(name)
 }
 
@@ -69,6 +63,8 @@ for(i in 1:length(f))
   # get polygon data
   setwd(paste0(wdmain,"/data/processed/LT_no-overlaps/"))
   s <- st_read(list.files()[f][i])
+  s$areakm2 <- st_area(s)/1000000
+  
   name <- list.files()[f][i]
   s <- st_transform(s, crs(biodiv[[1]]))
   
@@ -77,13 +73,13 @@ for(i in 1:length(f))
   # lapply(bd, class)
   
   # join data to features
-  s2 <- cbind(s, bd)
+  s2 <- cbind(st_drop_geometry(s), bd)
   # lapply(s2, class)
   # plot(s2)
   
   # write out table
   setwd(paste0(wdmain,"/data/processed/bdExtractions-perPolygon/"))
-  st_write(s2, paste0("public_no-overlaps_", name), append = FALSE)
+  write.csv(s2, file = paste0("public_no-overlaps_", name), row.names = FALSE)
   print(name)
 }
 
@@ -96,21 +92,22 @@ for(i in 1:length(f))
   # get polygon data
   setwd(paste0(wdmain,"/data/processed/LT_overlaps/"))
   s <- st_read(list.files()[f][i])
+  s$areakm2 <- st_area(s)/1000000
+  
   name <- list.files()[f][i]
   s <- st_transform(s, crs(biodiv[[1]]))
   
   # extraction
   bd <- exactextractr::exact_extract(biodiv, s, "mean")
-  # lapply(bd, class)
-  
+
   # join data to features
-  s2 <- cbind(s, bd)
+  s2 <- cbind(st_drop_geometry(s), bd)
   # lapply(s2, class)
   # plot(s2)
   
   # write out table
   setwd(paste0(wdmain,"/data/processed/bdExtractions-perPolygon/"))
-  st_write(s2, paste0("overlaps_", name), append = FALSE)
+  write.csv(s2, file = paste0("overlaps_", name), row.names = FALSE)
   print(name)
 }
 
@@ -123,6 +120,8 @@ for(i in 1:length(f))
   # get polygon data
   setwd(paste0(wdmain,"/data/processed/LT_pubxpri_overlaps/"))
   s <- st_read(list.files()[f][i])
+  s$areakm2 <- st_area(s)/1000000
+  
   name <- list.files()[f][i]
   s <- st_transform(s, crs(biodiv[[1]]))
   
@@ -131,12 +130,12 @@ for(i in 1:length(f))
   # lapply(bd, class)
   
   # join data to features
-  s2 <- cbind(s, bd)
+  s2 <- cbind(st_drop_geometry(s), bd)
   # lapply(s2, class)
   # plot(s2)
   
   # write out table
   setwd(paste0(wdmain,"/data/processed/bdExtractions-perPolygon/"))
-  st_write(s2, paste0("pubxpri_overlaps_", name), append = FALSE)
+  write.csv(s2, file = paste0("pubxpri_overlaps_", name), row.names = FALSE)
   print(name)
 }
