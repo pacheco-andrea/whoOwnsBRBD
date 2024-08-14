@@ -27,6 +27,30 @@ rasters
 biodiv <- rast(rasters[-grep("Beta", rasters)])
 names(biodiv) <- gsub("_All_groups.*", "", rasters[-grep("Beta", rasters)])
 
+# make extraction function
+extractBD <- function(listOfShapes, directoryIn, directoryOut, crsBD, biodiv, outNamePrefix){
+  
+  # make loop to conduct extraction for list of shapes
+  for(i in 1:length(listOfShapes))
+  {
+    # get data
+    setwd(directoryIn)
+    s <- st_read(listOfShapes[i])
+    name <- gsub(".shp", "", listOfShapes[i])
+    # get areas
+    s$areakm2 <- as.numeric(st_area(s)/1000000)
+    s <- st_transform(s, crsBD)
+    # extract
+    bd <- exactextractr::exact_extract(biodiv, s, "mean")
+    # join data
+    s2 <- cbind(st_drop_geometry(s), bd)
+    # write out table
+    setwd(directoryOut)
+    write.csv(s2, file = paste0(outNamePrefix, name, ".csv"), row.names = FALSE)
+  }
+}
+
+
 #  extractions for PUBLIC lands with no overlaps ----
 # just remember, not as simple as no actual overlaps...
 # in the case of IRU + AST, IRU + undesignated i didn't identify the areas that didn't overlap and write these out individually
@@ -34,108 +58,45 @@ names(biodiv) <- gsub("_All_groups.*", "", rasters[-grep("Beta", rasters)])
 setwd(paste0(wdmain,"/data/processed/LT_no-overlaps/"))
 f <- grep(".shp", list.files())
 
-for(i in 1:length(f))
-{
-  setwd(paste0(wdmain,"/data/processed/LT_no-overlaps/"))
-  s <- st_read(list.files()[f][i])
-  # get area of the features
-  s$areakm2 <- st_area(s)/1000000
-  name <- list.files()[f][i]
-  s <- st_transform(s, crs(biodiv[[1]]))
-  # extraction
-  bd <- exactextractr::exact_extract(biodiv, s, "mean")
-  # join data to features
-  s2 <- cbind(st_drop_geometry(s), bd)
-  # lapply(s2, class)
-  # plot(s2)
-  
-  # write out table
-  setwd(paste0(wdmain,"/data/processed/bdExtractions-perPolygon/"))
-  write.csv(s2, file = paste0("public_no-overlaps_", name), row.names = FALSE)
-  print(name)
-}
+extractBD(listOfShapes = list.files()[f],
+          directoryIn = paste0(wdmain,"/data/processed/LT_no-overlaps/"),
+          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon/"),
+          crsBD = crs(biodiv[[1]]),
+          biodiv = biodiv,
+          outNamePrefix = "public_no-overlaps_")
 
 # extractions PRIVATE no overlaps  ----
 setwd(paste0(wdmain,"/data/processed/LT_no-overlaps_private/"))
 f <- grep(".shp", list.files())
-for(i in 1:length(f))
-{
-  # get polygon data
-  setwd(paste0(wdmain,"/data/processed/LT_no-overlaps/"))
-  s <- st_read(list.files()[f][i])
-  s$areakm2 <- st_area(s)/1000000
-  
-  name <- list.files()[f][i]
-  s <- st_transform(s, crs(biodiv[[1]]))
-  
-  # extraction
-  bd <- exactextractr::exact_extract(biodiv, s, "mean")
-  # lapply(bd, class)
-  
-  # join data to features
-  s2 <- cbind(st_drop_geometry(s), bd)
-  # lapply(s2, class)
-  # plot(s2)
-  
-  # write out table
-  setwd(paste0(wdmain,"/data/processed/bdExtractions-perPolygon/"))
-  write.csv(s2, file = paste0("public_no-overlaps_", name), row.names = FALSE)
-  print(name)
-}
+
+extractBD(listOfShapes = list.files()[f], 
+          directoryIn = paste0(wdmain,"/data/processed/LT_no-overlaps_private/"), 
+          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon/"), 
+          crsBD = crs(biodiv[[1]]), 
+          biodiv = biodiv, 
+          outNamePrefix = "private_no-overlaps_")
 
 # extractions OVERLAPS  ----
-
 setwd(paste0(wdmain,"/data/processed/LT_overlaps/"))
 f <- grep(".shp", list.files())
-for(i in 1:length(f))
-{
-  # get polygon data
-  setwd(paste0(wdmain,"/data/processed/LT_overlaps/"))
-  s <- st_read(list.files()[f][i])
-  s$areakm2 <- st_area(s)/1000000
-  
-  name <- list.files()[f][i]
-  s <- st_transform(s, crs(biodiv[[1]]))
-  
-  # extraction
-  bd <- exactextractr::exact_extract(biodiv, s, "mean")
 
-  # join data to features
-  s2 <- cbind(st_drop_geometry(s), bd)
-  # lapply(s2, class)
-  # plot(s2)
-  
-  # write out table
-  setwd(paste0(wdmain,"/data/processed/bdExtractions-perPolygon/"))
-  write.csv(s2, file = paste0("overlaps_", name), row.names = FALSE)
-  print(name)
-}
+extractBD(listOfShapes = list.files()[f], 
+          directoryIn = paste0(wdmain,"/data/processed/LT_overlaps/"), 
+          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon/"), 
+          crsBD = crs(biodiv[[1]]), 
+          biodiv = biodiv, 
+          outNamePrefix = "overlaps_")
 
 # extractions OVERLAPS across public & private categs ----
 
 setwd(paste0(wdmain,"/data/processed/LT_pubxpri_overlaps/"))
 f <- grep(".shp", list.files())
-for(i in 1:length(f))
-{
-  # get polygon data
-  setwd(paste0(wdmain,"/data/processed/LT_pubxpri_overlaps/"))
-  s <- st_read(list.files()[f][i])
-  s$areakm2 <- st_area(s)/1000000
-  
-  name <- list.files()[f][i]
-  s <- st_transform(s, crs(biodiv[[1]]))
-  
-  # extraction
-  bd <- exactextractr::exact_extract(biodiv, s, "mean")
-  # lapply(bd, class)
-  
-  # join data to features
-  s2 <- cbind(st_drop_geometry(s), bd)
-  # lapply(s2, class)
-  # plot(s2)
-  
-  # write out table
-  setwd(paste0(wdmain,"/data/processed/bdExtractions-perPolygon/"))
-  write.csv(s2, file = paste0("pubxpri_overlaps_", name), row.names = FALSE)
-  print(name)
-}
+
+extractBD(listOfShapes = list.files()[f], 
+          directoryIn = paste0(wdmain,"/data/processed/LT_pubxpri_overlaps/"), 
+          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon/"), 
+          crsBD = crs(biodiv[[1]]), 
+          biodiv = biodiv, 
+          outNamePrefix = "pubxpri_overlaps_")
+
+
