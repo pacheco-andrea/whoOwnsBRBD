@@ -13,6 +13,7 @@ library(sf)
 library(terra)
 library(ggplot2)
 library(geobr)
+library(dplyr)
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 rm(mask)
 
@@ -215,7 +216,8 @@ sum(a)/1000000
 # missing "cut-out": undesignated which doesn't overlap with IRU ----
 
 # read the undesignated lands
-setwd(paste0(wdmain, "data/processed/LT_no-overlaps/"))
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps/")) 
+# note, the way this no-overlaps data was prepared was that is doesn't overlap with *rural settlements*
 undesignated <- st_read("undesignated.shp")
 undesignated <- st_transform(undesignated, my_crs_SAaea)
 
@@ -228,13 +230,24 @@ setwd(paste0(wdmain, "data/processed/LT_pubxpri_overlaps"))
 overlapped <- st_read("ruralProperties-undesignated.shp")
 overlapped <- st_transform(overlapped, my_crs_SAaea)
 
-# try the st_difference
-test <- st_difference(undesignated, overlapped) # parts of x that don't overlap with y
-setwd(paste0(wdmain, "data/processed/LT_no-overlaps/"))
-st_write("undesignated_noOverlaps.shp", test, append = F)
-
-# note, computationally, 100 features ran for ~30m on the server.
-# this *should* indicate that 1841 features should process for around 9h. 
-# however, this has been now running for ~13h
-
-#if/when this crashes, i could just repeat the st_difference with (x, overlapped)
+# try the st_difference: ran over 30 hours didn't work
+# index spatially? thought this should already be the case
+# relevant_overlapped <- overlapped[st_intersects(undesignated, overlapped),] # didnt work
+# simplify the overlaps
+overlapped <- st_union(overlapped)
+simple_overlapped <- st_simplify(overlapped, dTolerance = 100)
+simple_overlapped
+# take the difference between the undesignated lands and the part that overlapped with 
+undesignated_noOVerlapIRU <- st_difference(undesignated, simple_overlapped) # parts of x that don't overlap with y
+a <- sum(st_area(undesignated_noOVerlapIRU))/1000000
+b <- sum(st_area(undesignated))/1000000
+# alright, around half of the area of these features overlap
+unique(st_geometry_type(undesignated_noOVerlapIRU))
+# extract the polygons from here
+extract.pgeometries <- st_collection_extract(undesignated_noOVerlapIRU, "POLYGON")
+undesignated_noOVerlapIRU2 <- extract.pgeometries %>% group_by(LTcateg, id) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf()
+undesignated_noOVerlapIRU2
+# write out
+setwd(paste0(wdmain, "data/processed/LT_pubxpri_overlaps"))
+st_write("undesignated_noOverlaps_ruralProperties.shp", undesignated_noOVerlapIRU, append = F)
+"ruralProperties-undesignated.shp"
