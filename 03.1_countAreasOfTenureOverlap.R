@@ -250,4 +250,4 @@ undesignated_noOVerlapIRU2
 # write out
 setwd(paste0(wdmain, "data/processed/LT_pubxpri_overlaps"))
 st_write("undesignated_noOverlaps_ruralProperties.shp", undesignated_noOVerlapIRU, append = F)
-"ruralProperties-undesignated.shp"
+

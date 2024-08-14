@@ -5,8 +5,7 @@
 
 # outputs are: 
 # one giant plot of all the overlaps across categories ("overlap_plots_1kmg.png") 
-# 
-# a map of tenure categories (at this stage it should indicate overlaps!)
+# one barplot of the overlaps in km2
 
 # libraries
 library(terra)
@@ -89,8 +88,7 @@ overlap1km_df
 
 # get data
 setwd(paste0(wdmain, "data/"))
-d <- read.csv("processed/LT_overlapsSummary.csv")
-colnames(d)[1] <- "categ"
+d <- read.csv("processed/LT_overlapsSummary.csv", sep = "")
 # pivot table
 d2 <- as.data.frame(d %>%
                 pivot_longer(cols = -all_of(c("areakm2", "categ")),
@@ -120,7 +118,6 @@ d4 <- rbind(d2,d3)
 d4$categ <- factor(d4$categ, levels = c("quilombola", "privatePAs", "indigenous" ,"PA_sustuse", "PA_strict", "ruralSettlements", "undesignated",  "ruralProperties"))
 
 # make barplot to visualize magnitude of overlaps compared to total area under different tenure categories
-# NOTE: I NEED TO FIX THE DOUBLE COUNTING PAS-INDIG OVERLAP!!!
 
 tenureColors <- c("indigenous" = "#E78AC3",
                   "non-overlapped" = "gray70",   
