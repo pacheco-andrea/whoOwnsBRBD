@@ -7,6 +7,7 @@ library(ggplot2)
 library(sf)
 library(terra)
 library(stringr)
+library(cowplot)
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 # i can start with bar and boxplots - which will likely show outliers
@@ -36,9 +37,6 @@ summary(data)
 unique(data$LTcateg) 
 unique(data$myOverCat)
 
-# make factors
-data$LTcateg <- as.factor(data$LTcateg)
-data$myOverCat <- as.factor(data$myOverCat)
 
 # filter out polygons that are < 1km in area - done in previous script
 data_1km <- data[which(data$areakm2 < 1),]
@@ -68,66 +66,105 @@ ggplot(data[which(is.na(data$mean.Species_Richness)),], aes(x = myOverCat)) +
 
 # make LTcateg correspond with my naming of categories
 unique(data$LTcateg)
-levels(data$LTcateg)[levels(data$LTcateg) == "PI"] <- "PA_strict"
-levels(data$LTcateg)[levels(data$LTcateg) == "US"] <- "PA_sustuse"
-levels(data$LTcateg)[levels(data$LTcateg) == "RPPN"] <- "privatePAs"
-levels(data$LTcateg)[levels(data$LTcateg) == "SEM DESTINACAO"] <- "undesignated"
-levels(data$LTcateg)[levels(data$LTcateg) == "IRU"] <- "ruralProperties"
-levels(data$LTcateg)[levels(data$LTcateg) == "AST"] <- "ruralSettlements"
-unique(data$LTcateg)
-# who owns BRBD boxplot ----
-tenureColors <- c("indigenous" = "#E78AC3",
+data$LTcateg[which(data$LTcateg == "IRU")] <- "Private lands"
+data$LTcateg[which(data$LTcateg == "SEM DESTINACAO")] <- "Undesignated lands"
+data$LTcateg[which(data$LTcateg ==  "AST")] <- "Rural settlements"
+data$LTcateg[which(data$LTcateg == "PI")] <- "PA strict protection"
+data$LTcateg[which(data$LTcateg == "US")] <- "PA sustainable use"
+data$LTcateg[which(data$LTcateg == "indigenous")] <- "Indigenous"
+data$LTcateg[which(data$LTcateg == "RPPN")] <- "Private PA"
+data$LTcateg[which(data$LTcateg == "quilombola")] <- "Quilombola lands"
+data$LTcateg2 <- factor(data$LTcateg, levels = c("Private lands",
+                                                   "Undesignated lands",
+                                                   "Rural settlements",
+                                                   "PA strict protection",
+                                                   "PA sustainable use",
+                                                   "Indigenous" ,
+                                                   "Private PA",
+                                                   "Quilombola lands"))
+# make factors
+# data$myOverCat <- as.factor(data$myOverCat)
+
+# PLOTS ----
+tenureColors <- c("Indigenous" = "#E78AC3",
                   "non-overlapped" = "gray70",   
-                  "PA_strict" = "#1B9E77",       
-                  "PA_sustuse" =  "#8C7E5B",
-                  "privatePAs"  = "#99d8c9",  
-                  "quilombola" =  "#FFD700",
-                  "ruralProperties" = "#8DA0CB",
-                  "ruralSettlements" = "#FC8D62",
-                  "undesignated" ="#1d6c7d")
+                  "PA strict protection" = "#1B9E77",       
+                  "PA sustainable use" =  "#8C7E5B",
+                  "Private PA" = "#99d8c9",  
+                  "Quilombola lands" =  "#FFD700",
+                  "Private lands" = "#8DA0CB",
+                  "Rural settlements" = "#FC8D62",
+                  "Undesignated lands" ="#1d6c7d")
 
 
-richness <- ggplot(data, aes(x = LTcateg, y = mean.Species_Richness, fill = LTcateg)) +
-  geom_boxplot() +
-  scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill"))
+plotBD <- function(data, tenureCategory, BDvariable){
+  plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = LTcateg2)) +
+    geom_boxplot() +
+    scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
+    theme(panel.background = element_blank(), legend.title = element_blank(), legend.position = "none")
+  return(plot)
+}
+# isolate overlaps
+no <- grep("no-overlaps", data$myOverCat)
+dataNoOverlaps <- data[no,]
+dataOverlaps <- data[-no,]
+
+# ARE THERE OVERLAP CATEGORIES CAN I SIMPLY IGNORE?
+table(dataOverlaps$myOverCat)
+
+
+# richness
+richness <- plotBD(data, tenureCategory = LTcateg2, BDvariable = mean.Species_Richness)
 richness
+richness_noOverlaps <- plotBD(dataNoOverlaps, LTcateg2, mean.Species_Richness)
+richness_noOverlaps
+plot_grid(richness, richness_noOverlaps)
 
+# exclude the self overlaps
+richness_overlaps <- plotBD(dataOverlaps, tenureCategory = myOverCat, BDvariable = mean.Species_Richness)
+richness_overlaps <- richness_overlaps + theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+                                               legend.position = "none", legend.title = element_blank()) # clearly, some issues with the colors plotted
+# maybe need a diff color scheme/category scheme...?
+r <- plot_grid(richness, richness_overlaps)
 
+# endemism
+ende <- plotBD(data, tenureCategory = LTcateg2, BDvariable = mean.Weight_Endemism)
+ende
+ende_overlaps <- plotBD(dataOverlaps, tenureCategory = myOverCat, BDvariable = mean.Weight_Endemism)
+ende_overlaps <- ende_overlaps + theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+                                       legend.position = "none", legend.title = element_blank()) 
+e <- plot_grid(ende, ende_overlaps)
 
+# phylogenetic div
+phyl <- plotBD(data, tenureCategory = LTcateg2, BDvariable = mean.Phylogenetic_Diversity)
+phyl
+phyl_overlaps <- plotBD(dataOverlaps, tenureCategory = myOverCat, BDvariable = mean.Phylogenetic_Diversity)
+phyl_overlaps <- phyl_overlaps+ theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+                                      legend.position = "none", legend.title = element_blank()) 
 
-# plot from before that could be useful
-whoOwnsPlot <- ggplot(table2.2, aes(tenCateg, (sum/1000), fill = BDCateg))+
-  geom_col() +
-  scale_colour_manual(values = myCols, aesthetics = c("color", "fill"))+
-  scale_y_continuous(labels = scales::comma, expand = c(0,0), breaks = seq(0,4000, by = 500))+
-  ylab(bquote("Area in 1000 km"^2)) +
-  xlab("Land tenure category") + 
-  theme(panel.background = element_blank(), plot.margin=grid::unit(c(5,5,5,5), "mm"),
-        legend.position = "none", legend.title = element_blank())+ # probably REMOVE LEGEND
-  coord_flip()
-whoOwnsPlot 
+p <- plot_grid(phyl, phyl_overlaps)
 
+# phylogenetic endemism
+phyl_ende <- plotBD(data, tenureCategory = LTcateg2, BDvariable = mean.Phylogenetic_Endemism)
+phyl_ende
+phyl_ende_overlaps <- plotBD(dataOverlaps, tenureCategory = myOverCat, BDvariable = mean.Phylogenetic_Endemism)
+phyl_ende_overlaps <- phyl_ende_overlaps + theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+                                                 legend.position = "none", legend.title = element_blank()) 
+
+pe <- plot_grid(phyl_ende, phyl_ende_overlaps)
+
+# plot all together
+plot_grid (r, e, p, pe, nrow = 4)
+
+# write out ----
+# plot
 setwd(paste0(wdmain, "/output"))
-svg("whoOwnsBRBD_barplot.svg", width = 8.3, height = 2.5)
-whoOwnsPlot
+svg("Biodiversity&Tenure&overlaps_boxplots.svg", width = 20, height = 20)
+plot_grid (r, e, p, pe, nrow = 4)
 dev.off()
 
 # write out information
-setwd(paste0(wdmain, "/output/"))
-write.csv(table2.2, "whoOwnsBR-BDinKm2.csv", row.names = FALSE)
 
-# create subplots of percentages of total areas per category ----
-
-
-
-myTenCols <- c("Other"= "#F0F0F0", 
-               "PA sustainable use" = "#8C7E5B", 
-               "PA strict protection" = "#1B9E77", 
-               "Indigenous" = "#E78AC3",
-               "Communal/Quilombo" = "#FFD700",
-               "Undesignated" = "#1d6c7d",
-               "Private lands" = "#8DA0CB",
-               "Rural settlements" = "#FC8D62")
 
 
 
