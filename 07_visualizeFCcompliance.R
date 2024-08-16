@@ -12,9 +12,8 @@ library(cowplot)
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 
-# visualize forest surplus/deficit + biodiversity ----
 
-# get data
+# get data table tenure - BD - CSR ----
 setwd(paste0(wdmain, "data/processed/"))
 data_extra <- read.csv("finalDataset_Tenure-BD-CSR.csv")
 head(data_extra)
@@ -23,30 +22,36 @@ head(data_extra)
 FC_data <- data_extra[which(!is.na(data_extra$area_conv)),]
 summary(FC_data)
 
-# make data long format
-FCdata_long <- FC_data %>%
-  pivot_longer(
-    cols = -c(LTcateg, id, uf, LTcateg2, myOverCat),
-    names_to = "Vars",
-    values_to = "value"
-  )
-head(FCdata_long)
+# get geometry data that corresponds to these data above ----
+# in which directories would i find IRU and AST?
 
-# maybe this is too many variables?
-# start with richness and endemism
-# veg deficit and surplus
+# AST
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
+ast <- st_read("ruralSettlements.shp")
 
-FC_data2 <- select(FCdata, c(id, LTcateg2, myOverCat, mean.SpeciesRichness, mean.Weight_Endemism, rl_ativo, rl_def, app_def))
-FC_data2_long <- FC_data2 %>%
-  pivot_longer(
-    cols = -c(id, LTcateg2, myOverCat)
-    names_to = "Vars",
-    values_to = "value"
-  )
+# IRU
+setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private"))
+iru <- st_read("ruralProperties.shp")
 
-# make heatmap
-heatmap <- ggplot(FCdata_long, aes(x = Vars, y = LTcateg2, fill = value)) +
-  geom_tile() +
-  scale_fill_gradient(low = "white", high = "darkgreen") +
-  theme_minimal()
-heatmap
+FC_data <- left_join(FC_data, rbind(ast,iru), by = "id")
+FC_data <- st_as_sf(FC_data) # STOP HERE AND CHECK WHETHER ALL MY OBS HAVE GEOMETRIES
+
+# what would actually make sense is a chloropleth map of the properties with high biodiversity + high deficit!!!!
+# keep in mind that i might have to normalize some of the BD variables (e.g. species richness - is already the mean of the polygon, weighed by the % that the pixel covered. but this should still be divided by the area, no?)
+
+
+# as I'm only plotting for visualization purposes, i need to simplify these polygons because they are wayy to fine to plot easily
+FC_data2 <- st_simplify(FC_data, dTolerance = 1000)
+FC_data2 <- FC_data2[!st_is_empty(FC_data2),] # however, this means we lose ~half our observations
+FC_data2 <- st_transform(FC_data2, my_crs_SAaea)
+
+# map ----
+# start with a simple choropleth
+ggplot(FC_data2) +
+  geom_sf(aes(fill = mean.Species_Richness), linewidth = 0, alpha = 0.9) +
+  theme_void() + 
+  scale_fill_viridis_c(
+    trans = "log", breaks = c(100, 1000, 1500, 2000, 2500, 5000),
+    )
+
+# ok but what i actually have to do is another column where i combine BD x FC compliance
