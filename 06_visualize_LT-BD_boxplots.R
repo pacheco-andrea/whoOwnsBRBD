@@ -1,8 +1,12 @@
 #### Biodiversity and Tenure in Brazil ####
 
-# script that visualizes biodiversity indicators per tenure categ
+# script that visualizes biodiversity indicators per tenure categ that have been extracted previously
+# two main outcomes:
+# 1) boxplots of all BD variables, alongside boxplots of the categories that are overlapping
+# 2) bd+tenure dataset joined with original information from CSR on the forest code deficit variables
 
 library(dplyr)
+library(tidyr)
 library(ggplot2)
 library(sf)
 library(terra)
@@ -10,8 +14,6 @@ library(stringr)
 library(cowplot)
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
-# i can start with bar and boxplots - which will likely show outliers
-# in a second step need to count the deficit data 
 
 # read data on biodiversity extractions (land tenure + biodiversity) ----
 setwd(paste0(wdmain, "/data/processed/bdExtractions-perPolygon"))
@@ -82,10 +84,16 @@ data$LTcateg2 <- factor(data$LTcateg, levels = c("Private lands",
                                                    "Indigenous" ,
                                                    "Private PA",
                                                    "Quilombola lands"))
-# make factors
-# data$myOverCat <- as.factor(data$myOverCat)
 
-# PLOTS ----
+# PENDING: CLEAN UP THE OVERLAP CATEGORIES SOMEHOW?
+table(dataOverlaps$myOverCat)
+# maybe i should be creating a new column of overlaps
+# 1) self
+# 2) overlap is public-public
+# 3) overlap is public-private
+# 4) overlap is private-private
+
+# BOXPLOTS ----
 tenureColors <- c("Indigenous" = "#E78AC3",
                   "non-overlapped" = "gray70",   
                   "PA strict protection" = "#1B9E77",       
@@ -96,7 +104,7 @@ tenureColors <- c("Indigenous" = "#E78AC3",
                   "Rural settlements" = "#FC8D62",
                   "Undesignated lands" ="#1d6c7d")
 
-
+# create function for plotting the biodiversity boxplots across biodiversity variables
 plotBD <- function(data, tenureCategory, BDvariable){
   plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = LTcateg2)) +
     geom_boxplot() +
@@ -104,27 +112,23 @@ plotBD <- function(data, tenureCategory, BDvariable){
     theme(panel.background = element_blank(), legend.title = element_blank(), legend.position = "none")
   return(plot)
 }
-# isolate overlaps
+
+# isolate overlaps to plot these alongside the main boxplots
 no <- grep("no-overlaps", data$myOverCat)
 dataNoOverlaps <- data[no,]
 dataOverlaps <- data[-no,]
 
-# ARE THERE OVERLAP CATEGORIES CAN I SIMPLY IGNORE?
-table(dataOverlaps$myOverCat)
-
-
 # richness
 richness <- plotBD(data, tenureCategory = LTcateg2, BDvariable = mean.Species_Richness)
 richness
+
 richness_noOverlaps <- plotBD(dataNoOverlaps, LTcateg2, mean.Species_Richness)
 richness_noOverlaps
-plot_grid(richness, richness_noOverlaps)
+plot_grid(richness, richness_noOverlaps) # realized here that the parts that don't overlap are quite minimal and don't make a huge diff
 
-# exclude the self overlaps
 richness_overlaps <- plotBD(dataOverlaps, tenureCategory = myOverCat, BDvariable = mean.Species_Richness)
 richness_overlaps <- richness_overlaps + theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
                                                legend.position = "none", legend.title = element_blank()) # clearly, some issues with the colors plotted
-# maybe need a diff color scheme/category scheme...?
 r <- plot_grid(richness, richness_overlaps)
 
 # endemism
@@ -163,9 +167,37 @@ svg("Biodiversity&Tenure&overlaps_boxplots.svg", width = 20, height = 20)
 plot_grid (r, e, p, pe, nrow = 4)
 dev.off()
 
-# write out information
 
+# combine this cleaned bd+tenure data with forest deficit information ----
 
+# get orig data 
+setwd(paste0(wdmain, "data/raw/landTenure/LandTenure_v20231009"))
+l <- list.files()
+shps <- grep(".shp", l)
+s <- list()
+for(i in 1:length(l[shps]))
+{
+  a <- st_read(l[shps][i])
+  s[[i]] <- st_drop_geometry(a)
+}
+lapply(s, colnames)
+s <- do.call(rbind, s)
 
+# replicate process as when i created the id's
+original_iru <- s[which(s$tipo == "IRU"),]
+original_iru$id <- paste0("IRU-", 1:nrow(original_iru))
+original_ast <- s[which(s$tipo == "AST"),]
+original_ast$id <- paste0("AST-", 1:nrow(original_ast))
+# join both datasets with FC info
+original_csr <- rbind(original_iru, original_ast)
+original_csr <- select(original_csr, c("uf", "n_mf", "area_conv", "area_veg", "rl_ativo", "rl_def", "app_def", "desmat_p08", "id"))
 
+# join data with tenure+bd data
+data_extra <- left_join(data, original_csr, by = "id")
+head(data_extra)
+summary(data_extra)
+
+# write out this information
+setwd(paste0(wdmain, "data/processed/"))
+write.csv(data_extra, "finalDataset_Tenure-BD-CSR.csv", row.names = F)
 
