@@ -47,11 +47,19 @@ FC_data2 <- st_transform(FC_data2, my_crs_SAaea)
 
 # map ----
 # start with a simple choropleth
-ggplot(FC_data2) +
-  geom_sf(aes(fill = mean.Species_Richness), linewidth = 0, alpha = 0.9) +
+
+try1 <- ggplot(FC_data2) +
+  geom_sf(aes(fill = mean.Species_Richness), color = NA) +
   theme_void() + 
   scale_fill_viridis_c(
     trans = "log", breaks = c(100, 1000, 1500, 2000, 2500, 5000),
     )
 
+# plot
+setwd(paste0(wdmain, "/output"))
+svg("try1_choropleth.svg", width = 7, height = 7)
+try1
+dev.off()
+
+# it looks like i'm missing the entire states of SP and tocantins is this because 
 # ok but what i actually have to do is another column where i combine BD x FC compliance

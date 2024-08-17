@@ -49,6 +49,9 @@ ggplot(data_1km, aes(x = LTcateg)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
 # note: 6387509 IRU properties were <1km, out of the 7067703 total (= 90% of records)
 6387509/7067703
+# write out this data so that i can check it
+setwd(paste0(wdmain, "data/processed/"))
+write.csv(data_1km, "LT-BD_areaUnder1km.csv", row.names = F)
 # data <1km2 == data that i will use henceforth
 data <- data[which(data$areakm2 >= 1),]
 
