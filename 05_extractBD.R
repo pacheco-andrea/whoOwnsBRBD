@@ -25,8 +25,8 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 setwd(paste0(wdmain,"/data/raw/Biodiversidade_BR"))
 rasters <- list.files()[grep("tif$", list.files())]
 rasters
-biodiv <- rast(rasters)
-names(biodiv) <- gsub(".tif", "", rasters)
+biodiv <- rast(rasters[-grep("baseline", rasters)])
+names(biodiv) <- gsub("All_groups_", "", (gsub(".tif", "", rasters[-grep("baseline", rasters)])))
 
 # make extraction function
 extractBD <- function(listOfShapes, directoryIn, directoryOut, crsBD, biodiv, outNamePrefix){
@@ -66,17 +66,6 @@ extractBD(listOfShapes = list.files()[f],
           biodiv = biodiv,
           outNamePrefix = "public_no-overlaps_")
 
-# extractions PRIVATE no overlaps  ----
-setwd(paste0(wdmain,"/data/processed/LT_no-overlaps_private/"))
-f <- grep(".shp", list.files())
-
-extractBD(listOfShapes = list.files()[f][1:2], 
-          directoryIn = paste0(wdmain,"/data/processed/LT_no-overlaps_private/"), 
-          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon_v202408/"), 
-          crsBD = crs(biodiv[[1]]), 
-          biodiv = biodiv, 
-          outNamePrefix = "private_no-overlaps_")
-
 # extractions OVERLAPS  ----
 setwd(paste0(wdmain,"/data/processed/LT_overlaps/"))
 f <- grep(".shp", list.files())
@@ -100,4 +89,14 @@ extractBD(listOfShapes = list.files()[f],
           biodiv = biodiv, 
           outNamePrefix = "pubxpri_overlaps_")
 
+# i've left this one for last because it takes the longest
+# extractions PRIVATE no overlaps  ----
+setwd(paste0(wdmain,"/data/processed/LT_no-overlaps_private/"))
+f <- grep(".shp", list.files())
 
+extractBD(listOfShapes = list.files()[f], 
+          directoryIn = paste0(wdmain,"/data/processed/LT_no-overlaps_private/"), 
+          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon_v202408/"), 
+          crsBD = crs(biodiv[[1]]), 
+          biodiv = biodiv, 
+          outNamePrefix = "private_no-overlaps_")

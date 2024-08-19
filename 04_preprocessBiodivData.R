@@ -47,7 +47,7 @@ summary(endemism)
 plot(endemism)
 
 setwd(paste0(wdmain, "output/maps/"))
-png("endemism_v20240819.png", units = "px", width = 2800, height = 1500, res = 300)
+png("endemism_v20240819.png", units = "px", width = 1500, height = 1500, res = 300)
 plot(endemism, 
      type = "continuous",
      range = c(0,1),
@@ -56,14 +56,12 @@ plot(endemism,
      col = magma(n=1000, direction = -1))
 dev.off()
 
-# reproject 
-crs(phylogenetic) <- my_crs_SAaea
 # map and write out endemism map
 summary(phylogenetic)
 plot(phylogenetic)
 
 setwd(paste0(wdmain, "output/maps/"))
-png("phylodiversity_v20240819.png", units = "px", width = 2800, height = 1500, res = 300)
+png("phylodiversity_v20240819.png", units = "px", width = 1500, height = 1400, res = 300)
 plot(phylogenetic, 
      type = "continuous",
      range = c(min(values(phylogenetic), na.rm = T),max(values(phylogenetic), na.rm = T)),
