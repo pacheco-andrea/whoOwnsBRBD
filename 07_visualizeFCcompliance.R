@@ -33,6 +33,36 @@ ast <- st_read("ruralSettlements.shp")
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private"))
 iru <- st_read("ruralProperties.shp")
 
+# check what is going on with the missing data: tocantics/SP?
+setwd(paste0(wdmain, "data/processed/"))
+d1km <- read.csv("LT-BD_areaUnder1km.csv")
+unique(d1km$LTcateg)
+nrow(d1km[which(d1km$LTcateg == "IRU"),])
+nrow(d1km[which(d1km$LTcateg == "AST"),])
+# join with geometry data 
+# test <- ast$id %in% d1km$id
+ast_subset <- ast[ast$id %in% d1km$id,]
+ast_simple <- st_union(ast_subset)
+ast_simple <- st_simplify(ast_simple, dTolerance = 1000)
+plot(ast_simple)
+
+iru
+iru_simple <- iru[iru$id %in% d1km$id,]
+# 
+iru_simple <- st_simplify(iru_simple, dTolerance = 10)
+iru_simple <- st_union(iru_simple)
+iru_simple
+plot(iru_simple)
+
+# d1km_geo <- inner_join(d1km, rbind(ast,iru), by = "id") # inner join (for now) bc i want to only keep those that are IRU and AST
+unique(d1km_geo$LTcateg.y)
+
+# st_union this data so that it's not a million tiny polygons
+d1km_geo <- st_union(st_as_sf(d1km_geo))
+# simplify because i'm just roughly checking
+d1km_geo
+d1km_geo <- st_simplify(d1km_geo, dTolerance = 10000)
+
 FC_data <- left_join(FC_data, rbind(ast,iru), by = "id")
 FC_data <- st_as_sf(FC_data) # STOP HERE AND CHECK WHETHER ALL MY OBS HAVE GEOMETRIES
 

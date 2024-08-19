@@ -20,12 +20,13 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 # biodiversity data ----
 # for whatever reason, the re-projected data wasnt working with the extraction
-# using the raw data here - which is likely to be updated once again
-setwd(paste0(wdmain,"/data/raw/Biodiversity_v20231009"))
+# using the raw data here - 
+# setwd(paste0(wdmain,"/data/raw/Biodiversity_v20231009"))
+setwd(paste0(wdmain,"/data/raw/Biodiversidade_BR"))
 rasters <- list.files()[grep("tif$", list.files())]
 rasters
-biodiv <- rast(rasters[-grep("Beta", rasters)])
-names(biodiv) <- gsub("_All_groups.*", "", rasters[-grep("Beta", rasters)])
+biodiv <- rast(rasters)
+names(biodiv) <- gsub(".tif", "", rasters)
 
 # make extraction function
 extractBD <- function(listOfShapes, directoryIn, directoryOut, crsBD, biodiv, outNamePrefix){
@@ -39,7 +40,7 @@ extractBD <- function(listOfShapes, directoryIn, directoryOut, crsBD, biodiv, ou
     name <- gsub(".shp", "", listOfShapes[i])
     # get areas
     s$areakm2 <- as.numeric(st_area(s)/1000000)
-    s <- st_transform(s, crsBD)
+    s <- st_transform(s, crsBD) 
     # extract
     bd <- exactextractr::exact_extract(biodiv, s, "mean")
     # join data
@@ -60,8 +61,8 @@ f <- grep(".shp", list.files())
 
 extractBD(listOfShapes = list.files()[f],
           directoryIn = paste0(wdmain,"/data/processed/LT_no-overlaps/"),
-          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon/"),
-          crsBD = crs(biodiv[[1]]),
+          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon_v202408/"),
+          crsBD = crs(biodiv),
           biodiv = biodiv,
           outNamePrefix = "public_no-overlaps_")
 
@@ -69,9 +70,9 @@ extractBD(listOfShapes = list.files()[f],
 setwd(paste0(wdmain,"/data/processed/LT_no-overlaps_private/"))
 f <- grep(".shp", list.files())
 
-extractBD(listOfShapes = list.files()[f], 
+extractBD(listOfShapes = list.files()[f][1:2], 
           directoryIn = paste0(wdmain,"/data/processed/LT_no-overlaps_private/"), 
-          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon/"), 
+          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon_v202408/"), 
           crsBD = crs(biodiv[[1]]), 
           biodiv = biodiv, 
           outNamePrefix = "private_no-overlaps_")
@@ -82,7 +83,7 @@ f <- grep(".shp", list.files())
 
 extractBD(listOfShapes = list.files()[f], 
           directoryIn = paste0(wdmain,"/data/processed/LT_overlaps/"), 
-          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon/"), 
+          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon_v202408/"), 
           crsBD = crs(biodiv[[1]]), 
           biodiv = biodiv, 
           outNamePrefix = "overlaps_")
@@ -94,7 +95,7 @@ f <- grep(".shp", list.files())
 
 extractBD(listOfShapes = list.files()[f], 
           directoryIn = paste0(wdmain,"/data/processed/LT_pubxpri_overlaps/"), 
-          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon/"), 
+          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon_v202408/"), 
           crsBD = crs(biodiv[[1]]), 
           biodiv = biodiv, 
           outNamePrefix = "pubxpri_overlaps_")

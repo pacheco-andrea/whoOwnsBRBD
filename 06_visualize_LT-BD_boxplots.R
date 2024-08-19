@@ -16,7 +16,8 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 
 # read data on biodiversity extractions (land tenure + biodiversity) ----
-setwd(paste0(wdmain, "/data/processed/bdExtractions-perPolygon"))
+# setwd(paste0(wdmain, "/data/processed/bdExtractions-perPolygon"))
+setwd(paste0(wdmain, "/data/processed/bdExtractions-perPolygon_v202408"))
 l <- list.files()
 tables <- lapply(l, read.csv)
 lapply(tables, colnames)
@@ -24,6 +25,9 @@ names(tables) <- gsub(".csv","", l)
 
 # the tables have different column names, need to make them consistent to join into one table
 myColumns <- c("LTcateg", "id", "areakm2", "mean.Phylogenetic_Diversity", "mean.Phylogenetic_Endemism", "mean.Species_Richness", "mean.Weight_Endemism")
+# change column names here
+myColumns <- c("LTcateg", "id", "areakm2", "mean.Endemism", "mean.Phylodiversity", "mean.Species_Richness")
+
 tables <- lapply(names(tables), function(name){
   df <- tables[[name]]
   # select my columns
@@ -40,20 +44,21 @@ unique(data$LTcateg)
 unique(data$myOverCat)
 
 
-# filter out polygons that are < 1km in area - done in previous script
-data_1km <- data[which(data$areakm2 < 1),]
+# filter out polygons that are < 1km in area - NEED TO DECIDE HERE WHETHER NEW RESOLUTION APPLIES????
+data_1km <- data[which(data$areakm2 <= .5),] # i don't know that this is actually necessary anymore... let's at least do under .5km2
 summary(data_1km)
 # quick visualization
 ggplot(data_1km, aes(x = LTcateg)) + 
   geom_bar() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
 # note: 6387509 IRU properties were <1km, out of the 7067703 total (= 90% of records)
-6387509/7067703
+# 6387509/7067703
 # write out this data so that i can check it
-setwd(paste0(wdmain, "data/processed/"))
-write.csv(data_1km, "LT-BD_areaUnder1km.csv", row.names = F)
+# setwd(paste0(wdmain, "data/processed/"))
+# write.csv(data_1km, "LT-BD_areaUnder1km.csv", row.names = F)
 # data <1km2 == data that i will use henceforth
-data <- data[which(data$areakm2 >= 1),]
+# data <- data[which(data$areakm2 >= 1),]
+data <- data[which(data$areakm2 >= .5),]
 
 # filter out these undesignated categories which are a bit ambiguous - note other uses had lowest sp richness values - but what are these other uses?
 data <- data[which(data$LTcateg != "OUTROS USOS"),]
@@ -89,7 +94,7 @@ data$LTcateg2 <- factor(data$LTcateg, levels = c("Private lands",
                                                    "Quilombola lands"))
 
 # PENDING: CLEAN UP THE OVERLAP CATEGORIES SOMEHOW?
-table(dataOverlaps$myOverCat)
+
 # maybe i should be creating a new column of overlaps
 # 1) self
 # 2) overlap is public-public
@@ -135,39 +140,42 @@ richness_overlaps <- richness_overlaps + theme(axis.text.x = element_text(angle 
 r <- plot_grid(richness, richness_overlaps)
 
 # endemism
-ende <- plotBD(data, tenureCategory = LTcateg2, BDvariable = mean.Weight_Endemism)
+ende <- plotBD(data, tenureCategory = LTcateg2, BDvariable = mean.Endemism)
 ende
-ende_overlaps <- plotBD(dataOverlaps, tenureCategory = myOverCat, BDvariable = mean.Weight_Endemism)
+ende_overlaps <- plotBD(dataOverlaps, tenureCategory = myOverCat, BDvariable = mean.Endemism)
 ende_overlaps <- ende_overlaps + theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
                                        legend.position = "none", legend.title = element_blank()) 
 e <- plot_grid(ende, ende_overlaps)
 
 # phylogenetic div
-phyl <- plotBD(data, tenureCategory = LTcateg2, BDvariable = mean.Phylogenetic_Diversity)
+phyl <- plotBD(data, tenureCategory = LTcateg2, BDvariable = mean.Phylodiversity)
 phyl
-phyl_overlaps <- plotBD(dataOverlaps, tenureCategory = myOverCat, BDvariable = mean.Phylogenetic_Diversity)
+phyl_overlaps <- plotBD(dataOverlaps, tenureCategory = myOverCat, BDvariable = mean.Phylodiversity)
 phyl_overlaps <- phyl_overlaps+ theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
                                       legend.position = "none", legend.title = element_blank()) 
 
 p <- plot_grid(phyl, phyl_overlaps)
 
-# phylogenetic endemism
-phyl_ende <- plotBD(data, tenureCategory = LTcateg2, BDvariable = mean.Phylogenetic_Endemism)
-phyl_ende
-phyl_ende_overlaps <- plotBD(dataOverlaps, tenureCategory = myOverCat, BDvariable = mean.Phylogenetic_Endemism)
-phyl_ende_overlaps <- phyl_ende_overlaps + theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
-                                                 legend.position = "none", legend.title = element_blank()) 
-
-pe <- plot_grid(phyl_ende, phyl_ende_overlaps)
+# # phylogenetic endemism
+# phyl_ende <- plotBD(data, tenureCategory = LTcateg2, BDvariable = mean.Phylogenetic_Endemism)
+# phyl_ende
+# phyl_ende_overlaps <- plotBD(dataOverlaps, tenureCategory = myOverCat, BDvariable = mean.Phylogenetic_Endemism)
+# phyl_ende_overlaps <- phyl_ende_overlaps + theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+#                                                  legend.position = "none", legend.title = element_blank()) 
+# 
+# pe <- plot_grid(phyl_ende, phyl_ende_overlaps)
 
 # plot all together
-plot_grid (r, e, p, pe, nrow = 4)
+# plot_grid (r, e, p, pe, nrow = 4)
+plot_grid (r, e, p, nrow = 3)
+
 
 # write out ----
 # plot
 setwd(paste0(wdmain, "/output"))
-svg("Biodiversity&Tenure&overlaps_boxplots.svg", width = 20, height = 20)
-plot_grid (r, e, p, pe, nrow = 4)
+svg("Biodiversity&Tenure&overlaps_boxplots_v202408.svg", width = 20, height = 15)
+# plot_grid (r, e, p, pe, nrow = 4)
+plot_grid (r, e, p, nrow = 3)
 dev.off()
 
 

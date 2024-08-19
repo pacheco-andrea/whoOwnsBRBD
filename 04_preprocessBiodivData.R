@@ -17,50 +17,59 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 
 # Biodiversity indicators ----
-setwd(paste0(wdmain,"/data/raw/Biodiversity_v20231009"))
+setwd(paste0(wdmain,"/data/raw/Biodiversidade_BR"))
 rasters <- list.files()[grep("tif$", list.files())]
 rasters
-richness <- rast(rasters[grep("Rich", rasters)])
-endemism <- rast(rasters[grep("Ende", rasters)])
-names(endemism) <- gsub("_All_groups_RF.tif", "", rasters[grep("Ende", rasters)])
+richness <- rast(rasters[grep("richness_current", rasters)])
+endemism <- rast(rasters[grep("Ende_current", rasters)])
+phylogenetic <- rast(rasters[grep("phylodiversity_current", rasters)])
 
-# reproject 
-crs(richness) <- my_crs_SAaea
-res(richness) # .01*.01degrees - which means at ~1km. 
-# map and write out richness
+res(richness) # .004degrees 
+# map and write out richness map
+summary(richness)
+summary(endemism)
+plot(richness)
+
+
 setwd(paste0(wdmain, "output/maps/"))
-png("richness.png", units = "px", width = 1500, height = 1500, res = 300)
+png("richness_v20240819.png", units = "px", width = 1500, height = 1500, res = 300)
 plot(richness, 
      type = "continuous",
-     range = c(0,5000),
+     range = c(min(values(richness), na.rm = T),max(values(richness), na.rm = T)),
      axes=F,
      mar = c(0, 0, 0, 7.1),
      col = viridis(n = 7203, direction = -1))
 dev.off()
 
 
-# reproject 
-crs(endemism) <- my_crs_SAaea
-# map and write out endemism
+# map and write out endemism map
+summary(endemism)
+plot(endemism)
+
 setwd(paste0(wdmain, "output/maps/"))
-png("endemism.png", units = "px", width = 2800, height = 1500, res = 300)
-par(mfrow = c(1, 2))
-plot(endemism$Phylogenetic_Endemism, 
+png("endemism_v20240819.png", units = "px", width = 2800, height = 1500, res = 300)
+plot(endemism, 
      type = "continuous",
      range = c(0,1),
      axes=F,
      mar = c(0, 0, 0, 7.1),
      col = magma(n=1000, direction = -1))
-plot(endemism$Weight_Endemism, 
-     type = "continuous",
-     axes=F,
-     range = c(0,1),
-     mar = c(0, 0, 0, 7.1),
-     col = magma(n = 1000, direction = -1))
 dev.off()
 
-# write out data I will actually use for extractions
-setwd(paste0(wdmain, "data/processed/BiodivIndicators_albers"))
-writeRaster(richness, "BDBR_richness_current.tif", overwrite = T)
-writeRaster(endemism$Phylogenetic_Endemism, "BDBR_phyEndemism_current.tif", overwrite = T)
-writeRaster(endemism$Weight_Endemism, "BDBR_Endemism_current.tif", overwrite = T)
+# reproject 
+crs(phylogenetic) <- my_crs_SAaea
+# map and write out endemism map
+summary(phylogenetic)
+plot(phylogenetic)
+
+setwd(paste0(wdmain, "output/maps/"))
+png("phylodiversity_v20240819.png", units = "px", width = 2800, height = 1500, res = 300)
+plot(phylogenetic, 
+     type = "continuous",
+     range = c(min(values(phylogenetic), na.rm = T),max(values(phylogenetic), na.rm = T)),
+     axes=F,
+     mar = c(0, 0, 0, 7.1),
+     col = magma(n=1000, direction = -1))
+dev.off()
+
+# writing out re-projected data to use for extractions never worked, so this is unnecessary
