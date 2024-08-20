@@ -147,9 +147,52 @@ no <- grep("no-overlaps", data$myOverCat)
 dataNoOverlaps <- data[no,]
 dataOverlaps <- data[-no,]
 
-# richness ----
+# current biodiversity under different tenure categories ----
 richness <- plotBD(data, tenureCategory = LTcateg2, BDvariable = richness_current)
-richness
+richness <- richness + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+ende <- plotBD(data, tenureCategory = LTcateg2, BDvariable = Ende_current)
+ende <- ende + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+phyl <- plotBD(data, tenureCategory = LTcateg2, BDvariable = phylodiversity_current)
+phyl <- phyl + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+# to plot all together
+currentBD <- plot_grid(richness, 
+                       ende, 
+                       phyl, 
+                       nrow = 1)
+
+# plot
+setwd(paste0(wdmain, "/output"))
+png("CurrentBD_perTenureCateg.png", width = 3600, height = 2400, units = "px", res = 300)
+currentBD
+dev.off()
+
+
+# biodiversity losses (percentage?) across different categories ----
+colnames(data)
+head(data)
+data$rLoss_perc <- data$richness_loss/data$richness_current
+data$eLoss_perc <- data$Ende_loss/data$Ende_current
+data$pLoss_perc <- data$phylodiversity_loss/data$phylodiversity_current
+summary(data)
+
+richness <- plotBD(data, tenureCategory = LTcateg2, BDvariable = rLoss_perc*100)
+richness <- richness + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+ende <- plotBD(data, tenureCategory = LTcateg2, BDvariable = eLoss_perc*100)
+ende <- ende + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+phyl <- plotBD(data, tenureCategory = LTcateg2, BDvariable = pLoss_perc*100)
+phyl <- phyl + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+# to plot all together
+lossBD <- plot_grid(richness, 
+                       ende, 
+                       phyl, 
+                       nrow = 1)
+
+setwd(paste0(wdmain, "/output"))
+png("BDLossPercent_perTenureCateg.png", width = 3600, height = 2400, units = "px", res = 300)
+lossBD
+dev.off()
+
+# biodiversity and FC compliance ----
 richness_loss <- plotBD(data, tenureCategory = LTcateg2, BDvariable = richness_loss)
 richness_loss
 
@@ -158,17 +201,15 @@ richness_overlaps <- richness_overlaps + theme(axis.text.x = element_text(angle 
                                                legend.position = "none", legend.title = element_blank()) # clearly, some issues with the colors plotted
 r <- plot_grid(richness, richness_overlaps)
 
+plot_grid(richness, richness_loss)
+
 # endemism
-ende <- plotBD(data, tenureCategory = LTcateg2, BDvariable = Ende_current)
-ende
 ende_overlaps <- plotBD(dataOverlaps, tenureCategory = overlapsWith, BDvariable = Ende_current)
 ende_overlaps <- ende_overlaps + theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
                                        legend.position = "none", legend.title = element_blank()) 
 e <- plot_grid(ende, ende_overlaps)
 
 # phylogenetic div
-phyl <- plotBD(data, tenureCategory = LTcateg2, BDvariable = phylodiversity_current)
-phyl
 phyl_overlaps <- plotBD(dataOverlaps, tenureCategory = overlapsWith, BDvariable = phylodiversity_current)
 phyl_overlaps <- phyl_overlaps+ theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
                                       legend.position = "none", legend.title = element_blank()) 
