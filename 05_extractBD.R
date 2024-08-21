@@ -25,8 +25,8 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 setwd(paste0(wdmain,"/data/raw/Biodiversidade_BR"))
 rasters <- list.files()[grep("tif$", list.files())]
 rasters
-biodiv <- rast(rasters[-grep("baseline", rasters)])
-names(biodiv) <- gsub("All_groups_", "", (gsub(".tif", "", rasters[-grep("baseline", rasters)])))
+biodiv <- rast(rasters)
+names(biodiv) <- gsub("All_groups_", "", (gsub(".tif", "", rasters)))
 
 # make extraction function
 extractBD <- function(listOfShapes, directoryIn, directoryOut, crsBD, biodiv, outNamePrefix){
