@@ -10,6 +10,8 @@ library(terra)
 library(stringr)
 library(cowplot)
 library(classInt)
+library(biscale)
+library(pals)
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 
@@ -74,7 +76,7 @@ rm(try1)
 # do i need to think about normalizing some of the BD variables?
 # (e.g. species richness - is already the mean of the polygon, weighed by the % that the pixel covered. but this should still be divided by the area, no?)
 # the loss variables are already normalized but will i be plotting this?
-
+set.seed(123)
 # classify BD vars
 BDbreaks_rich <- classIntervals(FC_data2$richness_current, n = 3, style = "fisher")
 BDbreaks_rich$brks
@@ -85,46 +87,62 @@ BD_richClasses <- cut(FC_data2$richness_current,
 
 # classify FC variables
 # is there deficit
-deficit <- abs(FC_data2$rl_def + FC_data2$app_def)
+deficit <- abs(FC_data2$rl_def + FC_data2$app_def) # i take the absolute values so that high values equal high deficit
 breaks_deficit <- classIntervals(deficit, n = 3, style = "fisher")
+breaks_deficit$brks
 deficit_classes <- cut(deficit,
                        breaks = breaks_deficit$brks, 
                        labels = c("low", "medium", "high"), 
                        include.lowest = TRUE)
 
 summary(BD_richClasses)
-summary(deficit_classes) # because these are negative numbers, this would mean low, medium, and high COMPLIANCE
-# in other words, low == high deficit. see:
-deficit[which(deficit_classes == "low")]
-deficit[which(deficit_classes == "medium")]
-summary(deficit[which(deficit_classes == "high")]) # high compliance == a "debt" of < 680ha 
-# instead, i know i want to present this as low, medium, and high deficit. 
-# hence, i transform to positive
-
-deficit <- abs(FC_data2$rl_def + FC_data2$app_def)
-# deficit <- abs(FC_data2$rl_def)
-breaks_deficit <- classIntervals(deficit, n = 3, style = "fisher", sampled = 1e6)
-breaks_deficit$brks
-
-# i need to figure out how this function works because it's resulting in something different each time
-set.seed(123)
-sampled_data <- sample(deficit, size = 100000, replace = F)
-breaks <- classIntervals(sampled_data, n=3, style = "fisher")
-breaks$brks
-
-ggplot(as.data.frame(sampled_data), aes(x=sampled_data)) + geom_histogram()
-
-deficit_classes <- cut(deficit,
-                       breaks = breaks_deficit$brks, 
-                       labels = c("low", "medium", "high"), 
-                       include.lowest = TRUE)
 summary(deficit_classes) 
+nrow(FC_data2)
 
-paste0("BD-", BD_richclasses, "FC", deficit_classes)
+# add as a column to data
+FC_data2$rich_deficit <- paste0("BD-", BD_richClasses, "_FC-", deficit_classes)
+table(FC_data2$rich_deficit) # there are NO places where there is high biodiversity and high FC deficit nor high FC deficit and low biodiversity
+# this, to me, signals a poor job of the class intervals of the FC deficit
 
-FC_data2$rich_deficit
+unique(FC_data2$rich_deficit)
+bivariateCols <- c("BD-low_FC-low" = "#E8e8e8",
+     "BD-low_FC-medium" = "#ace4e4",   
+     "BD-low_FC-high" = "#5ac8c8",       
+     "BD-medium_FC-low" =  "#dfb0d6",
+     "BD-medium_FC-medium" = "#a5add3",  
+     "BD-medium_FC-high" =  "#5698b9",
+     "BD-high_FC-low" = "#be64ac",
+     "BD-high_FC-medium" = "#8c62aa",
+     "BD-high_FC-high" ="#3b4994",
+     "BD-NA_FC-low" = "#E8e8e8",
+     "BD-NA_FC-medium" = "#ace4e4")
 
+# start with a simple choropleth
+testMap <- ggplot(FC_data2) +
+  geom_sf(aes(fill = rich_deficit), color = NA) +
+  scale_colour_manual(values = bivariateCols, aesthetics = c("color", "fill")) +
+  theme(panel.background = element_blank(), legend.title = element_blank())
+testMap
 
+# plot
+setwd(paste0(wdmain, "/output"))
+png("bivariateTest.png", width = 2400, height = 2400, units = "px", res = 300)
+testMap
+dev.off()
+
+# test other function
+?bi_class # this function automatizes the classification, which i'm never a fan of
+# it also seems to simplify the geometry, which makes for a bit faster plotting, but then the map is quite holey
+test <- bi_class(FC_data2, x = richness_current, y = rl_def, style = "fisher", dim = 3)
+testMap <- ggplot() +
+  geom_sf(data = test, mapping = aes(fill = bi_class), color = "white", size = 0.1) +
+  bi_scale_fill(pal = "GrPink", dim = 3) +
+  labs(title = "test richness and RL deficit") +
+  bi_theme() 
+setwd(paste0(wdmain, "/output"))
+png("RLdeficit_richness_bivariate_test.png", width = 2400, height = 2400, units = "px", res = 300)
+testMap
+dev.off() # remember that here high values == high deficit
 
 # parallel coord plot
 # where i want to plot the biodiversity variables (current and loss) and the forest compliance per tenure category
