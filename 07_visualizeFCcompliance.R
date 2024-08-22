@@ -41,8 +41,8 @@ FC_data2 <- FC_data2[!st_is_empty(FC_data2),] # i see that this is now 99% of th
 FC_data2 <- st_transform(FC_data2, my_crs_SAaea)
 
 # map test ----
-# start with a simple choropleth
 
+# start with a simple choropleth
 try1 <- ggplot(FC_data2) +
   geom_sf(aes(fill = richness_current), color = NA) +
   theme_void() + 
@@ -52,16 +52,79 @@ try1 <- ggplot(FC_data2) +
 
 # plot
 setwd(paste0(wdmain, "/output"))
-png("try1_choropleth.png", width = 3600, height = 2400, units = "px", res = 300)
+png("CurrentSpRichness_choropleth.png", width = 2400, height = 2400, units = "px", res = 300)
 try1
 dev.off()
 
-# what would actually make sense is a chloropleth map of the properties with high biodiversity + high deficit!!!!
-# keep in mind that i might have to normalize some of the BD variables (e.g. species richness - is already the mean of the polygon, weighed by the % that the pixel covered. but this should still be divided by the area, no?)
+# also map FC compliance
+try1 <- ggplot(FC_data2) +
+  geom_sf(aes(fill = rl_def), color = NA) +
+  # theme_void() + 
+  scale_fill_viridis_c()
+
+# plot
+setwd(paste0(wdmain, "/output"))
+png("RLdeficit_choropleth.png", width = 2400, height = 2400, units = "px", res = 300)
+try1
+dev.off()
+
+rm(try1)
+
+# make BD and FC compliance variables categories for choropleth map ----
+# do i need to think about normalizing some of the BD variables?
+# (e.g. species richness - is already the mean of the polygon, weighed by the % that the pixel covered. but this should still be divided by the area, no?)
+# the loss variables are already normalized but will i be plotting this?
 
 # classify BD vars
-BDbreaks_rich <- classIntervals(FC_data2$richness_current, n = 3, style = "jenks")
+BDbreaks_rich <- classIntervals(FC_data2$richness_current, n = 3, style = "fisher")
+BDbreaks_rich$brks
 BD_richClasses <- cut(FC_data2$richness_current, 
-                      breaks = BDbreaks_rich, 
+                      breaks = BDbreaks_rich$brks, 
                       labels = c("low", "medium", "high"), 
                       include.lowest = TRUE)
+
+# classify FC variables
+# is there deficit
+deficit <- abs(FC_data2$rl_def + FC_data2$app_def)
+breaks_deficit <- classIntervals(deficit, n = 3, style = "fisher")
+deficit_classes <- cut(deficit,
+                       breaks = breaks_deficit$brks, 
+                       labels = c("low", "medium", "high"), 
+                       include.lowest = TRUE)
+
+summary(BD_richClasses)
+summary(deficit_classes) # because these are negative numbers, this would mean low, medium, and high COMPLIANCE
+# in other words, low == high deficit. see:
+deficit[which(deficit_classes == "low")]
+deficit[which(deficit_classes == "medium")]
+summary(deficit[which(deficit_classes == "high")]) # high compliance == a "debt" of < 680ha 
+# instead, i know i want to present this as low, medium, and high deficit. 
+# hence, i transform to positive
+
+deficit <- abs(FC_data2$rl_def + FC_data2$app_def)
+# deficit <- abs(FC_data2$rl_def)
+breaks_deficit <- classIntervals(deficit, n = 3, style = "fisher", sampled = 1e6)
+breaks_deficit$brks
+
+# i need to figure out how this function works because it's resulting in something different each time
+set.seed(123)
+sampled_data <- sample(deficit, size = 100000, replace = F)
+breaks <- classIntervals(sampled_data, n=3, style = "fisher")
+breaks$brks
+
+ggplot(as.data.frame(sampled_data), aes(x=sampled_data)) + geom_histogram()
+
+deficit_classes <- cut(deficit,
+                       breaks = breaks_deficit$brks, 
+                       labels = c("low", "medium", "high"), 
+                       include.lowest = TRUE)
+summary(deficit_classes) 
+
+paste0("BD-", BD_richclasses, "FC", deficit_classes)
+
+FC_data2$rich_deficit
+
+
+
+# parallel coord plot
+# where i want to plot the biodiversity variables (current and loss) and the forest compliance per tenure category
