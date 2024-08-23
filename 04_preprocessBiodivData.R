@@ -30,15 +30,18 @@ summary(richness)
 summary(endemism)
 plot(richness)
 
+breaks <- classIntervals(values(richness, na.rm = T))
+breaks$brks
 
 setwd(paste0(wdmain, "output/maps/"))
 png("richness_v20240819.png", units = "px", width = 1500, height = 1500, res = 300)
-plot(richness, 
+terra::plot(richness, 
      type = "continuous",
      range = c(min(values(richness), na.rm = T),max(values(richness), na.rm = T)),
+     breaks = breaks$brks,
      axes=F,
      mar = c(0, 0, 0, 7.1),
-     col = viridis(n = 7203, direction = -1))
+     col = viridis(n = as.integer(max(values(richness), na.rm = T)-min(values(richness), na.rm = T)), direction = -1))
 dev.off()
 
 
@@ -46,11 +49,16 @@ dev.off()
 summary(endemism)
 plot(endemism)
 
+breaks <- classIntervals(values(endemism, na.rm = T))
+breaks$brks
+
+
 setwd(paste0(wdmain, "output/maps/"))
 png("endemism_v20240819.png", units = "px", width = 1500, height = 1500, res = 300)
-plot(endemism, 
+terra::plot(endemism, 
      type = "continuous",
      range = c(0,1),
+     breaks = breaks$brks,
      axes=F,
      mar = c(0, 0, 0, 7.1),
      col = magma(n=1000, direction = -1))
@@ -60,11 +68,15 @@ dev.off()
 summary(phylogenetic)
 plot(phylogenetic)
 
+breaks <- classIntervals(values(phylogenetic, na.rm = T))
+breaks$brks
+
 setwd(paste0(wdmain, "output/maps/"))
 png("phylodiversity_v20240819.png", units = "px", width = 1500, height = 1400, res = 300)
 plot(phylogenetic, 
      type = "continuous",
      range = c(min(values(phylogenetic), na.rm = T),max(values(phylogenetic), na.rm = T)),
+     breaks = breaks$brks,
      axes=F,
      mar = c(0, 0, 0, 7.1),
      col = magma(n=1000, direction = -1))

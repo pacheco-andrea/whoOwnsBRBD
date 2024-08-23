@@ -12,6 +12,8 @@ library(cowplot)
 library(classInt)
 library(biscale)
 library(pals)
+library(hrbrthemes)
+library(GGally)
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 
@@ -146,3 +148,23 @@ dev.off() # remember that here high values == high deficit
 
 # parallel coord plot
 # where i want to plot the biodiversity variables (current and loss) and the forest compliance per tenure category
+
+# would it make most sense for comparing just the current and the loss?
+
+parcoordPlot <- ggparcoord(FC_data2,
+                           columns = grep("richness", colnames(FC_data2)), groupColumn = grep("LTcateg2", colnames(FC_data2)),
+                           showPoints = T,
+                           title = "Parallel Coordinates plot test for species richness (baseline, current, loss)",
+                           alphaLines = 0.3) +
+  theme_ipsum() +
+  theme(plot.title = element_text(size = 10))
+
+setwd(paste0(wdmain, "/output"))
+png("parallelCoord_test_richness.png", width = 2400, height = 2400, units = "px", res = 300)
+parcoordPlot
+dev.off()
+
+
+
+
+
