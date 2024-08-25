@@ -73,7 +73,7 @@ breaks$brks
 
 setwd(paste0(wdmain, "output/maps/"))
 png("phylodiversity_v20240819.png", units = "px", width = 1500, height = 1400, res = 300)
-plot(phylogenetic, 
+terra::plot(phylogenetic, 
      type = "continuous",
      range = c(min(values(phylogenetic), na.rm = T),max(values(phylogenetic), na.rm = T)),
      breaks = breaks$brks,

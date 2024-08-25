@@ -56,11 +56,11 @@ data.5km <- data[which(data$areakm2 <= .5),]
 # note: 5806802 IRU properties were <.5km, out of the 7067703 total (= 82% of records)
 # 5806802/7067703
 # write out this data so that i can check it
-setwd(paste0(wdmain, "data/processed/"))
-write.csv(data.5km, "LT-BD_areaUnder.5km.csv", row.names = F)
+# setwd(paste0(wdmain, "data/processed/"))
+# write.csv(data.5km, "LT-BD_areaUnder.5km.csv", row.names = F)
 # henceforth use only the data that is under .5 km2
 data <- data[which(data$areakm2 >= .5),]
-
+rm(data.5km)
 # filter out these undesignated categories which are a bit ambiguous 
 data <- data[which(data$LTcateg != "OUTROS USOS"),]
 data <- data[which(data$LTcateg != "USO MILITAR"),]
@@ -75,54 +75,59 @@ ggplot(data[which(is.na(data$phylodiversity_current )),], aes(x = myOverCat)) +
   coord_cartesian(ylim = c(0,500))
 # in sum, some losses across the board, but let's see how this changes with the new data
 
-# make LTcateg correspond with my naming of categories
+# CLEAN UP THE OVERLAP CATEGORIES: BECAUSE CLEARLY THE WAY I WAS DOING IT BEFORE WASNT WORKING ----
 unique(data$LTcateg)
-data$LTcateg[which(data$LTcateg == "IRU")] <- "Private lands"
-data$LTcateg[which(data$LTcateg == "SEM DESTINACAO")] <- "Undesignated lands"
-data$LTcateg[which(data$LTcateg ==  "AST")] <- "Rural settlements"
-data$LTcateg[which(data$LTcateg == "PI")] <- "PA strict protection"
-data$LTcateg[which(data$LTcateg == "US")] <- "PA sustainable use"
-data$LTcateg[which(data$LTcateg == "indigenous")] <- "Indigenous"
-data$LTcateg[which(data$LTcateg == "RPPN")] <- "Private PA"
-data$LTcateg[which(data$LTcateg == "quilombola")] <- "Quilombola lands"
-data$LTcateg2 <- factor(data$LTcateg, levels = c("Private lands",
-                                                   "Undesignated lands",
-                                                   "Rural settlements",
-                                                   "PA strict protection",
-                                                   "PA sustainable use",
-                                                   "Indigenous" ,
-                                                   "Private PA",
-                                                   "Quilombola lands"))
-
-# CLEAN UP THE OVERLAP CATEGORIES:
 unique(data$myOverCat)
+
 # create new column
 data$overlapsWith <- NA
-# overlaps are public-public ()
-unique(data$myOverCat)[grep("no-overlaps", unique(data$myOverCat))]
-data$overlapsWith[grep("no-overlaps", data$myOverCat)] <- "none"
 
+# no overlaps
+data$overlapsWith[grep("no-overlaps", data$myOverCat)] <- "none"
 # overlaps with self
-unique(data$myOverCat)[grep("self", unique(data$myOverCat))]
 data$overlapsWith[grep("self", data$myOverCat)] <- "self"
 
-# overlaps public-private (i.e., IRU on PAs and undesignated)
-unique(data$myOverCat)[grep("pubxpri", unique(data$myOverCat))]
-data$overlapsWith[grep("pubxpri", data$myOverCat)] <- "IRU on public"
+# more complicated situations
+head(data[which(is.na(data$overlapsWith)),])
+unique(data$myOverCat[which(is.na(data$overlapsWith))])
 
-# private - private (i.e., private PAs on rural Properties, quilombola on ruralProperties)
-unique(data$myOverCat)[grep("privatePAs-ruralProperties", unique(data$myOverCat))]
-unique(data$myOverCat)[grep("quilombola-ruralProperties", unique(data$myOverCat))]
-data$overlapsWith[grep("privatePAs-ruralProperties", data$myOverCat)] <- "IRU & private PAs"
-data$overlapsWith[grep("quilombola-ruralProperties", data$myOverCat)] <- "IRU on quilombos"
+data$overlapsWith[which(is.na(data$overlapsWith))] <- gsub("overlaps_", "", data$myOverCat[which(is.na(data$overlapsWith))])
+unique(data$overlapsWith) 
+data$overlapsWith <- gsub("pubxpri_", "", data$overlapsWith)
+unique(data$overlapsWith)
+unique(data$overlapsWith)
 
-# public-public (i.e., )
-unique(data[which(is.na(data$overlapsWith)),]$myOverCat)
-data$overlapsWith[which(is.na(data$overlapsWith))] <- "public on public"
-unique(data$myOverCat[which(data$overlapsWith == "public on public")])
+overlapsToCheck <- unique(data$overlapsWith)[-c(grep("self", unique(data$overlapsWith)), grep("none", unique(data$overlapsWith)))]
 
-summary(data)
-colnames(data)
+# just replace manually each set?
+data$overlapsWith[which(data$overlapsWith == "indPAoverlap-ruralSettlements")] <- gsub("indPAoverlap-", "", data$overlapsWith[which(data$overlapsWith == "indPAoverlap-ruralSettlements")])
+data$overlapsWith[which(data$overlapsWith == "PA_strict-indigenous")] <- gsub("PA_strict-", "", data$overlapsWith[which(data$overlapsWith == "PA_strict-indigenous")])
+data$overlapsWith[which(data$overlapsWith == "PA_sustuse-indigenous")] <- gsub("PA_sustuse-", "", data$overlapsWith[which(data$overlapsWith == "PA_sustuse-indigenous")])
+data$overlapsWith[which(data$overlapsWith == "privatePAs-ruralProperties")] <- gsub("privatePAs-ruralProperties", "none", data$overlapsWith[which(data$overlapsWith == "privatePAs-ruralProperties")])
+data$overlapsWith[which(data$overlapsWith == "quilombola-ruralProperties")] <- gsub("quilombola-", "", data$overlapsWith[which(data$overlapsWith == "quilombola-ruralProperties")])
+data$overlapsWith[which(data$overlapsWith == "sustUsePAs-ruralSettlements")] <- gsub("sustUsePAs-", "", data$overlapsWith[which(data$overlapsWith == "sustUsePAs-ruralSettlements")])
+data$overlapsWith[which(data$overlapsWith == "undesignated-ruralSettlements")] <- gsub("undesignated-", "", data$overlapsWith[which(data$overlapsWith == "undesignated-ruralSettlements")])
+data$overlapsWith[which(data$overlapsWith == "ruralProperties-PA_strict")] <- gsub("ruralProperties-", "", data$overlapsWith[which(data$overlapsWith == "ruralProperties-PA_strict")])
+data$overlapsWith[which(data$overlapsWith == "ruralProperties-PA_sustuse")] <- gsub("ruralProperties-", "", data$overlapsWith[which(data$overlapsWith == "ruralProperties-PA_sustuse")])
+data$overlapsWith[which(data$overlapsWith == "ruralProperties-undesignated")] <- gsub("ruralProperties-", "", data$overlapsWith[which(data$overlapsWith == "ruralProperties-undesignated")])
+
+unique(data$overlapsWith)
+
+# this could be even more summarized - as below but go with this version first
+# # overlaps with conservation areas
+# unique(data$myOverCat)[grep("ruralProperties-PA", unique(data$myOverCat))]
+# data$overlapsWith[grep("ruralProperties-PA", data$myOverCat)] <- "Conservation"
+# unique(data$myOverCat)[grep("indPAoverlap-ruralSettlements", unique(data$myOverCat))]
+# data$overlapsWith[grep("indPAoverlap-ruralSettlements", data$myOverCat)] <- "Conservation"
+# unique(data$myOverCat)[grep("sustUsePAs-ruralSettlements", unique(data$myOverCat))]
+# data$overlapsWith[grep("sustUsePAs-ruralSettlements", data$myOverCat)] <- "Conservation"
+# 
+# 
+# # overlaps with other public lands
+# remainingOverlaps <- remainingOverlaps[-grep("ruralProperties-PA", data$myOverCat)]
+# remainingOverlaps[grep("undesignated", remainingOverlaps)]
+# data$overlapsWith[grep("undesignated", data$myOverCat)] <- "Undesignated lands"
+
 
 # create variables for the proportion of loss
 
@@ -136,6 +141,44 @@ data$pLoss_prop <- data$phylodiversity_loss/(data$phylodiversity_baseline - data
 
 
 # PLOTS ----
+
+# make overlapsWith correspond with my naming of categories
+unique(data$LTcateg)
+data$LTcateg[which(data$LTcateg == "IRU")] <- "Private lands"
+data$LTcateg[which(data$LTcateg == "SEM DESTINACAO")] <- "Undesignated lands"
+data$LTcateg[which(data$LTcateg ==  "AST")] <- "Rural settlements"
+data$LTcateg[which(data$LTcateg == "PI")] <- "PA strict protection"
+data$LTcateg[which(data$LTcateg == "US")] <- "PA sustainable use"
+data$LTcateg[which(data$LTcateg == "indigenous")] <- "Indigenous"
+data$LTcateg[which(data$LTcateg == "RPPN")] <- "Private PA"
+data$LTcateg[which(data$LTcateg == "quilombola")] <- "Quilombola lands"
+data$LTcateg2 <- factor(data$LTcateg, levels = c("Private lands",
+                                                 "Undesignated lands",
+                                                 "Rural settlements",
+                                                 "PA strict protection",
+                                                 "PA sustainable use",
+                                                 "Indigenous" ,
+                                                 "Private PA",
+                                                 "Quilombola lands"))
+unique(data$overlapsWith)
+data$overlapsWith[which(data$overlapsWith == "ruralProperties")] <- "Private lands"
+data$overlapsWith[which(data$overlapsWith == "undesignated")] <- "Undesignated lands"
+data$overlapsWith[which(data$overlapsWith ==  "ruralSettlements")] <- "Rural settlements"
+data$overlapsWith[which(data$overlapsWith == "PA_strict")] <- "PA strict protection"
+data$overlapsWith[which(data$overlapsWith == "PA_sustuse")] <- "PA sustainable use"
+data$overlapsWith[which(data$overlapsWith == "indigenous")] <- "Indigenous"
+data$overlapsWith[which(data$overlapsWith == "RPPN")] <- "Private PA"
+data$overlapsWith[which(data$overlapsWith == "quilombola")] <- "Quilombola lands"
+
+# data$overlapsWith2 <- factor(data$overlapsWith, levels = c("Private lands",
+#                                                  "Undesignated lands",
+#                                                  "Rural settlements",
+#                                                  "PA strict protection",
+#                                                  "PA sustainable use",
+#                                                  "Indigenous" ,
+#                                                  "Private PA",
+#                                                  "Quilombola lands"))
+
 tenureColors <- c("Indigenous" = "#E78AC3",
                   "non-overlapped" = "gray70",   
                   "PA strict protection" = "#1B9E77",       
@@ -147,6 +190,13 @@ tenureColors <- c("Indigenous" = "#E78AC3",
                   "Undesignated lands" ="#1d6c7d")
 
 # create function for plotting the biodiversity boxplots across biodiversity variables
+ggplot(data, aes(x = LTcateg2, y = richness_current, fill = overlapsWith)) +
+  geom_boxplot() +
+  scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
+  labs(y = "test") +
+  theme(panel.background = element_blank(), legend.title = element_blank(), legend.position = "none")
+
+
 boxplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL){
   plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = LTcateg2)) +
     geom_boxplot() +
