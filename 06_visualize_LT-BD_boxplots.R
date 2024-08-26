@@ -38,7 +38,6 @@ data <- lapply(names(tables), function(name){
 })
 # lapply(data, colnames)
 data <- do.call(rbind, data)
-colnames(data) 
 colnames(data) <- gsub("mean.", "", colnames(data))
 
 # data cleaning and organizing ----
@@ -113,22 +112,6 @@ data$overlapsWith[which(data$overlapsWith == "ruralProperties-undesignated")] <-
 
 unique(data$overlapsWith)
 
-# this could be even more summarized - as below but go with this version first
-# # overlaps with conservation areas
-# unique(data$myOverCat)[grep("ruralProperties-PA", unique(data$myOverCat))]
-# data$overlapsWith[grep("ruralProperties-PA", data$myOverCat)] <- "Conservation"
-# unique(data$myOverCat)[grep("indPAoverlap-ruralSettlements", unique(data$myOverCat))]
-# data$overlapsWith[grep("indPAoverlap-ruralSettlements", data$myOverCat)] <- "Conservation"
-# unique(data$myOverCat)[grep("sustUsePAs-ruralSettlements", unique(data$myOverCat))]
-# data$overlapsWith[grep("sustUsePAs-ruralSettlements", data$myOverCat)] <- "Conservation"
-# 
-# 
-# # overlaps with other public lands
-# remainingOverlaps <- remainingOverlaps[-grep("ruralProperties-PA", data$myOverCat)]
-# remainingOverlaps[grep("undesignated", remainingOverlaps)]
-# data$overlapsWith[grep("undesignated", data$myOverCat)] <- "Undesignated lands"
-
-
 # create variables for the proportion of loss
 
 data$rLoss_prop <- data$richness_loss/(data$richness_baseline - data$richness_loss)
@@ -161,6 +144,9 @@ data$LTcateg2 <- factor(data$LTcateg, levels = c("Private lands",
                                                  "Private PA",
                                                  "Quilombola lands"))
 unique(data$overlapsWith)
+# replace the self and none overlaps with the category itself
+data$overlapsWith[which(data$overlapsWith == "self")] <- as.character(data$LTcateg2[which(data$overlapsWith == "self")])
+data$overlapsWith[which(data$overlapsWith == "none")] <- as.character(data$LTcateg2[which(data$overlapsWith == "none")])
 data$overlapsWith[which(data$overlapsWith == "ruralProperties")] <- "Private lands"
 data$overlapsWith[which(data$overlapsWith == "undesignated")] <- "Undesignated lands"
 data$overlapsWith[which(data$overlapsWith ==  "ruralSettlements")] <- "Rural settlements"
@@ -169,15 +155,15 @@ data$overlapsWith[which(data$overlapsWith == "PA_sustuse")] <- "PA sustainable u
 data$overlapsWith[which(data$overlapsWith == "indigenous")] <- "Indigenous"
 data$overlapsWith[which(data$overlapsWith == "RPPN")] <- "Private PA"
 data$overlapsWith[which(data$overlapsWith == "quilombola")] <- "Quilombola lands"
-
-# data$overlapsWith2 <- factor(data$overlapsWith, levels = c("Private lands",
-#                                                  "Undesignated lands",
-#                                                  "Rural settlements",
-#                                                  "PA strict protection",
-#                                                  "PA sustainable use",
-#                                                  "Indigenous" ,
-#                                                  "Private PA",
-#                                                  "Quilombola lands"))
+unique(data$overlapsWith)
+data$overlapsWith2 <- factor(data$overlapsWith, levels = c("Private lands",
+                                                 "Undesignated lands",
+                                                 "Rural settlements",
+                                                 "PA strict protection",
+                                                 "PA sustainable use",
+                                                 "Indigenous" ,
+                                                 "Private PA",
+                                                 "Quilombola lands"))
 
 tenureColors <- c("Indigenous" = "#E78AC3",
                   "non-overlapped" = "gray70",   
@@ -190,12 +176,15 @@ tenureColors <- c("Indigenous" = "#E78AC3",
                   "Undesignated lands" ="#1d6c7d")
 
 # create function for plotting the biodiversity boxplots across biodiversity variables
-ggplot(data, aes(x = LTcateg2, y = richness_current, fill = overlapsWith)) +
-  geom_boxplot() +
+
+# test violin plot
+ggplot(data, aes(x = LTcateg2, y = richness_current, fill = overlapsWith2)) +
+  geom_violin() +
   scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
   labs(y = "test") +
-  theme(panel.background = element_blank(), legend.title = element_blank(), legend.position = "none")
-
+  theme(panel.background = element_blank(), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
+        legend.title = element_blank(), legend.position = "none", axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
+  facet_wrap(vars(LTcateg2), nrow = 1, scales = "free_x")
 
 boxplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL){
   plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = LTcateg2)) +
@@ -203,6 +192,19 @@ boxplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL){
     scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
     labs(y = BDvariableTitle) +
     theme(panel.background = element_blank(), legend.title = element_blank(), legend.position = "none")
+  return(plot)
+}
+
+violinplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL){
+  
+  plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = overlapsWith2)) +
+    geom_violin() +
+    scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
+    labs(y = BDvariableTitle) +
+    theme(panel.background = element_blank(), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
+          legend.title = element_blank(), legend.position = "none", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.title.x = element_blank()) +
+    facet_wrap(vars(LTcateg2), nrow = 1, scales = "free_x")
+  
   return(plot)
 }
 
@@ -227,6 +229,25 @@ currentBD
 setwd(paste0(wdmain, "/output"))
 png("CurrentBD_perTenureCateg.png", width = 3600, height = 2400, units = "px", res = 300)
 currentBD
+dev.off()
+
+# violin version with overlaps side by side
+richness <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = richness_current, BDvariableTitle = "Current species richness")
+richness 
+ende <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = Ende_current, BDvariableTitle = "Current endemism")
+ende 
+phyl <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = phylodiversity_current, BDvariableTitle = "Current phylodiversity")
+phyl 
+# to plot all together
+currentBDviolin <- plot_grid(richness, 
+                       ende, 
+                       phyl, 
+                       nrow = 3)
+currentBDviolin
+# save plot
+setwd(paste0(wdmain, "/output"))
+png("CurrentBD_perTenureCategOverlaps_violin.png", width = 3000, height = 4000, units = "px", res = 300)
+currentBDviolin
 dev.off()
 
 
@@ -255,9 +276,27 @@ setwd(paste0(wdmain, "/output"))
 png("BDLossProportion_perTenureCateg.png", width = 3600, height = 2400, units = "px", res = 300)
 lossBD
 dev.off()
+
+# violin version
+richness <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = rLoss_prop*100, BDvariableTitle = "Loss in species richness (%)")
+richness
+ende <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = eLoss_prop*100, BDvariableTitle = "Loss in endemism (%)")
+ende 
+phyl <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = pLoss_prop*100, BDvariableTitle = "Loss in phylodiversity (%)")
+phyl 
+# to plot all together
+lossBD <- plot_grid(richness, 
+                    ende, 
+                    phyl, 
+                    nrow = 3)
+lossBD
+
+setwd(paste0(wdmain, "/output"))
+png("BDLossProportion_perTenureCategOVerlaps_violin.png",width = 3000, height = 4000,  units = "px", res = 300)
+lossBD
+dev.off()
+
 # current biodiversity and losses in OVERLAP categories ----
-# ideally, i'd want two boxplots side by side the category, and then the overlap
-# this would imply specifying the fill as a 1) category, 2) overlaps... tackle this visualization later
 head(data)
 richness <- boxplotBD(dataOverlaps, tenureCategory = overlapsWith, BDvariable = richness_current, BDvariableTitle = "Current species richness" )
 richness <- richness + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
