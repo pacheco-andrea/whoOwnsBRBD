@@ -14,6 +14,7 @@ library(biscale)
 library(pals)
 library(hrbrthemes)
 library(GGally)
+library(geobr)
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 
@@ -119,34 +120,65 @@ bivariateCols <- c("BD-low_FC-low" = "#E8e8e8",
      "BD-NA_FC-low" = "#E8e8e8",
      "BD-NA_FC-medium" = "#ace4e4")
 
-# start with a simple choropleth
-testMap <- ggplot(FC_data2) +
+# get the biomes to add them as a shape on top of the map
+# add biomes 
+biomes <- read_biomes(year=2019)
+biomes <- biomes[-7,]$geom
+biomes <- st_transform(biomes, crs = crs(mask, proj = T))
+plot(biomes)
+
+ggplot(biomes) +
+  geom_sf(fill = NA, color = "gray10") +
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
+
+
+# bivariate map richness
+biMap <- ggplot(FC_data2) +
   geom_sf(aes(fill = rich_deficit), color = NA) +
   scale_colour_manual(values = bivariateCols, aesthetics = c("color", "fill")) +
-  theme(panel.background = element_blank(), legend.title = element_blank())
-testMap
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
+finalbiMap <- biMap + 
+  geom_sf(data = biomes, fill = NA, color = "gray10") +
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
+
 
 # plot
 setwd(paste0(wdmain, "/output"))
-png("bivariateTest.png", width = 2400, height = 2400, units = "px", res = 300)
-testMap
+png("bivariateMapBiomes.png", width = 2400, height = 2400, units = "px", res = 300)
+finalbiMap
 dev.off()
 
-# test other function
-?bi_class # this function automatizes the classification, which i'm never a fan of
-# it also seems to simplify the geometry, which makes for a bit faster plotting, but then the map is quite holey
-test <- bi_class(FC_data2, x = richness_current, y = rl_def, style = "fisher", dim = 3)
-testMap <- ggplot() +
-  geom_sf(data = test, mapping = aes(fill = bi_class), color = "white", size = 0.1) +
-  bi_scale_fill(pal = "GrPink", dim = 3) +
-  labs(title = "test richness and RL deficit") +
-  bi_theme() 
-setwd(paste0(wdmain, "/output"))
-png("RLdeficit_richness_bivariate_test.png", width = 2400, height = 2400, units = "px", res = 300)
-testMap
-dev.off() # remember that here high values == high deficit
+# bivariate map for other categories???
+biMap <- ggplot(FC_data2) +
+  geom_sf(aes(fill = rich_deficit), color = NA) +
+  scale_colour_manual(values = bivariateCols, aesthetics = c("color", "fill")) +
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
+finalbiMap <- biMap + 
+  geom_sf(data = biomes, fill = NA, color = "gray10") +
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
 
-# parallel coord plot
+
+# plot
+setwd(paste0(wdmain, "/output"))
+png("bivariateMapBiomes.png", width = 2400, height = 2400, units = "px", res = 300)
+finalbiMap
+dev.off()
+
+# # test other function - i hated this
+# ?bi_class # this function automatizes the classification, which i'm never a fan of
+# # it also seems to simplify the geometry, which makes for a bit faster plotting, but then the map is quite holey
+# test <- bi_class(FC_data2, x = richness_current, y = rl_def, style = "fisher", dim = 3)
+# testMap <- ggplot() +
+#   geom_sf(data = test, mapping = aes(fill = bi_class), color = "white", size = 0.1) +
+#   bi_scale_fill(pal = "GrPink", dim = 3) +
+#   labs(title = "test richness and RL deficit") +
+#   bi_theme() 
+# setwd(paste0(wdmain, "/output"))
+# png("RLdeficit_richness_bivariate_test.png", width = 2400, height = 2400, units = "px", res = 300)
+# testMap
+# dev.off() # remember that here high values == high deficit
+
+# parallel coord plot ----
 # where i want to plot the biodiversity variables (current and loss) and the forest compliance per tenure category
 
 # would it make most sense for comparing just the current and the loss?

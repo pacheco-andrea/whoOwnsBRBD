@@ -204,7 +204,7 @@ boxplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL){
 violinplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL){
   
   plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = overlapsWith2)) +
-    geom_violin(position = position_dodge(width = 0.9), alpha = 0.3) +
+    geom_violin(position = position_dodge(width = 0.9), alpha = 0.5) +
     geom_boxplot(width=0.2, color="grey20", position = position_dodge(width = 0.9)) +
     scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
     labs(y = BDvariableTitle) +
