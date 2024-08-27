@@ -178,13 +178,19 @@ tenureColors <- c("Indigenous" = "#E78AC3",
 # create function for plotting the biodiversity boxplots across biodiversity variables
 
 # test violin plot
+sample_sizes <- data %>%
+  group_by(LTcateg2) %>%
+  summarize(n = n())
+
 ggplot(data, aes(x = LTcateg2, y = richness_current, fill = overlapsWith2)) +
-  geom_violin() +
+  geom_violin(position = position_dodge(width = 0.9)) +
+  geom_boxplot(width=0.2, color="grey20", alpha=0.2, position = position_dodge(width = 0.9)) +
   scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
   labs(y = "test") +
-  theme(panel.background = element_blank(), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
-        legend.title = element_blank(), legend.position = "none", axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
-  facet_wrap(vars(LTcateg2), nrow = 1, scales = "free_x")
+  theme(panel.background = element_blank(), panel.grid.major = element_line(linewidth = 0.5, linetype = 'solid', colour = "gray70"),
+        legend.title = element_blank(), legend.position = "none", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.title.x = element_blank()) +
+  facet_wrap(vars(LTcateg2), nrow = 1, scales = "free_x") +
+  geom_text(data = sample_sizes, aes(x = LTcateg2, y = Inf, label = paste("n =", n)), vjust = 2, size = 3.5, inherit.aes = F)
 
 boxplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL){
   plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = LTcateg2)) +
@@ -198,12 +204,14 @@ boxplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL){
 violinplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL){
   
   plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = overlapsWith2)) +
-    geom_violin() +
+    geom_violin(position = position_dodge(width = 0.9), alpha = 0.3) +
+    geom_boxplot(width=0.2, color="grey20", position = position_dodge(width = 0.9)) +
     scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
     labs(y = BDvariableTitle) +
     theme(panel.background = element_blank(), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
           legend.title = element_blank(), legend.position = "none", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.title.x = element_blank()) +
-    facet_wrap(vars(LTcateg2), nrow = 1, scales = "free_x")
+    facet_wrap(vars(LTcateg2), nrow = 1, scales = "free_x") +
+    geom_text(data = sample_sizes, aes(x = LTcateg2, y = Inf, label = paste("n =", n)), vjust = 2, size = 3.5, inherit.aes = F)
   
   return(plot)
 }
@@ -242,7 +250,7 @@ phyl
 currentBDviolin <- plot_grid(richness, 
                        ende, 
                        phyl, 
-                       nrow = 3)
+                       nrow = 3, labels = c("A", "B", "C"))
 currentBDviolin
 # save plot
 setwd(paste0(wdmain, "/output"))
@@ -288,7 +296,7 @@ phyl
 lossBD <- plot_grid(richness, 
                     ende, 
                     phyl, 
-                    nrow = 3)
+                    nrow = 3, labels = c("A", "B", "C"))
 lossBD
 
 setwd(paste0(wdmain, "/output"))

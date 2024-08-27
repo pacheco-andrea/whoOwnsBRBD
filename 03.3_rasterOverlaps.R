@@ -115,32 +115,74 @@ d3$overlapkm2 <- base::round(d3$overlapkm2, digits = 0)
 
 # join to original wider table
 d4 <- rbind(d2,d3)
-d4$categ <- factor(d4$categ, levels = c("quilombola", "privatePAs", "indigenous" ,"PA_sustuse", "PA_strict", "ruralSettlements", "undesignated",  "ruralProperties"))
+unique(d4$categ)
+# fix labels categ variable
+d4$categ[which(d4$categ == "ruralProperties")] <- "Private lands"
+d4$categ[which(d4$categ == "undesignated")] <- "Undesignated lands"
+d4$categ[which(d4$categ ==  "ruralSettlements")] <- "Rural settlements"
+d4$categ[which(d4$categ == "PA_strict")] <- "PA strict protection"
+d4$categ[which(d4$categ == "PA_sustuse")] <- "PA sustainable use"
+d4$categ[which(d4$categ == "indigenous")] <- "Indigenous"
+d4$categ[which(d4$categ == "privatePAs")] <- "Private PA"
+d4$categ[which(d4$categ == "quilombola")] <- "Quilombola lands"
+d4$categ <- factor(d4$categ, levels = c("Private lands",
+                                        "Undesignated lands",
+                                        "Rural settlements",
+                                        "PA strict protection",
+                                        "PA sustainable use",
+                                        "Indigenous" ,
+                                        "Private PA",
+                                        "Quilombola lands"))
+# fix labels overlap variable
+unique(d4$overlap)
+d4$overlap[which(d4$overlap == "ruralProperties")] <- "Private lands"
+d4$overlap[which(d4$overlap == "undesignated")] <- "Undesignated lands"
+d4$overlap[which(d4$overlap ==  "ruralSettlements")] <- "Rural settlements"
+d4$overlap[which(d4$overlap == "PA_strict")] <- "PA strict protection"
+d4$overlap[which(d4$overlap == "PA_sustuse")] <- "PA sustainable use"
+d4$overlap[which(d4$overlap == "indigenous")] <- "Indigenous"
+d4$overlap[which(d4$overlap == "privatePAs")] <- "Private PA"
+d4$overlap[which(d4$overlap == "quilombola")] <- "Quilombola lands"
+d4$overlap <- factor(d4$overlap, levels = c("Private lands",
+                                        "Undesignated lands",
+                                        "Rural settlements",
+                                        "PA strict protection",
+                                        "PA sustainable use",
+                                        "Indigenous" ,
+                                        "Private PA",
+                                        "Quilombola lands",
+                                        "non-overlapped"))
 
 # make barplot to visualize magnitude of overlaps compared to total area under different tenure categories
 
-tenureColors <- c("indigenous" = "#E78AC3",
-                  "non-overlapped" = "gray70",   
-                  "PA_strict" = "#1B9E77",       
-                  "PA_sustuse" =  "#8C7E5B",
-                  "privatePAs"  = "#99d8c9",  
-                  "quilombola" =  "#FFD700",
-                  "ruralProperties" = "#8DA0CB",
-                  "ruralSettlements" = "#FC8D62",
-                  "undesignated" ="#1d6c7d")
+tenureColors <- c("Indigenous" = "#E78AC3",
+                  "non-overlapped" = "gray80",   
+                  "PA strict protection" = "#1B9E77",       
+                  "PA sustainable use" =  "#8C7E5B",
+                  "Private PA" = "#99d8c9",  
+                  "Quilombola lands" =  "#FFD700",
+                  "Private lands" = "#8DA0CB",
+                  "Rural settlements" = "#FC8D62",
+                  "Undesignated lands" ="#1d6c7d")
 
-overlapsBarplot <- ggplot(d4, aes(fill = overlap, y = overlapkm2, x = categ)) +
+overlapsBarplot <- ggplot(d4, aes(fill = overlap, y = overlapkm2, x = forcats::fct_rev(categ))) +
   geom_bar(stat = "identity") + 
   scale_fill_manual(values = tenureColors) +
-  scale_y_continuous(labels = scales::comma, expand = c(0,0), breaks = seq(0,5000000, by = 500000))+
+  scale_y_continuous(labels = scales::comma, expand = c(0,0), breaks = seq(0,5000000, by = 1000000))+
   ylab(expression(Area~(km^2))) +
-  xlab("Land tenure category") + 
+  # xlab("Land tenure category") + 
   coord_flip() +
-  theme(legend.position = c(0.90, 0.45), panel.background = element_blank(), legend.title = element_blank()) 
+  theme(legend.position = c(0.85, 0.45), panel.background = element_blank(), legend.title = element_blank(),
+        axis.title.y = element_blank(),axis.title.x = element_text(size = 6), axis.text.y = element_text(size = 6),  axis.text.x = element_text(size = 6), 
+        legend.text = element_text(size = 6), legend.key.size = unit(0.3, "cm")) 
 overlapsBarplot
 
 # write out barplot
 setwd(paste0(wdmain, "/output"))
-svg("OverlapsAreakm2_barplot.svg", width = 12, height = 4)
+png("OverlapsAreakm2_barplot.png", width = 16, height = 6, units = "cm", res = 300)
 overlapsBarplot
 dev.off()
+
+# can i get the table of this, so that I can report these numbers?
+setwd(paste0(wdmain, "/output"))
+write.csv(d4, "OverlapsTenureCategorieskm2.csv", row.names = F)
