@@ -74,7 +74,7 @@ ggplot(data[which(is.na(data$phylodiversity_current )),], aes(x = myOverCat)) +
   coord_cartesian(ylim = c(0,500))
 # in sum, some losses across the board, but let's see how this changes with the new data
 
-# CLEAN UP THE OVERLAP CATEGORIES: BECAUSE CLEARLY THE WAY I WAS DOING IT BEFORE WASNT WORKING ----
+# CLEAN UP THE OVERLAP CATEGORIES: ----
 unique(data$LTcateg)
 unique(data$myOverCat)
 
@@ -177,12 +177,13 @@ tenureColors <- c("Indigenous" = "#E78AC3",
 
 # create function for plotting the biodiversity boxplots across biodiversity variables
 
-# test violin plot
+# create variable with amount of observations per category
 sample_sizes <- data %>%
   group_by(LTcateg2) %>%
   summarize(n = n())
 
-ggplot(data, aes(x = LTcateg2, y = richness_current, fill = overlapsWith2)) +
+# test violin plot
+ggplot(data, aes(x = LTcateg2, y = (richness_current/areakm2), fill = overlapsWith2)) +
   geom_violin(position = position_dodge(width = 0.9)) +
   geom_boxplot(width=0.2, color="grey20", alpha=0.2, position = position_dodge(width = 0.9)) +
   scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
@@ -205,7 +206,7 @@ violinplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NUL
   
   plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = overlapsWith2)) +
     geom_violin(position = position_dodge(width = 0.9), alpha = 0.5) +
-    geom_boxplot(width=0.2, color="grey20", position = position_dodge(width = 0.9)) +
+    geom_boxplot(width=0.2, color="grey20", position = position_dodge(width = 0.9), alpha = 0.6) +
     scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
     labs(y = BDvariableTitle) +
     theme(panel.background = element_blank(), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
@@ -221,30 +222,30 @@ no <- grep("no-overlaps", data$myOverCat)
 dataOverlaps <- data[-no,]
 
 # current biodiversity under different tenure categories ----
-richness <- boxplotBD(data, tenureCategory = LTcateg2, BDvariable = richness_current, BDvariableTitle = "Current species richness")
-richness <- richness + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-ende <- boxplotBD(data, tenureCategory = LTcateg2, BDvariable = Ende_current, BDvariableTitle = "Current endemism")
-ende <- ende + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-phyl <- boxplotBD(data, tenureCategory = LTcateg2, BDvariable = phylodiversity_current, BDvariableTitle = "Current phylodiversity")
-phyl <- phyl + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-# to plot all together
-currentBD <- plot_grid(richness, 
-                       ende, 
-                       phyl, 
-                       nrow = 1)
-currentBD
-# save plot
-setwd(paste0(wdmain, "/output"))
-png("CurrentBD_perTenureCateg.png", width = 3600, height = 2400, units = "px", res = 300)
-currentBD
-dev.off()
+# richness <- boxplotBD(data, tenureCategory = LTcateg2, BDvariable = richness_current, BDvariableTitle = "Current species richness")
+# richness <- richness + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+# ende <- boxplotBD(data, tenureCategory = LTcateg2, BDvariable = Ende_current, BDvariableTitle = "Current endemism")
+# ende <- ende + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+# phyl <- boxplotBD(data, tenureCategory = LTcateg2, BDvariable = phylodiversity_current, BDvariableTitle = "Current phylodiversity")
+# phyl <- phyl + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+# # to plot all together
+# currentBD <- plot_grid(richness, 
+#                        ende, 
+#                        phyl, 
+#                        nrow = 1)
+# currentBD
+# # save plot
+# setwd(paste0(wdmain, "/output"))
+# png("CurrentBD_perTenureCateg.png", width = 3600, height = 2400, units = "px", res = 300)
+# currentBD
+# dev.off()
 
 # violin version with overlaps side by side
-richness <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = richness_current, BDvariableTitle = "Current species richness")
+richness <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (richness_current/areakm2), BDvariableTitle = "Current species richness density")
 richness 
-ende <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = Ende_current, BDvariableTitle = "Current endemism")
-ende 
-phyl <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = phylodiversity_current, BDvariableTitle = "Current phylodiversity")
+ende <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Ende_current/areakm2), BDvariableTitle = "Current endemism density")
+ende <- ende + coord_cartesian(ylim = c(0,1))
+phyl <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (phylodiversity_current/areakm2), BDvariableTitle = "Current phylodiversity density")
 phyl 
 # to plot all together
 currentBDviolin <- plot_grid(richness, 
@@ -254,44 +255,57 @@ currentBDviolin <- plot_grid(richness,
 currentBDviolin
 # save plot
 setwd(paste0(wdmain, "/output"))
-png("CurrentBD_perTenureCategOverlaps_violin.png", width = 3000, height = 4000, units = "px", res = 300)
+png("CurrentBD_perTenureCategOverlaps_violinDensity.png", width = 3300, height = 4000, units = "px", res = 300)
 currentBDviolin
 dev.off()
+
+# how is it possible that i have endemism higher that 1/km2?
+summary(data$Ende_current)
+
+test <- data[,c(1:3,10:length(data))]
+test$testEnde <- test$Ende_current/test$areakm2
+summary(test)
+
+superEndemism <- test[which(test$testEnde > 1),]
+# i understand now: these properties were those that the endemism index value was higher than the area of the property 
+# meaning, very high endemism in very small properties, the mean endemism value per 1km2
 
 
 # biodiversity losses across different categories ----
 # to properly show this loss it should be shown as the proportion: loss / original-loss
-# because this scales the loss of average richness, endemism, and phylodiversity 
+# because this scales the loss of average richness, endemism, and phylodiversity
 
 # just check, what does it mean that many endemism losses are higher than 100%?
 data[which(data$eLoss_prop >= 1),] # probably need to check this with Bira - the loss was greater than the original endemism value
 
-# note, if i want to facet_wrap, then i'd need to make my data longer
 
-richness <- boxplotBD(data, tenureCategory = LTcateg2, BDvariable = rLoss_prop*100, BDvariableTitle = "Loss in species richness (%)")
-richness <- richness + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-ende <- boxplotBD(data, tenureCategory = LTcateg2, BDvariable = eLoss_prop*100, BDvariableTitle = "Loss in endemism (%)")
-ende <- ende + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))+ coord_cartesian(ylim = c(0,100))
-phyl <- boxplotBD(data, tenureCategory = LTcateg2, BDvariable = pLoss_prop*100, BDvariableTitle = "Loss in phylodiversity (%)")
-phyl <- phyl + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-# to plot all together
-lossBD <- plot_grid(richness, 
-                       ende, 
-                       phyl, 
-                       nrow = 1)
-lossBD
-setwd(paste0(wdmain, "/output"))
-png("BDLossProportion_perTenureCateg.png", width = 3600, height = 2400, units = "px", res = 300)
-lossBD
-dev.off()
+# richness <- boxplotBD(data, tenureCategory = LTcateg2, BDvariable = rLoss_prop*100, BDvariableTitle = "Loss in species richness (%)")
+# richness <- richness + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+# ende <- boxplotBD(data, tenureCategory = LTcateg2, BDvariable = eLoss_prop*100, BDvariableTitle = "Loss in endemism (%)")
+# ende <- ende + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))+ coord_cartesian(ylim = c(0,100))
+# phyl <- boxplotBD(data, tenureCategory = LTcateg2, BDvariable = pLoss_prop*100, BDvariableTitle = "Loss in phylodiversity (%)")
+# phyl <- phyl + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+# # to plot all together
+# lossBD <- plot_grid(richness, 
+#                        ende, 
+#                        phyl, 
+#                        nrow = 1)
+# lossBD
+# setwd(paste0(wdmain, "/output"))
+# png("BDLossProportion_perTenureCateg.png", width = 3600, height = 2400, units = "px", res = 300)
+# lossBD
+# dev.off()
 
 # violin version
-richness <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = rLoss_prop*100, BDvariableTitle = "Loss in species richness (%)")
-richness
-ende <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = eLoss_prop*100, BDvariableTitle = "Loss in endemism (%)")
-ende 
-phyl <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = pLoss_prop*100, BDvariableTitle = "Loss in phylodiversity (%)")
-phyl 
+
+# this should now plot the PROPORTION OF LOSS (scaling for how much there was to begin with) over the AREA
+# which should indicate the DENSITY OF LOSS
+richness <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (rLoss_prop*areakm2), BDvariableTitle = "Area (km2) with potential sp. richness loss")
+# richness <- richness + coord_cartesian(ylim = c(0, 200))
+ende <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (eLoss_prop*areakm2), BDvariableTitle = "Area (km2) with potential endemism loss")
+# ende <- ende + coord_cartesian(ylim = c(0,100))
+phyl <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (pLoss_prop*areakm2), BDvariableTitle = "Area (km2) with potential phylodiversity loss")
+# phyl <- phyl + coord_cartesian(ylim = c(0,100))
 # to plot all together
 lossBD <- plot_grid(richness, 
                     ende, 
@@ -300,48 +314,17 @@ lossBD <- plot_grid(richness,
 lossBD
 
 setwd(paste0(wdmain, "/output"))
-png("BDLossProportion_perTenureCategOVerlaps_violin.png",width = 3000, height = 4000,  units = "px", res = 300)
+png("BDLossProportion_perTenureCategOVerlaps_violinArea.png",width = 3300, height = 4000,  units = "px", res = 300)
 lossBD
 dev.off()
 
-# current biodiversity and losses in OVERLAP categories ----
-head(data)
-richness <- boxplotBD(dataOverlaps, tenureCategory = overlapsWith, BDvariable = richness_current, BDvariableTitle = "Current species richness" )
-richness <- richness + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-ende <- boxplotBD(dataOverlaps, tenureCategory = overlapsWith, BDvariable = Ende_current, BDvariableTitle = "Current endemism")
-ende <- ende + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-phyl <- boxplotBD(dataOverlaps, tenureCategory = overlapsWith, BDvariable = phylodiversity_current, BDvariableTitle = "Current phylodiversity")
-phyl <- phyl + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-# to plot all together
-currentBD_overlaps <- plot_grid(richness, 
-                       ende, 
-                       phyl, 
-                       nrow = 1)
-currentBD_overlaps
-# write out
-setwd(paste0(wdmain, "/output"))
-png("Biodiversity&Tenure&overlaps_boxplots_v202408.png", width = 4000, height = 1700, units = "px", res = 300)
-currentBD_overlaps
-dev.off()
+# check these proportions of loss again:
+test2 <- data[which((data$rLoss_prop*100)/data$areakm2 > 100),]
+head(test2)
 
-# LOSSES
-richness <- boxplotBD(dataOverlaps, tenureCategory = overlapsWith, BDvariable = rLoss_prop*100, BDvariableTitle = "Loss in species richness (%)" )
-richness <- richness + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-ende <- boxplotBD(dataOverlaps, tenureCategory = overlapsWith, BDvariable = eLoss_prop*100, BDvariableTitle = "Loss in endemism (%)")
-ende <- ende + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-phyl <- boxplotBD(dataOverlaps, tenureCategory = overlapsWith, BDvariable = pLoss_prop*100, BDvariableTitle = "Loss in phylodiversity (%)")
-phyl <- phyl + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-# to plot all together
-lossBD_overlaps <- plot_grid(richness, 
-                                ende, 
-                                phyl, 
-                                nrow = 1)
-lossBD_overlaps
-# write out
-setwd(paste0(wdmain, "/output"))
-png("Biodiversity&Tenure&overlaps_losses_boxplots_v202408.png", width = 4000, height = 1700, units = "px", res = 300)
-lossBD_overlaps
-dev.off()
+summary(data$rLoss_prop*data$areakm2)
+
+# hence, here again, I see proportions of loss (e.g., 0.58 or 58% loss) larger than the area of the property (.5 km2)
 
 # biodiversity and FC compliance ----
 # combine this cleaned bd+tenure data with forest deficit information 

@@ -55,11 +55,11 @@ try1 <- ggplot(FC_data2) +
     trans = "log", breaks = c(100, 1000, 1500, 2000, 2500, 5000),
     )
 
-# plot
-setwd(paste0(wdmain, "/output"))
-png("CurrentSpRichness_choropleth.png", width = 2400, height = 2400, units = "px", res = 300)
-try1
-dev.off()
+# # plot
+# setwd(paste0(wdmain, "/output"))
+# png("CurrentSpRichness_choropleth.png", width = 2400, height = 2400, units = "px", res = 300)
+# try1
+# dev.off()
 
 # also map FC compliance
 try1 <- ggplot(FC_data2) +
@@ -67,11 +67,11 @@ try1 <- ggplot(FC_data2) +
   # theme_void() + 
   scale_fill_viridis_c()
 
-# plot
-setwd(paste0(wdmain, "/output"))
-png("RLdeficit_choropleth.png", width = 2400, height = 2400, units = "px", res = 300)
-try1
-dev.off()
+# # plot
+# setwd(paste0(wdmain, "/output"))
+# png("RLdeficit_choropleth.png", width = 2400, height = 2400, units = "px", res = 300)
+# try1
+# dev.off()
 
 rm(try1)
 
@@ -141,21 +141,14 @@ finalbiMap <- biMap +
   geom_sf(data = biomes, fill = NA, color = "gray10") +
   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
 
-
-# plot
-setwd(paste0(wdmain, "/output"))
-png("bivariateMapBiomes.png", width = 2400, height = 2400, units = "px", res = 300)
-finalbiMap
-dev.off()
-
-# bivariate map for other categories???
-biMap <- ggplot(FC_data2) +
-  geom_sf(aes(fill = rich_deficit), color = NA) +
-  scale_colour_manual(values = bivariateCols, aesthetics = c("color", "fill")) +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
-finalbiMap <- biMap + 
-  geom_sf(data = biomes, fill = NA, color = "gray10") +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
+# # bivariate map for other categories???
+# biMap <- ggplot(FC_data2) +
+#   geom_sf(aes(fill = rich_deficit), color = NA) +
+#   scale_colour_manual(values = bivariateCols, aesthetics = c("color", "fill")) +
+#   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
+# finalbiMap <- biMap + 
+#   geom_sf(data = biomes, fill = NA, color = "gray10") +
+#   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
 
 
 # plot
@@ -178,25 +171,72 @@ dev.off()
 # testMap
 # dev.off() # remember that here high values == high deficit
 
-# parallel coord plot ----
-# where i want to plot the biodiversity variables (current and loss) and the forest compliance per tenure category
+# make map of BD loss that could have happened in places of illegal deforestation ----
+head(FC_data2)
 
-# would it make most sense for comparing just the current and the loss?
+# we need to set this as a starting point because there are deforestation polygons that have neither surplus nor deficit - in theory, legal
+FC_data2$legality <- "legal" 
+# identify cases where there is veg surplus
+# would also be legal, so the part below is redundant
+# FC_data2[which(FC_data2$rl_ativo > 0),]$legality <- "legal"
 
-parcoordPlot <- ggparcoord(FC_data2,
-                           columns = grep("richness", colnames(FC_data2)), groupColumn = grep("LTcateg2", colnames(FC_data2)),
-                           showPoints = T,
-                           title = "Parallel Coordinates plot test for species richness (baseline, current, loss)",
-                           alphaLines = 0.3) +
-  theme_ipsum() +
-  theme(plot.title = element_text(size = 10))
+# now identify the observations with deforestation where there was a deficit for either RL or APPs
+# note this could overwrite the places where there was rl ativo (surplus), because app deficit is still be potentially illegal
+summary(FC_data2[which(FC_data2$rl_def < 0 | FC_data2$app_def < 0),])
+# overwrite 
+FC_data2[which(FC_data2$rl_def < 0 | FC_data2$app_def < 0),]$legality <- "illegal"
+FC_data2$legality <- as.factor(FC_data2$legality)
+summary(FC_data2)
 
-setwd(paste0(wdmain, "/output"))
-png("parallelCoord_test_richness.png", width = 2400, height = 2400, units = "px", res = 300)
-parcoordPlot
+# filter data for (potential) illegal biodiversity loss 
+illegalBDloss <- FC_data2[which(FC_data2$legality == "illegal"),]
+summary(illegalBDloss) 
+
+# PLOT ILLEGAL BD LOSS ----
+
+# richness:
+richLoss <- ggplot(illegalBDloss) +
+  geom_sf(aes(fill = richness_loss), color = NA) +
+  scale_fill_viridis_c() +
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1))
+finalrichLoss <- richLoss + 
+  geom_sf(data = biomes, fill = NA, color = "gray10") +
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
+# save plot
+setwd(paste0(wdmain, "/output/maps"))
+png("illegal_RichnessLoss.png", width = 2400, height = 2400, units = "px", res = 300)
+finalrichLoss
 dev.off()
 
 
+# endemsism 
+endLoss <- ggplot(illegalBDloss) +
+  geom_sf(aes(fill = Ende_loss), color = NA) +
+  scale_fill_viridis_c(option = "magma", direction =-1) +
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1))
+finalendLoss <- endLoss + 
+  geom_sf(data = biomes, fill = NA, color = "gray10") +
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
+# save plot
+setwd(paste0(wdmain, "/output/maps"))
+png("illegal_EndemismLoss.png", width = 2400, height = 2400, units = "px", res = 300)
+finalendLoss
+dev.off()
 
+# should i do richness and endemism as proportion loss? it seemed pretty similar - so i just need to ask Bira how he calculated the loss
+
+# richLoss <- ggplot(illegalBDloss) +
+#   geom_sf(aes(fill = Ende_loss/(Ende_baseline - Ende_loss)), color = NA) +
+#   scale_fill_viridis_d(direction = -1) +
+#   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
+# finalrichLoss <- richLoss + 
+#   geom_sf(data = biomes, fill = NA, color = "gray10") +
+#   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
+# 
+# # plot
+# setwd(paste0(wdmain, "/output/maps"))
+# png("illegal_EndemismLoss_proportion.png", width = 2400, height = 2400, units = "px", res = 300)
+# finalrichLoss
+# dev.off()
 
 
