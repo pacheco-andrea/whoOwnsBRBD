@@ -189,7 +189,7 @@ FC_data2$legality <- as.factor(FC_data2$legality)
 summary(FC_data2)
 
 # filter data for (potential) illegal biodiversity loss 
-illegalBDloss <- FC_data2[which(FC_data2$legality == "illegal"),]
+illegalBDloss <- FC_data2[which(FC_data2$legality == "illegal"),] # 67% of the rows are illegal
 summary(illegalBDloss) 
 
 # PLOT ILLEGAL BD LOSS ----
@@ -197,7 +197,7 @@ summary(illegalBDloss)
 # richness:
 richLoss <- ggplot(illegalBDloss) +
   geom_sf(aes(fill = richness_loss), color = NA) +
-  scale_fill_viridis_c() +
+  scale_fill_viridis_c(direction = -1) +
   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1))
 finalrichLoss <- richLoss + 
   geom_sf(data = biomes, fill = NA, color = "gray10") +
@@ -239,4 +239,36 @@ dev.off()
 # finalrichLoss
 # dev.off()
 
+# just out of curiosity: LEGAL LOSS
+legal <- FC_data2[which(FC_data2$legality == "legal"),] 
+summary(legal)
+
+# richness:
+richLoss <- ggplot(legal) +
+  geom_sf(aes(fill = richness_loss), color = NA) +
+  scale_fill_viridis_c(direction = -1) +
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1))
+finalrichLoss <- richLoss + 
+  geom_sf(data = biomes, fill = NA, color = "gray10") +
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
+# save plot
+setwd(paste0(wdmain, "/output/maps"))
+png("legal_RichnessLoss.png", width = 2400, height = 2400, units = "px", res = 300)
+finalrichLoss
+dev.off()
+
+
+# endemsism 
+endLoss <- ggplot(legal) +
+  geom_sf(aes(fill = Ende_loss), color = NA) +
+  scale_fill_viridis_c(option = "magma", direction =-1) +
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1))
+finalendLoss <- endLoss + 
+  geom_sf(data = biomes, fill = NA, color = "gray10") +
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
+# save plot
+setwd(paste0(wdmain, "/output/maps"))
+png("legal_EndemismLoss.png", width = 2400, height = 2400, units = "px", res = 300)
+finalendLoss
+dev.off()
 
