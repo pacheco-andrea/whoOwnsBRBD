@@ -12,19 +12,31 @@ library(sf)
 library(dplyr)
 library(geobr)
 library(viridis)
+library(classInt)
 # load directories and etc.
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 
 # Biodiversity indicators ----
-setwd(paste0(wdmain,"/data/raw/Biodiversidade_BR"))
+setwd(paste0(wdmain,"/data/raw/Biodiversity_v202410"))
 rasters <- list.files()[grep("tif$", list.files())]
 rasters
-richness <- rast(rasters[grep("richness_current", rasters)])
-endemism <- rast(rasters[grep("Ende_current", rasters)])
-phylogenetic <- rast(rasters[grep("phylodiversity_current", rasters)])
+richness <- rast(rasters[grep("Richness", rasters)])
+endemism <- rast(rasters[grep("Endemism", rasters)])
+phylogenetic <- rast(rasters[grep("Phylodiversity", rasters)])
 
-res(richness) # .004degrees 
+par(mfrow = c(1,3))
+plot(richness)
+
+b_at <- richness[[1]]-richness[[2]]
+plot(b_at)
+par(mfrow = c(1,2))
+plot(b_at)
+plot(richness[[3]])
+dev.off()
+
+
+res(richness) # .01 degrees 
 # map and write out richness map
 summary(richness)
 summary(endemism)
@@ -34,8 +46,8 @@ breaks <- classIntervals(values(richness, na.rm = T))
 breaks$brks
 
 setwd(paste0(wdmain, "output/maps/"))
-png("richness_v20240819.png", units = "px", width = 1500, height = 1500, res = 300)
-terra::plot(richness, 
+png("richness_v20241004.png", units = "px", width = 1500, height = 1500, res = 300)
+terra::plot(richness[[1]], 
      type = "continuous",
      range = c(min(values(richness), na.rm = T),max(values(richness), na.rm = T)),
      breaks = breaks$brks,
@@ -54,8 +66,8 @@ breaks$brks
 
 
 setwd(paste0(wdmain, "output/maps/"))
-png("endemism_v20240819.png", units = "px", width = 1500, height = 1500, res = 300)
-terra::plot(endemism, 
+png("endemism_v20241004.png", units = "px", width = 1500, height = 1500, res = 300)
+terra::plot(endemism[[1]], 
      type = "continuous",
      range = c(0,1),
      breaks = breaks$brks,
@@ -64,7 +76,7 @@ terra::plot(endemism,
      col = magma(n=1000, direction = -1))
 dev.off()
 
-# map and write out endemism map
+# map and write out phylogenetic diversity map
 summary(phylogenetic)
 plot(phylogenetic)
 
@@ -73,7 +85,7 @@ breaks$brks
 
 setwd(paste0(wdmain, "output/maps/"))
 png("phylodiversity_v20240819.png", units = "px", width = 1500, height = 1400, res = 300)
-terra::plot(phylogenetic, 
+terra::plot(phylogenetic[[1]], 
      type = "continuous",
      range = c(min(values(phylogenetic), na.rm = T),max(values(phylogenetic), na.rm = T)),
      breaks = breaks$brks,

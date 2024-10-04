@@ -19,14 +19,12 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 
 # biodiversity data ----
-# for whatever reason, the re-projected data wasnt working with the extraction
 # using the raw data here - 
-# setwd(paste0(wdmain,"/data/raw/Biodiversity_v20231009"))
-setwd(paste0(wdmain,"/data/raw/Biodiversidade_BR"))
+setwd(paste0(wdmain,"/data/raw/Biodiversity_v202410"))
 rasters <- list.files()[grep("tif$", list.files())]
 rasters
 biodiv <- rast(rasters)
-names(biodiv) <- gsub("All_groups_", "", (gsub(".tif", "", rasters)))
+names(biodiv) <- gsub("_BR.tif", "", rasters)
 
 # make extraction function
 extractBD <- function(listOfShapes, directoryIn, directoryOut, crsBD, biodiv, outNamePrefix){
@@ -61,8 +59,8 @@ f <- grep(".shp", list.files())
 
 extractBD(listOfShapes = list.files()[f],
           directoryIn = paste0(wdmain,"/data/processed/LT_no-overlaps/"),
-          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon_v202408/"),
-          crsBD = crs(biodiv),
+          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon_v202410/"),
+          crsBD = crs(biodiv[[1]]),
           biodiv = biodiv,
           outNamePrefix = "public_no-overlaps_")
 
@@ -72,7 +70,7 @@ f <- grep(".shp", list.files())
 
 extractBD(listOfShapes = list.files()[f], 
           directoryIn = paste0(wdmain,"/data/processed/LT_overlaps/"), 
-          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon_v202408/"), 
+          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon_v202410/"), 
           crsBD = crs(biodiv[[1]]), 
           biodiv = biodiv, 
           outNamePrefix = "overlaps_")
