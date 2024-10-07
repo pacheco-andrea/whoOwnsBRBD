@@ -1,12 +1,7 @@
 #### Biodiversity and Tenure in Brazil ####
 
 # script that extracts the biodiversity indicator values per different tenure regimes
-# output: 
-# note run time? 
 
-# issues:
-# because i will need to filter out properties that are <1km, i calculate the variable for area
-# also, DONT WRITE THE GEOMETRY
 
 # libraries
 library(terra)
@@ -82,7 +77,7 @@ f <- grep(".shp", list.files())
 
 extractBD(listOfShapes = list.files()[f], 
           directoryIn = paste0(wdmain,"/data/processed/LT_pubxpri_overlaps/"), 
-          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon_v202408/"), 
+          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon_v202410/"), 
           crsBD = crs(biodiv[[1]]), 
           biodiv = biodiv, 
           outNamePrefix = "pubxpri_overlaps_")
@@ -94,7 +89,8 @@ f <- grep(".shp", list.files())
 
 extractBD(listOfShapes = list.files()[f], 
           directoryIn = paste0(wdmain,"/data/processed/LT_no-overlaps_private/"), 
-          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon_v202408/"), 
+          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon_v202410/"), 
           crsBD = crs(biodiv[[1]]), 
           biodiv = biodiv, 
           outNamePrefix = "private_no-overlaps_")
+

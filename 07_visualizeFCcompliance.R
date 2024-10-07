@@ -41,15 +41,16 @@ FC_data <- st_as_sf(FC_data)
 
 # as I'm only plotting for visualization purposes, i need to simplify these polygons
 # if tocantins is missing then i should st_union before this?
-FC_data2 <- st_simplify(FC_data, dTolerance = 100) # at 1000, we lose ~60% of observations
-FC_data2 <- FC_data2[!st_is_empty(FC_data2),] # i see that this is now 99% of the data, so it takes a while but it is pretty worth it in plotting the map
+FC_data2 <- FC_data[!st_is_empty(FC_data),] 
+# FC_data2 <- st_simplify(FC_data2, dTolerance = 100) # at 1000, we lose ~60% of observations
+# FC_data2 <- FC_data2[!st_is_empty(FC_data2),] # i see that this is now 99% of the data, so it takes a while but it is pretty worth it in plotting the map
 FC_data2 <- st_transform(FC_data2, my_crs_SAaea)
 
 # map test ----
 
 # start with a simple choropleth
 try1 <- ggplot(FC_data2) +
-  geom_sf(aes(fill = richness_current), color = NA) +
+  geom_sf(aes(fill = Richness_2020), color = NA) +
   theme_void() + 
   scale_fill_viridis_c(
     trans = "log", breaks = c(100, 1000, 1500, 2000, 2500, 5000),
@@ -75,7 +76,15 @@ try1 <- ggplot(FC_data2) +
 
 rm(try1)
 
-# make BD and FC compliance variables categories for choropleth map ----
+# get the biomes to add them as a shape on top of the map
+# add biomes 
+biomes <- read_biomes(year=2019)
+biomes <- biomes[-7,]$geom
+biomes <- st_transform(biomes, crs = crs(mask, proj = T))
+plot(biomes)
+
+
+# make BD and FC compliance variables categories for choropleth map NOT DOING THIS ANYMORE ---- 
 # do i need to think about normalizing some of the BD variables?
 # (e.g. species richness - is already the mean of the polygon, weighed by the % that the pixel covered. but this should still be divided by the area, no?)
 # the loss variables are already normalized but will i be plotting this?
@@ -120,12 +129,6 @@ bivariateCols <- c("BD-low_FC-low" = "#E8e8e8",
      "BD-NA_FC-low" = "#E8e8e8",
      "BD-NA_FC-medium" = "#ace4e4")
 
-# get the biomes to add them as a shape on top of the map
-# add biomes 
-biomes <- read_biomes(year=2019)
-biomes <- biomes[-7,]$geom
-biomes <- st_transform(biomes, crs = crs(mask, proj = T))
-plot(biomes)
 
 ggplot(biomes) +
   geom_sf(fill = NA, color = "gray10") +
@@ -189,14 +192,14 @@ FC_data2$legality <- as.factor(FC_data2$legality)
 summary(FC_data2)
 
 # filter data for (potential) illegal biodiversity loss 
-illegalBDloss <- FC_data2[which(FC_data2$legality == "illegal"),] # 67% of the rows are illegal
+illegalBDloss <- FC_data2[which(FC_data2$legality == "illegal"),] 
 summary(illegalBDloss) 
 
-# PLOT ILLEGAL BD LOSS ----
+# PLOT BIODIVERSITY LOSS IN AREAS WITH FOREST CODE DEFICIT (RESTORATION) ----
 
 # richness:
 richLoss <- ggplot(illegalBDloss) +
-  geom_sf(aes(fill = richness_loss), color = NA) +
+  geom_sf(aes(fill = Richness_loss), color = NA) +
   scale_fill_viridis_c(direction = -1) +
   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1))
 finalrichLoss <- richLoss + 
@@ -204,14 +207,14 @@ finalrichLoss <- richLoss +
   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
 # save plot
 setwd(paste0(wdmain, "/output/maps"))
-png("illegal_RichnessLoss.png", width = 2400, height = 2400, units = "px", res = 300)
+png("RichnessLoss_deficitAreas.png", width = 2400, height = 2400, units = "px", res = 300)
 finalrichLoss
 dev.off()
 
 
 # endemsism 
 endLoss <- ggplot(illegalBDloss) +
-  geom_sf(aes(fill = Ende_loss), color = NA) +
+  geom_sf(aes(fill = Endemism_loss), color = NA) +
   scale_fill_viridis_c(option = "magma", direction =-1) +
   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1))
 finalendLoss <- endLoss + 
@@ -219,33 +222,17 @@ finalendLoss <- endLoss +
   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
 # save plot
 setwd(paste0(wdmain, "/output/maps"))
-png("illegal_EndemismLoss.png", width = 2400, height = 2400, units = "px", res = 300)
+png("EndemismLoss_deficitAreas.png", width = 2400, height = 2400, units = "px", res = 300)
 finalendLoss
 dev.off()
 
-# should i do richness and endemism as proportion loss? it seemed pretty similar - so i just need to ask Bira how he calculated the loss
-
-# richLoss <- ggplot(illegalBDloss) +
-#   geom_sf(aes(fill = Ende_loss/(Ende_baseline - Ende_loss)), color = NA) +
-#   scale_fill_viridis_d(direction = -1) +
-#   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
-# finalrichLoss <- richLoss + 
-#   geom_sf(data = biomes, fill = NA, color = "gray10") +
-#   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
-# 
-# # plot
-# setwd(paste0(wdmain, "/output/maps"))
-# png("illegal_EndemismLoss_proportion.png", width = 2400, height = 2400, units = "px", res = 300)
-# finalrichLoss
-# dev.off()
-
-# just out of curiosity: LEGAL LOSS
+# PLOT BIODIVERSITY LOSS IN AREAS WITHOUT FOREST CODE DEFICIT (NO RESTORATION)
 legal <- FC_data2[which(FC_data2$legality == "legal"),] 
 summary(legal)
 
 # richness:
 richLoss <- ggplot(legal) +
-  geom_sf(aes(fill = richness_loss), color = NA) +
+  geom_sf(aes(fill = Richness_loss), color = NA) +
   scale_fill_viridis_c(direction = -1) +
   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1))
 finalrichLoss <- richLoss + 
@@ -253,14 +240,14 @@ finalrichLoss <- richLoss +
   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
 # save plot
 setwd(paste0(wdmain, "/output/maps"))
-png("legal_RichnessLoss.png", width = 2400, height = 2400, units = "px", res = 300)
+png("RichnessLoss_noDeficit.png", width = 2400, height = 2400, units = "px", res = 300)
 finalrichLoss
 dev.off()
 
 
 # endemsism 
 endLoss <- ggplot(legal) +
-  geom_sf(aes(fill = Ende_loss), color = NA) +
+  geom_sf(aes(fill = Endemism_loss), color = NA) +
   scale_fill_viridis_c(option = "magma", direction =-1) +
   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1))
 finalendLoss <- endLoss + 
@@ -268,7 +255,7 @@ finalendLoss <- endLoss +
   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
 # save plot
 setwd(paste0(wdmain, "/output/maps"))
-png("legal_EndemismLoss.png", width = 2400, height = 2400, units = "px", res = 300)
+png("EndemismLoss_noDeficit.png", width = 2400, height = 2400, units = "px", res = 300)
 finalendLoss
 dev.off()
 

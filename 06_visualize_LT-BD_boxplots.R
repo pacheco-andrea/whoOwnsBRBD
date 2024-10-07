@@ -16,22 +16,24 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 
 # read data on biodiversity extractions (land tenure + biodiversity) ----
-# setwd(paste0(wdmain, "/data/processed/bdExtractions-perPolygon"))
-setwd(paste0(wdmain, "/data/processed/bdExtractions-perPolygon_v202408"))
+
+setwd(paste0(wdmain, "/data/processed/bdExtractions-perPolygon_v202410"))
 l <- list.files()
 tables <- lapply(l, read.csv)
 lapply(tables, colnames)
 names(tables) <- gsub(".csv","", l)
+lapply(tables, colnames)
 
 # the tables have different column names, need to make them consistent to join into one table
-myColumns <- c("LTcateg", "id", "areakm2", "mean.phylodiversity_baseline", "mean.phylodiversity_current", "mean.phylodiversity_loss", 
-               "mean.richness_baseline", "mean.richness_current", "mean.richness_loss", 
-               "mean.Ende_baseline", "mean.Ende_current", "mean.Ende_loss")
+myColumns <- c("LTcateg", "id", "areakm2", 
+               "mean.Endemism_2020","mean.Endemism_baseline","mean.Endemism_loss",
+               "mean.Phylodiversity_2020","mean.Phylodiversity_baseline","mean.Phylodiversity_loss",
+               "mean.Richness_2020","mean.Richness_baseline","mean.Richness_loss")
 
 data <- lapply(names(tables), function(name){
   df <- tables[[name]]
   # select my columns
-  df <- df[, myColumns]
+  df <- df[,myColumns]
   # create column that identifies the overlap category
   df$myOverCat <- name
   return(df)
@@ -47,32 +49,33 @@ colnames(data) <- gsub("mean.", "", colnames(data))
 
 
 # filter out polygons that are < .5 km2 in area - the resolution of the BD data
-data.5km <- data[which(data$areakm2 <= .5),] 
+data.1km <- data[which(data$areakm2 <= 1),] 
 # quick visualization
-# ggplot(data.5km, aes(x = LTcateg)) + 
+# ggplot(data.1km, aes(x = LTcateg)) +
 #   geom_bar() +
 #   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
 # note: 5806802 IRU properties were <.5km, out of the 7067703 total (= 82% of records)
 # 5806802/7067703
+# and 693756 properties are >1km, which is only 9% of records
 # write out this data so that i can check it
 # setwd(paste0(wdmain, "data/processed/"))
 # write.csv(data.5km, "LT-BD_areaUnder.5km.csv", row.names = F)
 # henceforth use only the data that is under .5 km2
-data <- data[which(data$areakm2 >= .5),]
-rm(data.5km)
+data <- data[which(data$areakm2 >= 1),]
+rm(data.1km)
 # filter out these undesignated categories which are a bit ambiguous 
 data <- data[which(data$LTcateg != "OUTROS USOS"),]
 data <- data[which(data$LTcateg != "USO MILITAR"),]
 
 
 # examine the NAs (places where there was no value extracted)
-summary(data[which(is.na(data$phylodiversity_current )),])
-unique(data[which(is.na(data$phylodiversity_current )),]$myOverCat)
-ggplot(data[which(is.na(data$phylodiversity_current )),], aes(x = myOverCat)) + 
+summary(data[which(is.na(data$Endemism_2020 )),])
+unique(data[which(is.na(data$Endemism_2020)),]$myOverCat)
+ggplot(data[which(is.na(data$Endemism_2020)),], aes(x = myOverCat)) + 
   geom_bar() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) +
   coord_cartesian(ylim = c(0,500))
-# in sum, some losses across the board, but let's see how this changes with the new data
+# in sum, some losses across the board 
 
 # CLEAN UP THE OVERLAP CATEGORIES: ----
 unique(data$LTcateg)
@@ -114,13 +117,13 @@ unique(data$overlapsWith)
 
 # create variables for the proportion of loss
 
-data$rLoss_prop <- data$richness_loss/(data$richness_baseline - data$richness_loss)
+data$rLoss_prop <- data$Richness_loss/(data$Richness_baseline - data$Richness_loss)
 # i wanted to compare the bottom part of this proportion to the "current" layer - which is what it should be
 # through some testing i found there were very minor, slight differences
 # these differences would all point to BD losses which were *not* due to human-driven LUC
 # which means the safest - or the most accurate to human-driven changes - way is to stick to using the difference bt baseline and loss (rather than simply the current)
-data$eLoss_prop <- data$Ende_loss/(data$Ende_baseline - data$Ende_loss)
-data$pLoss_prop <- data$phylodiversity_loss/(data$phylodiversity_baseline - data$phylodiversity_loss)
+data$eLoss_prop <- data$Endemism_loss/(data$Endemism_baseline - data$Endemism_loss)
+data$pLoss_prop <- data$Phylodiversity_loss/(data$Phylodiversity_baseline - data$Phylodiversity_loss)
 
 
 # PLOTS ----
@@ -202,9 +205,9 @@ boxplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL){
   return(plot)
 }
 
-violinplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL){
+violinplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL, fill){
   
-  plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = overlapsWith2)) +
+  plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = {{fill}})) +
     geom_violin(position = position_dodge(width = 0.9), alpha = 0.5) +
     geom_boxplot(width=0.2, color="grey20", position = position_dodge(width = 0.9), alpha = 0.6) +
     scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
@@ -241,11 +244,11 @@ dataOverlaps <- data[-no,]
 # dev.off()
 
 # violin version with overlaps side by side
-richness <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (richness_current/areakm2), BDvariableTitle = "Current species richness density")
+richness <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Richness_2020/areakm2), BDvariableTitle = "Species richness 2020 (density)", fill = overlapsWith2)
 richness 
-ende <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Ende_current/areakm2), BDvariableTitle = "Current endemism density")
-ende <- ende + coord_cartesian(ylim = c(0,1))
-phyl <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (phylodiversity_current/areakm2), BDvariableTitle = "Current phylodiversity density")
+ende <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Endemism_2020/areakm2), BDvariableTitle = "Endemism 2020 (density)" , fill = overlapsWith2)
+# ende <- ende + coord_cartesian(ylim = c(0,1))
+phyl <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Phylodiversity_2020/areakm2), BDvariableTitle = "Phylodiversity 2020 (density)", fill = overlapsWith2)
 phyl 
 # to plot all together
 currentBDviolin <- plot_grid(richness, 
@@ -255,57 +258,39 @@ currentBDviolin <- plot_grid(richness,
 currentBDviolin
 # save plot
 setwd(paste0(wdmain, "/output"))
-png("CurrentBD_perTenureCategOverlaps_violinDensity.png", width = 3300, height = 4000, units = "px", res = 300)
+png("CurrentBD_perTenureCategOverlaps_violinDensity_202410.png", width = 3300, height = 4000, units = "px", res = 300)
 currentBDviolin
 dev.off()
 
-# how is it possible that i have endemism higher that 1/km2?
-summary(data$Ende_current)
-
-test <- data[,c(1:3,10:length(data))]
-test$testEnde <- test$Ende_current/test$areakm2
-summary(test)
-
-superEndemism <- test[which(test$testEnde > 1),]
-# i understand now: these properties were those that the endemism index value was higher than the area of the property 
-# meaning, very high endemism in very small properties, the mean endemism value per 1km2
-
+# violin version WITHOUT overlaps side by side
+richness <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Richness_2020/areakm2), BDvariableTitle = "Species richness 2020 (density)", fill = LTcateg2)
+richness 
+ende <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Endemism_2020/areakm2), BDvariableTitle = "Endemism 2020 (density)", fill = LTcateg2)
+# ende <- ende + coord_cartesian(ylim = c(0,1))
+phyl <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Phylodiversity_2020/areakm2), BDvariableTitle = "Phylodiversity 2020 (density)", fill = LTcateg2)
+phyl 
+# to plot all together
+currentBDviolin <- plot_grid(richness, 
+                             ende, 
+                             phyl, 
+                             nrow = 3, labels = c("A", "B", "C"))
+currentBDviolin
+# save plot
+setwd(paste0(wdmain, "/output"))
+png("CurrentBD_perTenureCategNoOverlaps_violinDensity_202410.png", width = 3300, height = 4000, units = "px", res = 300)
+currentBDviolin
+dev.off()
 
 # biodiversity losses across different categories ----
-# to properly show this loss it should be shown as the proportion: loss / original-loss
-# because this scales the loss of average richness, endemism, and phylodiversity
-
-# just check, what does it mean that many endemism losses are higher than 100%?
-data[which(data$eLoss_prop >= 1),] # probably need to check this with Bira - the loss was greater than the original endemism value
-
-
-# richness <- boxplotBD(data, tenureCategory = LTcateg2, BDvariable = rLoss_prop*100, BDvariableTitle = "Loss in species richness (%)")
-# richness <- richness + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-# ende <- boxplotBD(data, tenureCategory = LTcateg2, BDvariable = eLoss_prop*100, BDvariableTitle = "Loss in endemism (%)")
-# ende <- ende + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))+ coord_cartesian(ylim = c(0,100))
-# phyl <- boxplotBD(data, tenureCategory = LTcateg2, BDvariable = pLoss_prop*100, BDvariableTitle = "Loss in phylodiversity (%)")
-# phyl <- phyl + theme(axis.title.x = element_blank(), axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-# # to plot all together
-# lossBD <- plot_grid(richness, 
-#                        ende, 
-#                        phyl, 
-#                        nrow = 1)
-# lossBD
-# setwd(paste0(wdmain, "/output"))
-# png("BDLossProportion_perTenureCateg.png", width = 3600, height = 2400, units = "px", res = 300)
-# lossBD
-# dev.off()
-
-# violin version
 
 # this should now plot the PROPORTION OF LOSS (scaling for how much there was to begin with) over the AREA
 # which should indicate the DENSITY OF LOSS
-richness <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (rLoss_prop*areakm2), BDvariableTitle = "Area (km2) with potential sp. richness loss")
-# richness <- richness + coord_cartesian(ylim = c(0, 200))
-ende <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (eLoss_prop*areakm2), BDvariableTitle = "Area (km2) with potential endemism loss")
-# ende <- ende + coord_cartesian(ylim = c(0,100))
-phyl <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (pLoss_prop*areakm2), BDvariableTitle = "Area (km2) with potential phylodiversity loss")
-# phyl <- phyl + coord_cartesian(ylim = c(0,100))
+richness <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (rLoss_prop*areakm2), BDvariableTitle = "Area (km2) with potential sp. richness loss", fill = LTcateg)
+richness <- richness + coord_cartesian(ylim = c(0, 50))
+ende <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (eLoss_prop*areakm2), BDvariableTitle = "Area (km2) with potential endemism loss", fill = LTcateg)
+ende <- ende + coord_cartesian(ylim = c(0,100))
+phyl <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (pLoss_prop*areakm2), BDvariableTitle = "Area (km2) with potential phylodiversity loss", fill = LTcateg)
+phyl <- phyl + coord_cartesian(ylim = c(0,50))
 # to plot all together
 lossBD <- plot_grid(richness, 
                     ende, 
@@ -314,17 +299,9 @@ lossBD <- plot_grid(richness,
 lossBD
 
 setwd(paste0(wdmain, "/output"))
-png("BDLossProportion_perTenureCategOVerlaps_violinArea.png",width = 3300, height = 4000,  units = "px", res = 300)
+png("BDLossProportion_perTenureCategNoOVerlaps_violinArea.png",width = 3300, height = 4000,  units = "px", res = 300)
 lossBD
 dev.off()
-
-# check these proportions of loss again:
-test2 <- data[which((data$rLoss_prop*100)/data$areakm2 > 100),]
-head(test2)
-
-summary(data$rLoss_prop*data$areakm2)
-
-# hence, here again, I see proportions of loss (e.g., 0.58 or 58% loss) larger than the area of the property (.5 km2)
 
 # biodiversity and FC compliance ----
 # combine this cleaned bd+tenure data with forest deficit information 
