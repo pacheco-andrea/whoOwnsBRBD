@@ -58,23 +58,59 @@ reclass_matrix <- matrix(c(
 ), ncol = 2, byrow = TRUE)
 
 # Reclassify the raster
-# u <- unique(landCover[[1]])
-forestCover85 <- terra::classify(landCover[[1]], reclass_matrix, others = 30)
-u85 <- unique(forestCover85)
-
-forestCover23 <- terra::classify(landCover[[2]], reclass_matrix, others = 30)
-u23 <- unique(forestCover23)
+# u <- unique(landCover[[2]])
+# forestCover85 <- terra::classify(landCover[[1]], reclass_matrix, others = 30)
+# u85 <- unique(forestCover85)
+# 
+# forestCover23 <- terra::classify(landCover[[2]], reclass_matrix, others = 30)
+# u23 <- unique(forestCover23)
 
 
 # Save the reclassified raster (optional)
+# setwd(paste0(wdmain,"/data/processed/forestCover"))
+# writeRaster(forestCover85, "forestCover1985.tif", filetype="GTiff", overwrite=TRUE)
+# writeRaster(forestCover23, "forestCover2023.tif", filetype="GTiff", overwrite=TRUE)
+# reread in
 setwd(paste0(wdmain,"/data/processed/forestCover"))
-writeRaster(forestCover85, "forestCover1985.tif", filetype="GTiff", overwrite=TRUE)
-writeRaster(forestCover23, "forestCover2023.tif", format="GTiff", overwrite=TRUE)
+f23 <- rast("forestCover2023.tif")
+f85 <- rast("forestCover1985.tif")
+terra::plot(f85)
+terra::plot(f23)
 
+# Map: ----
+# i need a map that is 1) red 10-f85 that is now 20-ag23, green all 10-23
+# meants that first 30 == 0
+reclass_matrix <- matrix(c(30, 0), ncol = 2, byrow = TRUE)
+f23_2 <- terra::classify(f23, reclass_matrix)
+plot(f23_2)
 
-# CONTINUE HERE
-# map and write out a map of forest cover in 1985, and 2023
-plot(forestCover85)
+reclass_matrix <- matrix(c(30, 0,
+                           20, 2,
+                           10, 1), ncol = 2, byrow = TRUE)
+f85_2 <- terra::classify(f85, reclass_matrix)
+plot(f85_2)
+
+f2ag <- f23_2 + f85_2
+plot(f2ag)
+# write out
+setwd(paste0(wdmain,"/data/processed/forestCover"))
+writeRaster(f2ag, "forest2agriculture.tif", filetype="GTiff", overwrite=TRUE)
+# plot map 
+u <- unique(f2ag)
+
+f2agCols <- data.frame(0, "#ffffff",
+                       20, "#ffffff", 
+                       10, "green", 
+                       11, "green",
+                       21, "red",
+                       22, "#ffffff",
+                       12, "green")
+terra::plot(f2ag, 
+            type = "classes",
+            axes=F,
+            mar = c(0, 0, 0, 7.1),
+            col = f2agCols)
+
 
 
 
