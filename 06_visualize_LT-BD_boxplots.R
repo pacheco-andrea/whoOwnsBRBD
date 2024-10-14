@@ -1,9 +1,12 @@
 #### Biodiversity and Tenure in Brazil ####
 
-# script that visualizes biodiversity indicators per tenure categ that have been extracted previously
+# script that visualizes biodiversity indicators per tenure categ that have previously been extracted 
+
 # two main outcomes:
-# 1) boxplots of all BD variables, alongside boxplots of the categories that are overlapping
+# 1) boxplots of all BD variables (with the option of seeing the categories that are overlapping)
 # 2) bd+tenure dataset joined with original information from CSR on the forest code deficit variables
+
+# now need to add comparisons to deforestation
 
 library(dplyr)
 library(tidyr)
@@ -42,6 +45,35 @@ data <- lapply(names(tables), function(name){
 data <- do.call(rbind, data)
 colnames(data) <- gsub("mean.", "", colnames(data))
 
+test <- data %>% distinct(LTcateg, id, myOverCat, .keep_all = T)
+nrow(test)
+nrow(data)
+test2 <- data %>% filter(duplicated(paste(LTcateg, id, myOverCat)))
+head(test2)
+# read data on deforestation extractions 
+
+setwd(paste0(wdmain, "/data/processed/forestExtractions-perPolygon"))
+l <- list.files()
+tables <- lapply(l, read.csv)
+lapply(tables, colnames)
+names(tables) <- gsub(".csv","", l)
+
+myColumns <- c("LTcateg", "id", "for23", "defor")
+fData <- lapply(names(tables), function(name){
+  df <- tables[[name]]
+  # select my columns
+  df <- df[,myColumns]
+  # create column that identifies the overlap category
+  df$myOverCat <- name
+  return(df)
+})
+fData <- do.call(rbind, fData)
+head(fData)
+
+# join data
+data_new <- inner_join(data, fData, by = c("LTcateg", "id", "myOverCat"))
+nrow(data_new)
+
 # data cleaning and organizing ----
 # summary(data)
 # unique(data$LTcateg) 
@@ -49,7 +81,7 @@ colnames(data) <- gsub("mean.", "", colnames(data))
 
 
 # filter out polygons that are < .5 km2 in area - the resolution of the BD data
-data.1km <- data[which(data$areakm2 <= 1),] 
+data.1km <- data[which(data$areakm2 <= .9),] 
 # quick visualization
 # ggplot(data.1km, aes(x = LTcateg)) +
 #   geom_bar() +
@@ -61,7 +93,7 @@ data.1km <- data[which(data$areakm2 <= 1),]
 # setwd(paste0(wdmain, "data/processed/"))
 # write.csv(data.5km, "LT-BD_areaUnder.5km.csv", row.names = F)
 # henceforth use only the data that is under .5 km2
-data <- data[which(data$areakm2 >= 1),]
+data <- data[which(data$areakm2 >= .9),]
 rm(data.1km)
 # filter out these undesignated categories which are a bit ambiguous 
 data <- data[which(data$LTcateg != "OUTROS USOS"),]

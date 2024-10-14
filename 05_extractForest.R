@@ -1,6 +1,6 @@
 #### Biodiversity and Tenure in Brazil ####
 
-# script that extracts the biodiversity indicator values per different tenure regimes
+# script that extracts the deforestation of 1985-2023 per different tenure regimes
 
 
 # libraries
@@ -13,16 +13,29 @@ library(exactextractr)
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 
-# biodiversity data ----
-# using the raw data here - 
-setwd(paste0(wdmain,"/data/raw/Biodiversity_v20241010"))
-rasters <- list.files()[grep("tif$", list.files())]
-rasters
-biodiv <- rast(rasters)
-names(biodiv) <- gsub("_BR.tif", "", rasters)
+# set up deforestation data ----
+
+setwd(paste0(wdmain,"/data/processed/forestCover"))
+forest <- rast("forest2agriculture.tif")
+
+# i need the extraction to count how many cells are 12 (deforestation)
+# and to count how many cells are 1, 10, 11, 21 (forest)
+# everything else i dont need
+
+reclass_matrix <- matrix(c(
+1, 1,
+10, 1,
+11, 1,
+21, 1, 
+12, 2
+), ncol = 2, byrow = TRUE)
+
+forest <- terra::classify(forest, reclass_matrix, others = 0)
 
 # make extraction function
-extractBD <- function(listOfShapes, directoryIn, directoryOut, crsBD, biodiv, outNamePrefix){
+listofShapes 
+
+extractFor <- function(listOfShapes, directoryIn, directoryOut, crsBD, forest, outNamePrefix){
   
   # make loop to conduct extraction for list of shapes
   for(i in 1:length(listOfShapes))
@@ -35,14 +48,22 @@ extractBD <- function(listOfShapes, directoryIn, directoryOut, crsBD, biodiv, ou
     s$areakm2 <- as.numeric(st_area(s)/1000000)
     s <- st_transform(s, crsBD) 
     # extract
-    bd <- exactextractr::exact_extract(biodiv, s, "mean")
+    f2a <- exactextractr::exact_extract(forest, s, function(values, coverage_fraction) {
+      # Count the number of cells where raster value is 1
+      count_1 <- sum(values == 1, na.rm = TRUE)
+      # Count the number of cells where raster value is 2
+      count_2 <- sum(values == 2, na.rm = TRUE)
+      # Return as a data frame
+      return(data.frame(for23 = count_1, defor = count_2))
+    })
     # join data
-    s2 <- cbind(st_drop_geometry(s), bd)
+    s2 <- cbind(st_drop_geometry(s), f2a)
     # write out table
     setwd(directoryOut)
     write.csv(s2, file = paste0(outNamePrefix, name, ".csv"), row.names = FALSE)
   }
 }
+
 
 
 #  extractions for PUBLIC lands with no overlaps ----
@@ -52,22 +73,22 @@ extractBD <- function(listOfShapes, directoryIn, directoryOut, crsBD, biodiv, ou
 setwd(paste0(wdmain,"/data/processed/LT_no-overlaps/"))
 f <- grep(".shp", list.files())
 
-extractBD(listOfShapes = list.files()[f],
+extractFor(listOfShapes = list.files()[f],
           directoryIn = paste0(wdmain,"/data/processed/LT_no-overlaps/"),
-          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon_v202410/"),
-          crsBD = crs(biodiv[[1]]),
-          biodiv = biodiv,
+          directoryOut = paste0(wdmain,"/data/processed/forestExtractions-perPolygon/"),
+          crsBD = crs(forest),
+          forest = forest,
           outNamePrefix = "public_no-overlaps_")
 
 # extractions OVERLAPS  ----
 setwd(paste0(wdmain,"/data/processed/LT_overlaps/"))
 f <- grep(".shp", list.files())
 
-extractBD(listOfShapes = list.files()[f], 
+extractFor(listOfShapes = list.files()[f], 
           directoryIn = paste0(wdmain,"/data/processed/LT_overlaps/"), 
-          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon_v202410/"), 
-          crsBD = crs(biodiv[[1]]), 
-          biodiv = biodiv, 
+          directoryOut = paste0(wdmain,"/data/processed/forestExtractions-perPolygon/"), 
+          crsBD = crs(forest),
+          forest = forest,
           outNamePrefix = "overlaps_")
 
 # extractions OVERLAPS across public & private categs ----
@@ -75,11 +96,11 @@ extractBD(listOfShapes = list.files()[f],
 setwd(paste0(wdmain,"/data/processed/LT_pubxpri_overlaps/"))
 f <- grep(".shp", list.files())
 
-extractBD(listOfShapes = list.files()[f], 
+extractFor(listOfShapes = list.files()[f], 
           directoryIn = paste0(wdmain,"/data/processed/LT_pubxpri_overlaps/"), 
-          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon_v202410/"), 
-          crsBD = crs(biodiv[[1]]), 
-          biodiv = biodiv, 
+          directoryOut = paste0(wdmain,"/data/processed/forestExtractions-perPolygon/"), 
+          crsBD = crs(forest),
+          forest = forest,
           outNamePrefix = "pubxpri_overlaps_")
 
 # i've left this one for last because it takes the longest
@@ -87,10 +108,10 @@ extractBD(listOfShapes = list.files()[f],
 setwd(paste0(wdmain,"/data/processed/LT_no-overlaps_private/"))
 f <- grep(".shp", list.files())
 
-extractBD(listOfShapes = list.files()[f], 
+extractFor(listOfShapes = list.files()[f], 
           directoryIn = paste0(wdmain,"/data/processed/LT_no-overlaps_private/"), 
-          directoryOut = paste0(wdmain,"/data/processed/bdExtractions-perPolygon_v202410/"), 
-          crsBD = crs(biodiv[[1]]), 
-          biodiv = biodiv, 
+          directoryOut = paste0(wdmain,"/data/processed/forestExtractions-perPolygon/"), 
+          crsBD = crs(forest),
+          forest = forest,
           outNamePrefix = "private_no-overlaps_")
 
