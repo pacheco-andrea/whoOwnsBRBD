@@ -41,10 +41,14 @@ res(richness) # .01 degrees
 biomes <- read_biomes(year=2019)
 biomes <- biomes[-7,]$geom
 biomes <- st_transform(biomes, crs = crs(richness[[1]], proj = T))
-plot(biomes)
-v <- vect(biomes)
+
+biomes2 <- st_simplify(biomes, dTolerance = 10000)
+plot(biomes2)
+v <- vect(biomes2)
 
 
+
+# current biodiversity ----
 # map and write out richness map
 summary(richness)
 summary(endemism)

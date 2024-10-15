@@ -101,7 +101,7 @@ reclass_matrix <- matrix(c(
 # reread in reclassified forest & agriculture rasters
 setwd(paste0(wdmain,"/data/processed/forestCover"))
 # f23 <- rast("forestCover2023.tif")
-f23 <- forestCover23
+f23 <- rast("forestCover2023.tif")
 f85 <- rast("forestCover1985.tif")
 terra::plot(f85)
 terra::plot(f23)
@@ -114,7 +114,7 @@ setwd(paste0(wdmain,"/data/processed/forestCover"))
 
 f2ag <- rast("forest2agriculture.tif")
 f2ag
-u <- unique(f2ag)
+# u <- unique(f2ag)
 plot(f2ag)
 
 # plot map ----
@@ -128,14 +128,16 @@ f2agCols <- data.frame(
 biomes <- read_biomes(year=2019)
 biomes <- biomes[-7,]$geom
 biomes <- st_transform(biomes, crs = crs(f2ag, proj = T))
-plot(biomes)
-v <- vect(biomes)
+biomes2 <- st_simplify(biomes, dTolerance = 10000)
+plot(biomes2)
+v <- vect(biomes2)
+
 
 # plot map
 terra::plot(f2ag, 
             type = "classes",
             axes=F,
-            mar = c(0, 0, 0, 7.1),
+            mar = c(0, 0, 0, 0),
             col = f2agCols,
             legend = F) # add legend manually later
 terra::lines(v, lwd=.1)
@@ -146,7 +148,7 @@ png("forest2ag_1985-2023.png", units = "px", width = 1500, height = 1500, res = 
 terra::plot(f2ag, 
             type = "classes",
             axes=F,
-            mar = c(0, 0, 0, 7.1),
+            mar = c(0, 0, 0, 0),
             col = f2agCols,
             legend = F)
 terra::lines(v, lwd=.1)
