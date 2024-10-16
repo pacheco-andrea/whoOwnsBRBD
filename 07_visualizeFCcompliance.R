@@ -139,18 +139,20 @@ plot(propsDeficit, add = T, col = "#f03b20", border = NA, alpha = .8)
 terra::lines(v, lwd=.1)
 dev.off()
 
-# next,
-
-# map of how much biodiversity declines could be improved with compliance with the forest code?
+# map of how much biodiversity declines could be improved with compliance with the forest code? ----
 # how much biodiversity weighted by how much is "owed"
 # add the properties with deficits 
 # total deficit for both APP and RL
 propsDeficit$totalDeficit <- propsDeficit$rl_def + propsDeficit$app_def
+
+
+# richness
 # create variable of richness lost weighed by total deficit
 propsDeficit$BDFC <- abs(propsDeficit$Richness_loss*propsDeficit$totalDeficit)
-myCols <- colorRampPalette(c('#f7fcf0','#e0f3db','#ccebc5','#a8ddb5','#7bccc4','#4eb3d3','#2b8cbe','#0868ac','#084081'))(20)
-breaks <- classIntervals(propsDeficit$BDFC, na.rm = T)
-breaks$brks
+myCols <- c('#f7fcf0','#e0f3db','#ccebc5','#a8ddb5','#7bccc4','#4eb3d3','#2b8cbe','#0868ac','#084081')
+breaks <- classIntervals(propsDeficit$BDFC, na.rm = T, n=9)
+# create factor variable based on these bins
+propsDeficit$myCol1 <- cut(propsDeficit$BDFC, breaks = breaks$brks, labels = myCols, include.lowest = T)
 
 setwd(paste0(wdmain, "/output/maps"))
 png("BD-Richness_x_DeficitAreas.png", width = 2400, height = 2400, units = "px", res = 300)
@@ -160,9 +162,57 @@ plot(t[[1]], axes = F, mar = NA, legend = F, col = "gray90")
 for (i in 2:length(t)) {
   plot(t[[i]], axes = F, , col = "gray90", mar = NA, legend = F, add = TRUE)  # Add each raster on top of the previous one
 }
-plot(propsDeficit["BDFC"], add = T, border = NA, col = myCols, breaks = breaks$brks, )
+plot(propsDeficit, col = as.character(propsDeficit$myCol1), add = T, border = NA)
 terra::lines(v, lwd=.1)
 dev.off()
+
+# endemism
+# create variable of endemism lost weighed by total deficit
+propsDeficit$EndeFC <- abs(propsDeficit$Endemism_loss*propsDeficit$totalDeficit)
+myCols <- c('#f7fcf0','#e0f3db','#ccebc5','#a8ddb5','#7bccc4','#4eb3d3','#2b8cbe','#0868ac','#084081')
+breaks <- classIntervals(propsDeficit$EndeFC, na.rm = T, n=9)
+# create factor variable based on these bins
+propsDeficit$myCol2 <- cut(propsDeficit$EndeFC, breaks = breaks$brks, labels = myCols, include.lowest = T)
+
+setwd(paste0(wdmain, "/output/maps"))
+png("BD-Endemism_x_DeficitAreas.png", width = 2400, height = 2400, units = "px", res = 300)
+# plot first one
+plot(t[[1]], axes = F, mar = NA, legend = F, col = "gray90")
+# add others on top
+for (i in 2:length(t)) {
+  plot(t[[i]], axes = F, , col = "gray90", mar = NA, legend = F, add = TRUE)  # Add each raster on top of the previous one
+}
+plot(propsDeficit, col = as.character(propsDeficit$myCol2), add = T, border = NA)
+terra::lines(v, lwd=.1)
+dev.off()
+
+
+# need to create legend for areas - what is a high amount of deficit, and, what is a high amount of biodiversity loss?
+# actually i'm re-evaluating the possibility of doing a bivariate map
+# where i identify the areas with high biodiversity losses and high biodivesity deficits - to identify the most potential for restoration
+# and the places where there isn't as high biodiversity loss, but high deficit
+
+# make quick map to visualize the deficit in a continuous way
+myCols <- c('#fff7bc','#fee391','#fec44f','#fe9929','#ec7014','#cc4c02','#993404','#662506')
+propsDeficit$totalDeficit2 <- abs(propsDeficit$totalDeficit)
+breaks <- classIntervals(propsDeficit$totalDeficit2, na.rm = T, n=8)
+propsDeficit$myCol3 <- cut(propsDeficit$totalDeficit2, breaks = breaks$brks, labels = myCols, include.lowest = T)
+setwd(paste0(wdmain, "/output/maps"))
+png("map_DeficitAreas_continuous.png", width = 2400, height = 2400, units = "px", res = 300)
+# plot first one
+plot(t[[1]], axes = F, mar = NA, legend = F, col = "gray90")
+# add others on top
+for (i in 2:length(t)) {
+  plot(t[[i]], axes = F, , col = "gray90", mar = NA, legend = F, add = TRUE)  # Add each raster on top of the previous one
+}
+plot(propsDeficit, col = as.character(propsDeficit$myCol3), add = T, border = NA)
+terra::lines(v, lwd=.1)
+dev.off()
+
+
+
+
+
 
 # ...relate this to forest/deforestation somehow?
 # richness:
@@ -200,36 +250,5 @@ png("EndemismLoss_deficitAreas.png", width = 2400, height = 2400, units = "px", 
 finalendLoss
 dev.off()
 
-# PLOT BIODIVERSITY LOSS IN AREAS WITHOUT FOREST CODE DEFICIT (NO RESTORATION)
-legal <- FC_data2[which(FC_data2$legality == "legal"),] 
-summary(legal)
 
-# richness:
-richLoss <- ggplot(legal) +
-  geom_sf(aes(fill = Richness_loss), color = NA) +
-  scale_fill_viridis_c(direction = -1) +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1))
-finalrichLoss <- richLoss + 
-  geom_sf(data = biomes, fill = NA, color = "gray10") +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
-# save plot
-setwd(paste0(wdmain, "/output/maps"))
-png("RichnessLoss_noDeficit.png", width = 2400, height = 2400, units = "px", res = 300)
-finalrichLoss
-dev.off()
-
-
-# endemsism 
-endLoss <- ggplot(legal) +
-  geom_sf(aes(fill = Endemism_loss), color = NA) +
-  scale_fill_viridis_c(option = "magma", direction =-1) +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1))
-finalendLoss <- endLoss + 
-  geom_sf(data = biomes, fill = NA, color = "gray10") +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
-# save plot
-setwd(paste0(wdmain, "/output/maps"))
-png("EndemismLoss_noDeficit.png", width = 2400, height = 2400, units = "px", res = 300)
-finalendLoss
-dev.off()
 
