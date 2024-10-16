@@ -83,122 +83,96 @@ biomes <- biomes[-7,]$geom
 biomes <- st_transform(biomes, crs = crs(mask, proj = T))
 plot(biomes)
 
-
-# make BD and FC compliance variables categories for choropleth map NOT DOING THIS ANYMORE ---- 
-# do i need to think about normalizing some of the BD variables?
-# (e.g. species richness - is already the mean of the polygon, weighed by the % that the pixel covered. but this should still be divided by the area, no?)
-# the loss variables are already normalized but will i be plotting this?
-set.seed(123)
-# classify BD vars
-BDbreaks_rich <- classIntervals(FC_data2$richness_current, n = 3, style = "fisher")
-BDbreaks_rich$brks
-BD_richClasses <- cut(FC_data2$richness_current, 
-                      breaks = BDbreaks_rich$brks, 
-                      labels = c("low", "medium", "high"), 
-                      include.lowest = TRUE)
-
-# classify FC variables
-# is there deficit
-deficit <- abs(FC_data2$rl_def + FC_data2$app_def) # i take the absolute values so that high values equal high deficit
-breaks_deficit <- classIntervals(deficit, n = 3, style = "fisher")
-breaks_deficit$brks
-deficit_classes <- cut(deficit,
-                       breaks = breaks_deficit$brks, 
-                       labels = c("low", "medium", "high"), 
-                       include.lowest = TRUE)
-
-summary(BD_richClasses)
-summary(deficit_classes) 
-nrow(FC_data2)
-
-# add as a column to data
-FC_data2$rich_deficit <- paste0("BD-", BD_richClasses, "_FC-", deficit_classes)
-table(FC_data2$rich_deficit) # there are NO places where there is high biodiversity and high FC deficit nor high FC deficit and low biodiversity
-# this, to me, signals a poor job of the class intervals of the FC deficit
-
-unique(FC_data2$rich_deficit)
-bivariateCols <- c("BD-low_FC-low" = "#E8e8e8",
-     "BD-low_FC-medium" = "#ace4e4",   
-     "BD-low_FC-high" = "#5ac8c8",       
-     "BD-medium_FC-low" =  "#dfb0d6",
-     "BD-medium_FC-medium" = "#a5add3",  
-     "BD-medium_FC-high" =  "#5698b9",
-     "BD-high_FC-low" = "#be64ac",
-     "BD-high_FC-medium" = "#8c62aa",
-     "BD-high_FC-high" ="#3b4994",
-     "BD-NA_FC-low" = "#E8e8e8",
-     "BD-NA_FC-medium" = "#ace4e4")
-
-
-ggplot(biomes) +
-  geom_sf(fill = NA, color = "gray10") +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
-
-
-# bivariate map richness
-biMap <- ggplot(FC_data2) +
-  geom_sf(aes(fill = rich_deficit), color = NA) +
-  scale_colour_manual(values = bivariateCols, aesthetics = c("color", "fill")) +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
-finalbiMap <- biMap + 
-  geom_sf(data = biomes, fill = NA, color = "gray10") +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
-
-# # bivariate map for other categories???
-# biMap <- ggplot(FC_data2) +
-#   geom_sf(aes(fill = rich_deficit), color = NA) +
-#   scale_colour_manual(values = bivariateCols, aesthetics = c("color", "fill")) +
-#   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
-# finalbiMap <- biMap + 
-#   geom_sf(data = biomes, fill = NA, color = "gray10") +
-#   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
-
-
-# plot
-setwd(paste0(wdmain, "/output"))
-png("bivariateMapBiomes.png", width = 2400, height = 2400, units = "px", res = 300)
-finalbiMap
-dev.off()
-
-# # test other function - i hated this
-# ?bi_class # this function automatizes the classification, which i'm never a fan of
-# # it also seems to simplify the geometry, which makes for a bit faster plotting, but then the map is quite holey
-# test <- bi_class(FC_data2, x = richness_current, y = rl_def, style = "fisher", dim = 3)
-# testMap <- ggplot() +
-#   geom_sf(data = test, mapping = aes(fill = bi_class), color = "white", size = 0.1) +
-#   bi_scale_fill(pal = "GrPink", dim = 3) +
-#   labs(title = "test richness and RL deficit") +
-#   bi_theme() 
-# setwd(paste0(wdmain, "/output"))
-# png("RLdeficit_richness_bivariate_test.png", width = 2400, height = 2400, units = "px", res = 300)
-# testMap
-# dev.off() # remember that here high values == high deficit
-
-# make map of BD loss that could have happened in places of illegal deforestation ----
+# Biodiversity declines that could be reversed with full compliance of the FC in Brazil ----
 head(FC_data2)
 
-# we need to set this as a starting point because there are deforestation polygons that have neither surplus nor deficit - in theory, legal
-FC_data2$legality <- "legal" 
-# identify cases where there is veg surplus
-# would also be legal, so the part below is redundant
-# FC_data2[which(FC_data2$rl_ativo > 0),]$legality <- "legal"
-
-# now identify the observations with deforestation where there was a deficit for either RL or APPs
+# create new column
+FC_data2$deficit <- "no deficit" 
+# identify the observations with deforestation where there was a deficit for either RL or APPs
 # note this could overwrite the places where there was rl ativo (surplus), because app deficit is still be potentially illegal
-summary(FC_data2[which(FC_data2$rl_def < 0 | FC_data2$app_def < 0),])
+# summary(FC_data2[which(FC_data2$rl_def < 0 | FC_data2$app_def < 0),])
 # overwrite 
-FC_data2[which(FC_data2$rl_def < 0 | FC_data2$app_def < 0),]$legality <- "illegal"
-FC_data2$legality <- as.factor(FC_data2$legality)
+FC_data2[which(FC_data2$rl_def < 0 | FC_data2$app_def < 0),]$deficit <- "deficit"
+FC_data2$deficit <- as.factor(FC_data2$deficit)
 summary(FC_data2)
 
 # filter data for (potential) illegal biodiversity loss 
-illegalBDloss <- FC_data2[which(FC_data2$legality == "illegal"),] 
-summary(illegalBDloss) 
+propsDeficit <- FC_data2[which(FC_data2$deficit == "deficit"),] 
+summary(propsDeficit) 
 
 # PLOT BIODIVERSITY LOSS IN AREAS WITH FOREST CODE DEFICIT (RESTORATION) ----
+# actually, i was thinking it would be good to have a raster base of all the properties in brazil
 
+sample_FC <- sample_frac(FC_data2, 0.1)
+
+deficitCols <- c("no deficit" = "#f0f0f0", "deficit" = "#f03b20")
+
+# base map of all properties + properties with forest code deficits ----
+# read in raster of all the properties we have
+setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
+l <- grep("SAalbers_1km.tif$", list.files())
+t <- lapply(list.files()[l], rast) # very weird, changing behavior with lists from terra
+# terra::plot(t)
+names(t) <- gsub("landTenure_", "", gsub("_SAalbers_1km.tif","", list.files()[l]))
+# get rid of sigef and snci properties
+t$SIGEF_properties <- NULL
+t$SNCI_properties <- NULL
+
+# add biomes 
+biomes <- read_biomes(year=2019)
+biomes <- biomes[-7,]$geom
+biomes <- st_transform(biomes, crs = crs(mask, proj = T))
+plot(biomes)
+v <- vect(biomes)
+
+# make very simple map of all the areas with deficit in the forest code
+setwd(paste0(wdmain, "/output/maps"))
+png("MapDeficitAreas.png", width = 2400, height = 2400, units = "px", res = 300)
+# plot first one
+plot(t[[1]], axes = F, mar = NA, legend = F, col = "gray90")
+# add others on top
+for (i in 2:length(t)) {
+  plot(t[[i]], axes = F, , col = "gray90", mar = NA, legend = F, add = TRUE)  # Add each raster on top of the previous one
+}
+# add the properties with deficits 
+plot(propsDeficit, add = T, col = "#f03b20", border = NA, alpha = .8)
+terra::lines(v, lwd=.1)
+dev.off()
+
+# next,
+
+# map of how much biodiversity declines could be improved with compliance with the forest code?
+# how much biodiversity weighted by how much is "owed"
+# add the properties with deficits 
+# total deficit for both APP and RL
+propsDeficit$totalDeficit <- propsDeficit$rl_def + propsDeficit$app_def
+# create variable of richness lost weighed by total deficit
+propsDeficit$BDFC <- abs(propsDeficit$Richness_loss*propsDeficit$totalDeficit)
+myCols <- colorRampPalette(c('#f7fcf0','#e0f3db','#ccebc5','#a8ddb5','#7bccc4','#4eb3d3','#2b8cbe','#0868ac','#084081'))(20)
+breaks <- classIntervals(propsDeficit$BDFC, na.rm = T)
+breaks$brks
+
+setwd(paste0(wdmain, "/output/maps"))
+png("BD-Richness_x_DeficitAreas.png", width = 2400, height = 2400, units = "px", res = 300)
+# plot first one
+plot(t[[1]], axes = F, mar = NA, legend = F, col = "gray90")
+# add others on top
+for (i in 2:length(t)) {
+  plot(t[[i]], axes = F, , col = "gray90", mar = NA, legend = F, add = TRUE)  # Add each raster on top of the previous one
+}
+plot(propsDeficit["BDFC"], add = T, border = NA, col = myCols, breaks = breaks$brks, )
+terra::lines(v, lwd=.1)
+dev.off()
+
+# ...relate this to forest/deforestation somehow?
 # richness:
-richLoss <- ggplot(illegalBDloss) +
+ggplot(sample_FC) +
+  geom_sf(aes(fill = deficit), color = NA) +
+  scale_fill_manual(values = deficitCols) +
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1))
+
+
+
   geom_sf(aes(fill = Richness_loss), color = NA) +
   scale_fill_viridis_c(direction = -1) +
   theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1))
@@ -212,7 +186,7 @@ finalrichLoss
 dev.off()
 
 
-# endemsism 
+# endemism 
 endLoss <- ggplot(illegalBDloss) +
   geom_sf(aes(fill = Endemism_loss), color = NA) +
   scale_fill_viridis_c(option = "magma", direction =-1) +

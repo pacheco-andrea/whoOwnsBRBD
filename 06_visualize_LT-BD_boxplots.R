@@ -400,6 +400,8 @@ original_ast <- s[which(s$tipo == "AST"),]
 original_ast$id <- paste0("AST-", 1:nrow(original_ast))
 # join both datasets with FC info
 original_csr <- rbind(original_iru, original_ast)
+colnames(original_csr)
+
 original_csr <- select(original_csr, c("uf", "n_mf", "area_conv", "area_veg", "rl_ativo", "rl_def", "app_def", "desmat_p08", "id"))
 
 # join data with tenure+bd data

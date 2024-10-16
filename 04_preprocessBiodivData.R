@@ -50,8 +50,6 @@ v <- vect(biomes2)
 
 # current biodiversity ----
 # map and write out richness map
-summary(richness)
-summary(endemism)
 
 breaks <- classIntervals(values(richness[[1]], na.rm = T))
 breaks$brks
@@ -64,13 +62,12 @@ terra::plot(richness[[1]],
      breaks = breaks$brks,
      axes=F,
      mar = c(0, 0, 0, 7.1),
-     col = viridis(n = as.integer(max(breaks$brks)-min(breaks$brks)), direction = -1))
+     col = turbo(n = as.integer(max(breaks$brks)-min(breaks$brks))))
 terra::lines(v, lwd=.1)
 dev.off()
 
 
 # map and write out endemism map
-summary(endemism)
 
 breaks <- classIntervals(values(endemism[[1]], na.rm = T))
 breaks$brks
@@ -84,13 +81,11 @@ terra::plot(endemism[[1]],
      breaks = breaks$brks,
      axes=F,
      mar = c(0, 0, 0, 7.1),
-     col = magma(n=1000, direction = -1))
+     col = turbo(n = as.integer(max(breaks$brks)-min(breaks$brks))))
 terra::lines(v, lwd=.1)
-
 dev.off()
 
 # map and write out phylogenetic diversity map
-summary(phylogenetic)
 
 breaks <- classIntervals(values(phylogenetic[[1]], na.rm = T))
 breaks$brks
@@ -103,9 +98,8 @@ terra::plot(phylogenetic[[1]],
      breaks = breaks$brks,
      axes=F,
      mar = c(0, 0, 0, 7.1),
-     col = magma(n=1000, direction = -1))
+     col = turbo(n = as.integer(max(breaks$brks)-min(breaks$brks))))
 terra::lines(v, lwd=.1)
-
 dev.off()
 
 # map and write out losses to compare to the deforestation map ----
