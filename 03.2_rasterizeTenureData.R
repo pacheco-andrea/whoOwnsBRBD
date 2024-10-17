@@ -150,56 +150,77 @@ biomes <- st_transform(biomes, crs = crs(mask, proj = T))
 plot(biomes)
 v <- vect(biomes)
 
+# select the undesignated lands i'm interested in
+t$`undesignated-oth` <- mask(t$`undesignated-oth`, t$`undesignated-oth` == "SEM DESTINACAO", maskvalue = F)
 
-# plot maps one at a time, one on top of the other ----
+
+# MAKE TENURE MAP ----
 names(t)
+# I follow this order because it's what makes most sense data/legally wise
 
-par(mfrow = c(1,1))
-plot(t$protectedAreas, # conservation units
-     col = c("#8C7E5B", "#1B9E77"), 
+setwd(paste0(wdmain, "output/maps/"))
+svg("BrazilLandTenureCategories.svg", width = 6, height = 8)
+
+plot(t$`undesignated-oth`, 
+     col = c("#1d6c7d"),
      type = "classes", 
-     mar=NA,
+     mar = c(0, 0, 0, 0),
      box = F,
      axes = F,
-     plg = list(legend = c("PA strict protection","PA sustainable use"), x="left", y=-10))
+     legend = F)
 
-plot(t$indigenous,
+plot(t$IRU,
      add = T,
-     col = c("#E78AC3"), alpha = .8,
-     type = "classes",
-     mar=NA,
+     col = c("#8DA0CB"),
+     type = "classes", 
+     mar = c(0, 0, 0, 0),
      box = F,
      axes = F,
-     plg = list(legend = c("indigenous"), x = "bottomright"))
+     legend = F)
 
 plot(t$ruralSettlements, 
      add = T,
-     col = c("#FC8D62"), alpha = .8,
+     col = c("#FC8D62"), 
      type = "classes", 
-     mar=NA,
+     mar = c(0, 0, 0, 0),
      box = F,
      axes = F,
-     plg = list(legend = c("rural settlements"), x = "bottomright"))
+     legend = F)
 
-plot(t$IRU, 
+plot(t$protectedAreas, # conservation units
      add = T,
-     col = c("#8DA0CB"), alpha = .8,
+     col = c("#8C7E5B", "#1B9E77"), 
      type = "classes", 
-     mar=NA,
+     mar = c(0, 0, 0, 0),
      box = F,
      axes = F,
-     plg = list(legend = c("rural properties CAR"), x = "bottomright"))
+     legend = F)
 
-plot(t$`undesignated-oth`, 
+plot(t$quilombolaLands,
      add = T,
-     col = c("red", "#1d6c7d", "gray80"), alpha = .8,
-     type = "classes", 
-     mar=NA,
+     col = c("#FFD700"), 
+     type = "classes",
+     mar = c(0, 0, 0, 0),
      box = F,
      axes = F,
-     plg = list(legend = c("other uses", "undesignated public lands", "military"), x = "topright"))
+     legend = F)
 
-terra::lines(v, lwd=.1)
+plot(t$indigenous,
+     add = T,
+     col = c("#E78AC3"), 
+     type = "classes",
+     mar = c(0, 0, 0, 0),
+     box = F,
+     axes = F,
+     legend = F)
+plot(biomes, add = T, lwd=.3)
+
+# terra::lines(v, lwd=.3)
 dev.off()
 
-# in sum this visualization, let me show where some of the most important overlaps were (visually)
+# i really don't understand why R is splicing off this little tip off of the amazon... 
+setwd(paste0(wdmain, "output/maps/"))
+svg("test.svg", width = 6, height = 8)
+plot(biomes, lwd=.3)
+dev.off()
+
