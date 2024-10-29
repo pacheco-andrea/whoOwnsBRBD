@@ -92,8 +92,7 @@ fData <- do.call(rbind, fData)
 head(fData)
 
 # check if the id's are the same in the BD extractions as with the forest extractions
-summary(data$id == fData$id)
-# ok, this means i can simply cbind instead of joining
+summary(data$id == fData$id) # ok, this means i can simply cbind instead of joining
 
 data$for23 <- fData$for23
 data$defor <- fData$defor
@@ -134,7 +133,7 @@ length(unique(data$id))
 
 
 # filter out polygons that are < .9 km2 in area - the resolution of the BD data (0.0083 degrees == roughly 900m2)
-data.1km <- data2[which(data2$areakm2 <= .9),] 
+data.1km <- data[which(data$areakm2 < .9),] 
 nrow(data.1km)
 # for sure - if the added up version doesn't add up to the minimum, then it should be filtered out
 
@@ -149,9 +148,8 @@ nrow(data.1km)
 # setwd(paste0(wdmain, "data/processed/"))
 # write.csv(data.5km, "LT-BD_areaUnder.5km.csv", row.names = F)
 
-# originally, i thought i should only use the parcels with greater area than the BD raster's resolution
-# however, the forest cover data is at a finer resolution == 30m2 resolution
-data <- data2[which(data2$areakm2 >= .9),]
+#  only use the parcels with greater area than the BD raster's resolution
+data <- data[which(data$areakm2 >= .9),]
 nrow(data)
 
 # filter out these undesignated categories which are a bit ambiguous 
@@ -233,13 +231,19 @@ data$overlapsWith[which(data$overlapsWith == "indigenous")] <- "Indigenous"
 data$overlapsWith[which(data$overlapsWith == "RPPN")] <- "Private PA"
 data$overlapsWith[which(data$overlapsWith == "quilombola")] <- "Quilombola lands"
 unique(data$overlapsWith)
+
+# actually remove private PAs from plotting
+data <- data[which(data$LTcateg2 != "Private PA"),]
+
+
+# make into a factor
 data$overlapsWith2 <- factor(data$overlapsWith, levels = c("Private lands",
                                                            "Undesignated lands",
                                                            "Rural settlements",
                                                            "PA strict protection",
                                                            "PA sustainable use",
                                                            "Indigenous" ,
-                                                           "Private PA",
+                                                           # "Private PA",
                                                            "Quilombola lands"))
 
 # PLOTS ----
@@ -248,7 +252,7 @@ tenureColors <- c("Indigenous" = "#E78AC3",
                   "non-overlapped" = "gray70",   
                   "PA strict protection" = "#1B9E77",       
                   "PA sustainable use" =  "#8C7E5B",
-                  "Private PA" = "#99d8c9",  
+                  # "Private PA" = "#99d8c9",  
                   "Quilombola lands" =  "#FFD700",
                   "Private lands" = "#8DA0CB",
                   "Rural settlements" = "#FC8D62",
@@ -257,6 +261,8 @@ tenureColors <- c("Indigenous" = "#E78AC3",
 sample_sizes <- data %>%
   group_by(LTcateg2) %>%
   summarize(n = n())
+
+
 
 # create function for plotting 
 # this function plots a violin (for distribution) with a boxplot on top
@@ -316,9 +322,37 @@ currentBDviolin <- plot_grid(richness,
 currentBDviolin
 # save plot
 setwd(paste0(wdmain, "/output"))
-png("CurrentBD_perTenureCategNoOverlaps_violinDensity_202410.png", width = 3300, height = 4000, units = "px", res = 300)
+png("CurrentBD_perTenureCategNoOverlaps_violinDensity_20241028.png", width = 3300, height = 4000, units = "px", res = 300)
 currentBDviolin
 dev.off()
+
+
+# TESTING/ CHECKING THESE VALUES
+
+test <- data[which(data$LTcateg2 == "Indigenous"),]
+summary(test$Richness_2020/test$areakm2)
+ggplot(test, aes(x = LTcateg2, y = Richness_2020/areakm2, fill = LTcateg2)) +
+    geom_violin(position = position_dodge(width = 0.9), alpha = 0.5) +
+    geom_boxplot(width=0.2, color="grey20", position = position_dodge(width = 0.9), alpha = 0.6) +
+    scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
+    labs(y = "BDvariableTitle") +
+    theme(panel.background = element_blank(), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
+          legend.title = element_blank(), legend.position = "none", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.title.x = element_blank()) +
+    facet_wrap(vars(LTcateg2), nrow = 1, scales = "free_x") +
+    geom_text(data = sample_sizes, aes(x = LTcateg2, y = Inf, label = paste("n =", n)), vjust = 2, size = 3.5, inherit.aes = F)
+  
+data %>%
+  group_by(LTcateg2) %>%
+  summarize(rmin = min(Richness_2020, na.rm = T),
+            rmax = max(Richness_2020, na.rm = T),
+            rmean = mean(Richness_2020, na.rm = T),
+            amin = min(areakm2, na.rm = T),
+            amax = max(areakm2, na.rm = T),
+            amean = mean(areakm2, na.rm = T),
+            min = min(Richness_2020/areakm2, na.rm = T),
+            max = max(Richness_2020/areakm2, na.rm = T),
+            mean = mean(Richness_2020/areakm2, na.rm = T)) # OK im convinced they actually make sense
+
 
 # biodiversity losses across different categories ----
 
@@ -338,38 +372,28 @@ lossBD <- plot_grid(richness,
 lossBD
 
 setwd(paste0(wdmain, "/output"))
-png("BDLossProportion_perTenureCategNoOVerlaps_violinArea.png",width = 3300, height = 4000,  units = "px", res = 300)
+png("BDLossProportion_perTenureCategNoOVerlaps_violinArea_20241028.png",width = 3300, height = 4000,  units = "px", res = 300)
 lossBD
 dev.off()
 
+# i want to repeat these boxplits - but distinguish across biomes
+
+
 
 # comparison against deforestation ----
-violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (rLoss_prop*areakm2), BDvariableTitle = "Area (km2) with potential sp. richness loss", fill = LTcateg)
 
-plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = {{fill}})) +
-  geom_violin(position = position_dodge(width = 0.9), alpha = 0.5) +
-  geom_boxplot(width=0.2, color="grey20", position = position_dodge(width = 0.9), alpha = 0.6) +
-  scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
-  labs(y = BDvariableTitle) +
-  theme(panel.background = element_blank(), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
-        legend.title = element_blank(), legend.position = "none", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.title.x = element_blank()) +
-  facet_wrap(vars(LTcateg2), nrow = 1, scales = "free_x") +
-  geom_text(data = sample_sizes, aes(x = LTcateg2, y = Inf, label = paste("n =", n)), vjust = 2, size = 3.5, inherit.aes = F)
-plot
-
-
-test <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = log(defor*areakm2), BDvariableTitle = "% Deforestation", fill = LTcateg)
-
+test <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = log(defor/areakm2), BDvariableTitle = "(log) Deforestation per km2", fill = LTcateg)
+test
 setwd(paste0(wdmain, "/output"))
-png("testDeforestation.png", width = 3300, height = 1333,  units = "px", res = 300)
+png("testDeforestation_20241028.png", width = 4500, height = 1500,  units = "px", res = 300)
 test
 dev.off()
 
 # remaining forest in 2023 
-test <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = log(for23*areakm2), BDvariableTitle = "(log) Remaining forest in 2023 per property (%)", fill = LTcateg)
-
+test <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (for23/areakm2), BDvariableTitle = "Remaining forest in 2023 per km2", fill = LTcateg)
+test
 setwd(paste0(wdmain, "/output"))
-png("testForest23.png", width = 3300, height = 1333,  units = "px", res = 300)
+png("testForest23_20241028.png", width = 4500, height = 1500,  units = "px", res = 300)
 test
 dev.off()
 
@@ -412,4 +436,34 @@ summary(data_extra)
 # write out this information
 setwd(paste0(wdmain, "data/processed/"))
 write.csv(data_extra, "finalDataset_Tenure-BD-CSR.csv", row.names = F)
+
+# split up boxplots by biome -----
+
+# get biome data
+biomes <- read_biomes(year=2019)
+biomes <- biomes[-7,]$geom
+st_crs(biomes)
+
+setwd(paste0(wdmain,"/data/processed/LT_no-overlaps/"))
+f <- grep(".shp", list.files())
+b1 <- lapply(list.files()[f], st_read)
+lapply(b1, colnames)
+lapply(b1, st_crs)
+
+b1 <- do.call(rbind, b1)
+
+# extractiocolnames# extractions OVERLAPS  ----
+setwd(paste0(wdmain,"/data/processed/LT_overlaps/"))
+f <- grep(".shp", list.files())
+
+# extractions OVERLAPS across public & private categs ----
+
+setwd(paste0(wdmain,"/data/processed/LT_pubxpri_overlaps/"))
+f <- grep(".shp", list.files())
+
+
+# i've left this one for last because it takes the longest
+# extractions PRIVATE no overlaps  ----
+setwd(paste0(wdmain,"/data/processed/LT_no-overlaps_private/"))
+f <- grep(".shp", list.files())
 

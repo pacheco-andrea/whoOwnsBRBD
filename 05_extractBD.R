@@ -12,6 +12,7 @@ library(exactextractr)
 # load directories and etc.
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
+my_crs_SAaea
 
 # biodiversity data ----
 # using the raw data here - 
@@ -20,6 +21,16 @@ rasters <- list.files()[grep("tif$", list.files())]
 rasters
 biodiv <- rast(rasters)
 names(biodiv) <- gsub("_BR.tif", "", rasters)
+
+# get biomes
+biomes <- read_biomes(year=2019)
+biomes <- biomes[-7,]
+st_crs(biomes)
+biomes <- biomes[,1]
+
+# reproject to equal area
+biomes <- st_transform(biomes, my_crs_SAaea)
+biodiv <- terra::project(biodiv, biomes)
 
 # make extraction function
 extractBD <- function(listOfShapes, directoryIn, directoryOut, crsBD, biodiv, outNamePrefix){
@@ -32,8 +43,10 @@ extractBD <- function(listOfShapes, directoryIn, directoryOut, crsBD, biodiv, ou
     s <- st_read(listOfShapes[i])
     name <- gsub(".shp", "", listOfShapes[i])
     # get areas
-    s$areakm2 <- as.numeric(st_area(s)/1000000)
     s <- st_transform(s, crsBD) 
+    s$areakm2 <- as.numeric(st_area(s)/1000000)
+    # add getting the biome
+    s <- st_join(s, biomes, join = st_intersects)
     # extract
     bd <- exactextractr::exact_extract(biodiv, s, "mean")
     # join data
