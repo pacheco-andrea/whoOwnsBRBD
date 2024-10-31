@@ -1,6 +1,6 @@
 #### Biodiversity and Tenure in Brazil ####
 
-# script that incroporates the Forest Code compliance (surplus or deficit of native vegetation) to our tenure + biodiversity data
+# script that incorporates the Forest Code compliance (surplus or deficit of native vegetation) to our tenure + biodiversity data
 
 library(dplyr)
 library(tidyr)
@@ -84,8 +84,8 @@ biomes <- st_transform(biomes, crs = crs(mask, proj = T))
 plot(biomes)
 
 # Biodiversity declines that could be reversed with full compliance of the FC in Brazil ----
-head(FC_data2)
 
+head(FC_data2)
 # create new column
 FC_data2$deficit <- "no deficit" 
 # identify the observations with deforestation where there was a deficit for either RL or APPs
@@ -96,7 +96,7 @@ FC_data2[which(FC_data2$rl_def < 0 | FC_data2$app_def < 0),]$deficit <- "deficit
 FC_data2$deficit <- as.factor(FC_data2$deficit)
 summary(FC_data2)
 
-# filter data for (potential) illegal biodiversity loss 
+# filter data to only observations with deficit
 propsDeficit <- FC_data2[which(FC_data2$deficit == "deficit"),] 
 summary(propsDeficit) 
 
@@ -139,18 +139,57 @@ plot(propsDeficit, add = T, col = "#f03b20", border = NA, alpha = .8)
 terra::lines(v, lwd=.1)
 dev.off()
 
+# make quick map to visualize the deficit in a continuous way
+# total deficit for both APP and RL
+propsDeficit$totalDeficit <- propsDeficit$rl_def + propsDeficit$app_def
+propsDeficit$totalDeficit2 <- abs(propsDeficit$totalDeficit)
+propsDeficit$totalDeficit2 <- propsDeficit$totalDeficit2*10 # convert to km2 for consistency
+# make color palette
+myCols <- c('#fff7bc','#fee391','#fec44f','#fe9929','#993404','#662506')
+
+# create breaks that correspond with the palette
+breaks <- classIntervals(propsDeficit$totalDeficit2, na.rm = T, n=6)
+propsDeficit$myCol3 <- cut(propsDeficit$totalDeficit2, breaks = c(0,10,50,100,1000,10000,100000), labels = myCols, include.lowest = T)
+
+# Legend parameters
+legend_colors <- c('#fff7bc','#fee391','#fec44f','#fe9929','#993404','#662506')
+legend_labels <- c("<10", "11-50", "51-1000", "1001-10,000", "10,001-100,000", ">100,000")
+
+# write out
+setwd(paste0(wdmain, "/output/maps"))
+png("map_DeficitAreas_continuous_20241031.png", width = 2400, height = 2400, units = "px", res = 300)
+# plot first one
+plot(t[[1]], axes = F, mar = NA, legend = F, col = "gray90")
+# add others on top
+for (i in 2:length(t)) {
+  plot(t[[i]], axes = F, , col = "gray90", mar = NA, legend = F, add = TRUE)  # Add each raster on top of the previous one
+}
+plot(propsDeficit, col = as.character(propsDeficit$myCol3), add = T, border = NA)
+terra::lines(v, lwd=.1)
+
+# Add legend in the bottom left
+legend("bottomleft", 
+       legend = legend_labels, 
+       fill = legend_colors, 
+       border = "gray30",
+       bty = "n",    # No box around legend
+       title = "Deficit (km2)",
+       cex = 0.8)    # Adjust text size if necessary
+
+dev.off()
+
+
 # map of how much biodiversity declines could be improved with compliance with the forest code? ----
 # how much biodiversity weighted by how much is "owed"
 # add the properties with deficits 
-# total deficit for both APP and RL
-propsDeficit$totalDeficit <- propsDeficit$rl_def + propsDeficit$app_def
+
 
 
 # richness
 # create variable of richness lost weighed by total deficit
-propsDeficit$BDFC <- abs(propsDeficit$Richness_loss*propsDeficit$totalDeficit)
-myCols <- c('#f7fcf0','#e0f3db','#ccebc5','#a8ddb5','#7bccc4','#4eb3d3','#2b8cbe','#0868ac','#084081')
-breaks <- classIntervals(propsDeficit$BDFC, na.rm = T, n=9)
+propsDeficit$BDFC <- (propsDeficit$Richness_loss*propsDeficit$totalDeficit2)
+myCols <- c('#f7fcf0','#ccebc5','#a8ddb5','#7bccc4','#2b8cbe','#084081')
+breaks <- classIntervals(propsDeficit$BDFC, na.rm = T, n=6)
 # create factor variable based on these bins
 propsDeficit$myCol1 <- cut(propsDeficit$BDFC, breaks = breaks$brks, labels = myCols, include.lowest = T)
 
@@ -168,9 +207,9 @@ dev.off()
 
 # endemism
 # create variable of endemism lost weighed by total deficit
-propsDeficit$EndeFC <- abs(propsDeficit$Endemism_loss*propsDeficit$totalDeficit)
-myCols <- c('#f7fcf0','#e0f3db','#ccebc5','#a8ddb5','#7bccc4','#4eb3d3','#2b8cbe','#0868ac','#084081')
-breaks <- classIntervals(propsDeficit$EndeFC, na.rm = T, n=9)
+propsDeficit$EndeFC <- (propsDeficit$Endemism_loss*propsDeficit$totalDeficit2)
+myCols <- c('#f7fcf0','#ccebc5','#a8ddb5','#7bccc4','#2b8cbe','#084081')
+breaks <- classIntervals(propsDeficit$BDFC, na.rm = T, n=6)
 # create factor variable based on these bins
 propsDeficit$myCol2 <- cut(propsDeficit$EndeFC, breaks = breaks$brks, labels = myCols, include.lowest = T)
 
@@ -192,22 +231,9 @@ dev.off()
 # where i identify the areas with high biodiversity losses and high biodivesity deficits - to identify the most potential for restoration
 # and the places where there isn't as high biodiversity loss, but high deficit
 
-# make quick map to visualize the deficit in a continuous way
-myCols <- c('#fff7bc','#fee391','#fec44f','#fe9929','#ec7014','#cc4c02','#993404','#662506')
-propsDeficit$totalDeficit2 <- abs(propsDeficit$totalDeficit)
-breaks <- classIntervals(propsDeficit$totalDeficit2, na.rm = T, n=8)
-propsDeficit$myCol3 <- cut(propsDeficit$totalDeficit2, breaks = breaks$brks, labels = myCols, include.lowest = T)
-setwd(paste0(wdmain, "/output/maps"))
-png("map_DeficitAreas_continuous.png", width = 2400, height = 2400, units = "px", res = 300)
-# plot first one
-plot(t[[1]], axes = F, mar = NA, legend = F, col = "gray90")
-# add others on top
-for (i in 2:length(t)) {
-  plot(t[[i]], axes = F, , col = "gray90", mar = NA, legend = F, add = TRUE)  # Add each raster on top of the previous one
-}
-plot(propsDeficit, col = as.character(propsDeficit$myCol3), add = T, border = NA)
-terra::lines(v, lwd=.1)
-dev.off()
+
+
+
 
 
 
