@@ -32,7 +32,15 @@ biomes <- biomes[,1]
 biomes <- st_transform(biomes, my_crs_SAaea)
 biodiv <- terra::project(biodiv, biomes)
 
-# make extraction function
+# make extraction function ----
+
+# ACTUALLY, ANOTHER EDIT WOULD BE TO SOMEHOW PUT BACK TOGETHER THE PIECES OF POLYGONS THAT HAVE BEEN SPLIT APART FROM THE OVERLAPS ANALYSIS
+# AND THEN CONDUCT THE EXTRACTIONS ON THESE "ENTIRE" POLYGONS AGAIN
+# BUT TO DO THIS, I WOULD NEED TO ACTUALLY PUT AAAAALLLL THE DATA TOGETHER
+# ST_UNION BY THEIR ID
+# AND THEN CONDUCT THE EXTRACTION
+# ALSO, MIGHT BE WORTH ONLY CONDUCTING THE EXTRACTION FOR THE POLYGONS THAT ARE >=900M2
+
 extractBD <- function(listOfShapes, directoryIn, directoryOut, crsBD, biodiv, outNamePrefix){
   
   # make loop to conduct extraction for list of shapes

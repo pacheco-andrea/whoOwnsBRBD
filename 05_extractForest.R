@@ -45,8 +45,9 @@ extractFor <- function(listOfShapes, directoryIn, directoryOut, crsBD, forest, o
     s <- st_read(listOfShapes[i])
     name <- gsub(".shp", "", listOfShapes[i])
     # get areas
-    s$areakm2 <- as.numeric(st_area(s)/1000000)
     s <- st_transform(s, crsBD) 
+    s$areakm2 <- as.numeric(st_area(s)/1000000)
+    
     # extract
     f2a <- exactextractr::exact_extract(forest, s, function(values, coverage_fraction) {
       # Count the number of cells where raster value is 1

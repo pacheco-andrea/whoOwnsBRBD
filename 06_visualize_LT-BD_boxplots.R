@@ -28,7 +28,7 @@ names(tables) <- gsub(".csv","", l)
 lapply(tables, colnames)
 
 # the tables have different column names, need to make them consistent to join into one table
-myColumns <- c("LTcateg", "id", "areakm2", 
+myColumns <- c("LTcateg", "id", "areakm2", "name_biome",
                "mean.Endemism_2020","mean.Endemism_baseline","mean.Endemism_loss",
                "mean.Phylodiversity_2020","mean.Phylodiversity_baseline","mean.Phylodiversity_loss",
                "mean.Richness_2020","mean.Richness_baseline","mean.Richness_loss")
@@ -42,34 +42,40 @@ data <- lapply(names(tables), function(name){
   return(df)
 })
 # lapply(data, colnames)
-data <- do.call(rbind, data)
+data1 <- do.call(rbind, data)
 colnames(data) <- gsub("mean.", "", colnames(data))
+
+
+# DEAL WITH DUPLICATES  ----
 
 # deal with duplicated id's, i.e., id's with multiple observations 
 # i've realized that i've got duplicate ids, across all categories
-test <- data %>% distinct(LTcateg, id, myOverCat, .keep_all = T)
-nrow(test)
-nrow(data)
-# these are the duplicate ids:
-test2 <- data %>% filter(duplicated(paste(LTcateg, id, myOverCat)))
-nrow(test2)
-head(test2)
-# but i know that ONE id has multiple values extracted, meaning these aren't duplicated numbers, there is no actual double counting of values
-# this happened due to all the overlaps i was processing, with for instance, many rural properties overlapping with one property
-# then, they turn out spatially separated
-# if i want to merge them i know that the area should be summed, but the rest of the biodiversity values should be averaged
-# the only shame is that then i'll be "losing" observations when i have to filter out (for the BD analysis) parcels that are <900m2, 
-# this might not have originally been the case for some of the polygons, but it happens when it's fractioned over the overlaps
+# there seem to be two sources of duplicates - the assignment of biomes, but also the splitting up across the overlaps
+# most pragmatically (bc we're now ignoring the overlaps)
+# is to go ahead and summarize this data by grouping by id, summing the area, averaging the bd variables, and rechecking if duplicates remain
 
+data2 <- data1 %>%
+  group_by(id) %>%
+  summarize(
+    LTcateg = first(LTcateg),
+    myOverCat = first(myOverCat),
+    areakm2 = sum(areakm2, na.rm = T), 
+    Endemism_2020 = mean(Endemism_2020, na.rm = T),
+    Endemism_baseline = mean(Endemism_baseline, na.rm = T),
+    Endemism_loss = mean(Endemism_loss, na.rm = T),
+    Phylodiversity_2020 = mean(Phylodiversity_2020, na.rm = T),
+    Phylodiversity_baseline = mean(Phylodiversity_baseline, na.rm = T),
+    Phylodiversity_loss = mean(Phylodiversity_loss, na.rm = T),
+    Richness_2020 = mean(Richness_2020, na.rm = T),
+    Richness_baseline = mean(Richness_baseline, na.rm = T),
+    Richness_loss = mean(Richness_loss, na.rm = T)) %>%
+  ungroup()
+head(data2)
+data2 %>%
+  group_by(LTcateg) %>%
+  summarize(n = n())
 
-
-
-# if the extraction actually happened on these smaller fractions - WHAT SHOULD I DO???
-
-
-
-
-# first i need to cbind the forest info
+# NOTE - I SHOULD STILL deal with the duplicates before the extractions ...
 
 # read data on deforestation extractions ----
 
@@ -92,46 +98,34 @@ fData <- do.call(rbind, fData)
 head(fData)
 
 # check if the id's are the same in the BD extractions as with the forest extractions
-summary(data$id == fData$id) # ok, this means i can simply cbind instead of joining
+summary(data$id == fData$id) # ok, this means i canNOT simply cbind 
 
-data$for23 <- fData$for23
-data$defor <- fData$defor
+# similarly, i have to summarize by id, but sum the forest values (which are counts) 
 
-# data cleaning and organizing ----
-
-# deal with the repeated id's:
-# examine duplicates
-duplicates <- data %>%
+# sum forest extraction data
+forestData <- fData %>%
   group_by(id) %>%
-  filter(n() >1) %>%
-  ungroup
-head(duplicates)
-duplicates <- arrange(duplicates, id)
-head(duplicates)
+  summarize(LTcateg = first(LTcateg),
+            for23 = sum(for23, na.rm = T),
+            defor = sum(defor, na.rm = T))
+nrow(forestData)
+head(forestData)
+length(unique(forestData$id))
 
-data2 <- data %>%
-  group_by(id) %>%
-  summarize(
-    LTcateg = first(LTcateg),
-    myOverCat = first(myOverCat),
-    areakm2 = sum(areakm2, na.rm = T), 
-    Endemism_2020 = mean(Endemism_2020, na.rm = T),
-    Endemism_baseline = mean(Endemism_baseline, na.rm = T),
-    Endemism_loss = mean(Endemism_loss, na.rm = T),
-    Phylodiversity_2020 = mean(Phylodiversity_2020, na.rm = T),
-    Phylodiversity_baseline = mean(Phylodiversity_baseline, na.rm = T),
-    Phylodiversity_loss = mean(Phylodiversity_loss, na.rm = T),
-    Richness_2020 = mean(Richness_2020, na.rm = T),
-    Richness_baseline = mean(Richness_baseline, na.rm = T),
-    Richness_loss = mean(Richness_loss, na.rm = T),
-    for23  = sum(for23, na.rm = T),
-    defor = sum(defor, na.rm = T)) %>%
-  ungroup()
+forestData %>%
+  group_by(LTcateg) %>%
+  summarize(n = n())
 
-summary(data2)
-length(unique(data$id))
+# join forest data with biodiversity data
+forest_BD_data <- inner_join(data2, forestData, by = c("LTcateg", "id"))
+nrow(forest_BD_data)
+head(forest_BD_data)
+length(unique(forest_BD_data$id))
 
 
+# other data cleaning and organizing ----
+
+data <- forest_BD_data
 # filter out polygons that are < .9 km2 in area - the resolution of the BD data (0.0083 degrees == roughly 900m2)
 data.1km <- data[which(data$areakm2 < .9),] 
 nrow(data.1km)
@@ -149,12 +143,23 @@ nrow(data.1km)
 # write.csv(data.5km, "LT-BD_areaUnder.5km.csv", row.names = F)
 
 #  only use the parcels with greater area than the BD raster's resolution
+nrow(data[which(data$areakm2 >= .9),])
 data <- data[which(data$areakm2 >= .9),]
-nrow(data)
+
 
 # filter out these undesignated categories which are a bit ambiguous 
 data <- data[which(data$LTcateg != "OUTROS USOS"),]
 data <- data[which(data$LTcateg != "USO MILITAR"),]
+
+
+# check how many observations per category i have in the original data
+data %>%
+  group_by(LTcateg) %>%
+  summarize(n = n())
+
+data.1km %>%
+  group_by(LTcateg) %>%
+  summarize(n = n())
 
 # cleaning of the overlaps (creating specific columns): ----
 unique(data$LTcateg)
@@ -243,8 +248,12 @@ data$overlapsWith2 <- factor(data$overlapsWith, levels = c("Private lands",
                                                            "PA strict protection",
                                                            "PA sustainable use",
                                                            "Indigenous" ,
-                                                           # "Private PA",
+                                                           "Private PA",
                                                            "Quilombola lands"))
+
+setwd(paste0(wdmain, "/output"))
+write.csv(data, "finalTenure&BD&ForestDatasetforPlotting.csv", row.names = FALSE)
+
 
 # PLOTS ----
 
@@ -271,13 +280,13 @@ sample_sizes <- data %>%
 violinplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL, fill) {
   
   plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = {{fill}})) +
-    geom_violin(position = position_dodge(width = 0.9), alpha = 0.5) +
-    geom_boxplot(width=0.2, color="grey20", position = position_dodge(width = 0.9), alpha = 0.6) +
+    geom_violin(position = position_dodge(width = 0.9), alpha = 0.2) +
+    geom_boxplot(width=0.2, color="grey20", position = position_dodge(width = 0.9), alpha = 0.8) +
     scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
     labs(y = BDvariableTitle) +
     theme(panel.background = element_blank(), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
           legend.title = element_blank(), legend.position = "none", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.title.x = element_blank()) +
-    facet_wrap(vars(LTcateg2), nrow = 1, scales = "free_x") +
+    # facet_wrap(vars(LTcateg2), nrow = 1, scales = "free_x") +
     geom_text(data = sample_sizes, aes(x = LTcateg2, y = Inf, label = paste("n =", n)), vjust = 2, size = 3.5, inherit.aes = F)
   
   return(plot)
@@ -307,77 +316,124 @@ currentBDviolin
 # currentBDviolin
 # dev.off()
 
-# violin version WITHOUT overlaps side by side
-richness <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Richness_2020/areakm2), BDvariableTitle = "Species richness 2020 (density)", fill = LTcateg2)
-richness 
-ende <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Endemism_2020/areakm2), BDvariableTitle = "Endemism 2020 (density)", fill = LTcateg2)
-# ende <- ende + coord_cartesian(ylim = c(0,1))
-phyl <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Phylodiversity_2020/areakm2), BDvariableTitle = "Phylodiversity 2020 (density)", fill = LTcateg2)
-phyl 
-# to plot all together
-currentBDviolin <- plot_grid(richness, 
-                             ende, 
-                             phyl, 
-                             nrow = 3, labels = c("A", "B", "C"))
-currentBDviolin
+# flipped version WITHOUT overlaps side by side
+
+data$LTcateg3 <- factor(data$LTcateg2, levels = rev(levels(data$LTcateg2)))
+data$LTcateg3 <- droplevels(data$LTcateg3)
+sample_sizes <- data %>%
+  group_by(LTcateg3) %>%
+  summarize(n = n())
+
+myboxplots <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL, fill, sample_sizes) {
+  
+  plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = {{fill}})) +
+    geom_violin(position = position_dodge(width = 0.9), alpha = 0.2) +
+    geom_boxplot(width=0.3, color="grey20", position = position_dodge(width = 0.9), alpha = 0.8) +
+    scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
+    theme(panel.background = element_blank(), 
+          panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
+          legend.title = element_blank(), 
+          legend.position = "none", 
+          axis.title.y = element_blank(),
+          text = element_text(size = 15)) +
+    labs(y = BDvariableTitle) +
+    expand_limits(y = max(data$Richness_2020 / data$areakm2)) + 
+    coord_flip() +
+    geom_text(data = sample_sizes, aes(x = {{tenureCategory}}, y = Inf, label = paste("n =", n)), hjust = 10,
+              vjust = -2, size = 3.5, inherit.aes = F)
+    return(plot)
+}
+
+currentRichness <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Richness_2020/areakm2, BDvariableTitle = "Species richness 2020 (per"~km^2~")", fill = LTcateg3, sample_sizes = sample_sizes)
+currentEndemism <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Endemism_2020/areakm2, BDvariableTitle = "Endemism 2020 (per"~km^2~")",fill = LTcateg3, sample_sizes = sample_sizes)
+plot_grid(currentRichness, currentEndemism, nrow = 2)
+
 # save plot
 setwd(paste0(wdmain, "/output"))
-png("CurrentBD_perTenureCategNoOverlaps_violinDensity_20241028.png", width = 3300, height = 4000, units = "px", res = 300)
-currentBDviolin
+png("CurrentBD_perTenureCategNoOverlaps_flippedboxplot_20241030.png", width = 2800, height = 3000, units = "px", res = 300)
+plot_grid(currentRichness, currentEndemism, nrow = 2)
 dev.off()
 
+# biodiversity losses across different categories ----
 
-# TESTING/ CHECKING THESE VALUES
+richness <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = (Richness_loss/areakm2), BDvariableTitle = "Decrease in richness (per"~km^2~")", fill = LTcateg3, sample_sizes = sample_sizes)
+# richness <- richness + coord_cartesian(ylim = c(0, 100))
+ende <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = (Endemism_loss/areakm2), BDvariableTitle = "Decrease in endemism (per"~km^2~")", fill = LTcateg3, sample_sizes = sample_sizes)
+# ende <- ende + coord_cartesian(ylim = c(0,50))
+# to plot all together
+lossBD <- plot_grid(richness, ende, nrow = 2)
+lossBD
 
-test <- data[which(data$LTcateg2 == "Indigenous"),]
-summary(test$Richness_2020/test$areakm2)
-ggplot(test, aes(x = LTcateg2, y = Richness_2020/areakm2, fill = LTcateg2)) +
+setwd(paste0(wdmain, "/output"))
+png("BDLossProportion_perTenureCategNoOVerlaps_flippedboxplot_20241030.png", width = 2800, height = 3000,   units = "px", res = 300)
+lossBD
+dev.off()
+
+# deforestation ----
+
+# first i should make sense of the deforestation data
+# if each count == 30m2, then
+data$defor2 <- data$defor*0.0009
+# are there areas deforested larger than the property itself?
+deforChecking <- data[which(data$defor2 > data$areakm2), c(1:4, 14,15,23)]
+summary(deforChecking$areakm2 - deforChecking$defor2) # ok the largest this error happens for is 27 km2
+data$defor3 <- data$defor2
+# cap it at the area of the parcel
+data$defor3[which(data$defor2 > data$areakm2)] <- data$areakm2[which(data$defor2 > data$areakm2)]
+
+# check current forest
+data$for23 <- data$for23*0.0009
+forChecking <- data[which(data$for23 > data$areakm2), c(1:4, 14,15,23)]
+summary(forChecking$areakm2 - forChecking$for23) # this is off by over 700km2 sometimes!
+data$for23_2 <- data$for23
+# cap it at the area of the parcel
+data$for23_2[which(data$for23 > data$areakm2)] <- data$areakm2[which(data$for23 > data$areakm2)]
+
+# plot deforestation 1985-2023
+deforestationPlot <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = defor3/areakm2, BDvariableTitle = "Deforestation 1985-2023 (per"~km^2~")", fill = LTcateg3, sample_sizes = sample_sizes)
+deforestationPlot # is this a percent per property??
+
+# plot current forest cover
+currentForest <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = (for23_2/areakm2), BDvariableTitle = "Forest cover 2023 (per"~km^2~")", fill = LTcateg3, sample_sizes = sample_sizes)
+currentForest
+
+
+# repeat boxplots - but distinguish across biomes ----
+
+violinplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL, fill) {
+  
+  plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = {{fill}})) +
     geom_violin(position = position_dodge(width = 0.9), alpha = 0.5) +
     geom_boxplot(width=0.2, color="grey20", position = position_dodge(width = 0.9), alpha = 0.6) +
     scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
-    labs(y = "BDvariableTitle") +
+    labs(y = BDvariableTitle) +
     theme(panel.background = element_blank(), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
           legend.title = element_blank(), legend.position = "none", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.title.x = element_blank()) +
     facet_wrap(vars(LTcateg2), nrow = 1, scales = "free_x") +
     geom_text(data = sample_sizes, aes(x = LTcateg2, y = Inf, label = paste("n =", n)), vjust = 2, size = 3.5, inherit.aes = F)
   
-data %>%
-  group_by(LTcateg2) %>%
-  summarize(rmin = min(Richness_2020, na.rm = T),
-            rmax = max(Richness_2020, na.rm = T),
-            rmean = mean(Richness_2020, na.rm = T),
-            amin = min(areakm2, na.rm = T),
-            amax = max(areakm2, na.rm = T),
-            amean = mean(areakm2, na.rm = T),
-            min = min(Richness_2020/areakm2, na.rm = T),
-            max = max(Richness_2020/areakm2, na.rm = T),
-            mean = mean(Richness_2020/areakm2, na.rm = T)) # OK im convinced they actually make sense
+  return(plot)
+}
 
+unique(data$name_biome)
+data$biome <- factor(data$name_biome, levels = c("Amazonia",
+                                                  "Cerrado",
+                                                 "Caatinga",
+                                                 "Mata Atlantica",
+                                                 "Pampa",
+                                                 "Pantanal"))
+summary(data)
+head(data)
 
-# biodiversity losses across different categories ----
-
-# this should now plot the PROPORTION OF LOSS (scaling for how much there was to begin with) over the AREA
-# which should indicate the DENSITY OF LOSS
-richness <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (rLoss_prop*areakm2), BDvariableTitle = "Area (km2) with potential sp. richness loss", fill = LTcateg)
-richness <- richness + coord_cartesian(ylim = c(0, 50))
-ende <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (eLoss_prop*areakm2), BDvariableTitle = "Area (km2) with potential endemism loss", fill = LTcateg)
-ende <- ende + coord_cartesian(ylim = c(0,100))
-phyl <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (pLoss_prop*areakm2), BDvariableTitle = "Area (km2) with potential phylodiversity loss", fill = LTcateg)
-phyl <- phyl + coord_cartesian(ylim = c(0,50))
-# to plot all together
-lossBD <- plot_grid(richness, 
-                    ende, 
-                    phyl, 
-                    nrow = 3, labels = c("A", "B", "C"))
-lossBD
-
-setwd(paste0(wdmain, "/output"))
-png("BDLossProportion_perTenureCategNoOVerlaps_violinArea_20241028.png",width = 3300, height = 4000,  units = "px", res = 300)
-lossBD
-dev.off()
-
-# i want to repeat these boxplits - but distinguish across biomes
-
+ggplot(data, aes(x = LTcateg2, y = Richness_2020, fill = LTcateg2)) +
+  geom_violin(position = position_dodge(width = 0.9), alpha = 0.5) +
+  geom_boxplot(width=0.2, color="grey20", position = position_dodge(width = 0.9), alpha = 0.6) +
+  scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
+  labs(y = "biome richness test") +
+  theme(panel.background = element_blank(), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
+        legend.title = element_blank(), legend.position = "none", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.title.x = element_blank()) +
+  facet_wrap(as.factor(data$name_biome), nrow = 6, scales = "free_x") #+
+  # geom_text(data = sample_sizes, aes(x = LTcateg2, y = Inf, label = paste("n =", n)), vjust = 2, size = 3.5, inherit.aes = F)
 
 
 # comparison against deforestation ----
@@ -396,8 +452,6 @@ setwd(paste0(wdmain, "/output"))
 png("testForest23_20241028.png", width = 4500, height = 1500,  units = "px", res = 300)
 test
 dev.off()
-
-# idk, these boxplots seem pretty meaningless... should the forest be barplots?
 
 
 # biodiversity and FC compliance ----
@@ -437,33 +491,4 @@ summary(data_extra)
 setwd(paste0(wdmain, "data/processed/"))
 write.csv(data_extra, "finalDataset_Tenure-BD-CSR.csv", row.names = F)
 
-# split up boxplots by biome -----
-
-# get biome data
-biomes <- read_biomes(year=2019)
-biomes <- biomes[-7,]$geom
-st_crs(biomes)
-
-setwd(paste0(wdmain,"/data/processed/LT_no-overlaps/"))
-f <- grep(".shp", list.files())
-b1 <- lapply(list.files()[f], st_read)
-lapply(b1, colnames)
-lapply(b1, st_crs)
-
-b1 <- do.call(rbind, b1)
-
-# extractiocolnames# extractions OVERLAPS  ----
-setwd(paste0(wdmain,"/data/processed/LT_overlaps/"))
-f <- grep(".shp", list.files())
-
-# extractions OVERLAPS across public & private categs ----
-
-setwd(paste0(wdmain,"/data/processed/LT_pubxpri_overlaps/"))
-f <- grep(".shp", list.files())
-
-
-# i've left this one for last because it takes the longest
-# extractions PRIVATE no overlaps  ----
-setwd(paste0(wdmain,"/data/processed/LT_no-overlaps_private/"))
-f <- grep(".shp", list.files())
 
