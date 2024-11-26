@@ -253,7 +253,7 @@ data$overlapsWith2 <- factor(data$overlapsWith, levels = c("Private lands",
                                                            "Quilombola lands"))
 head(as.data.frame(data))
 setwd(paste0(wdmain, "/output"))
-write.csv(data, "finalTenure&BD&ForestDatasetforPlotting.csv", row.names = FALSE)
+# write.csv(data, "finalTenure&BD&ForestDatasetforPlotting.csv", row.names = FALSE)
 
 
 # PLOTS ----
@@ -328,20 +328,20 @@ sample_sizes <- data %>%
 myboxplots <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL, fill, sample_sizes) {
   
   plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = {{fill}})) +
-    geom_violin(position = position_dodge(width = 0.9), alpha = 0.2) +
-    geom_boxplot(width=0.3, color="grey20", position = position_dodge(width = 0.9), alpha = 0.8) +
+    geom_violin(alpha = 0.2) +
+    geom_boxplot(width=0.5, color="grey20", alpha = 0.7) +
     scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
     theme(panel.background = element_blank(), 
           panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
           legend.title = element_blank(), 
           legend.position = "none", 
           axis.title.y = element_blank(),
-          text = element_text(size = 15)) +
+          text = element_text(size = 10)) +
     labs(y = BDvariableTitle) +
     expand_limits(y = max(data$Richness_2020 / data$areakm2)) + 
     coord_flip() +
-    geom_text(data = sample_sizes, aes(x = {{tenureCategory}}, y = Inf, label = paste("n =", n)), hjust = 10,
-              vjust = -2, size = 3.5, inherit.aes = F)
+    geom_text(data = sample_sizes, aes(x = {{tenureCategory}}, y = Inf, label = paste("n =", n)), hjust = 6,
+              vjust = -2, size = 2.5, inherit.aes = F)
     return(plot)
 }
 
@@ -350,25 +350,21 @@ currentEndemism <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Ende
 plot_grid(currentRichness, currentEndemism, nrow = 2)
 
 # save plot
+
 setwd(paste0(wdmain, "/output"))
-png("CurrentBD_perTenureCategNoOverlaps_flippedboxplot_20241030.png", width = 2800, height = 3000, units = "px", res = 300)
-plot_grid(currentRichness, currentEndemism, nrow = 2)
+png("CurrentRichness_20241126.png", width = 2450, height = 970, units = "px", res = 300)
+currentRichness
 dev.off()
+
+setwd(paste0(wdmain, "/output"))
+png("CurrentEndemism_20241126.png", width = 2450, height = 970, units = "px", res = 300)
+currentEndemism
+dev.off()
+
+
 
 # biodiversity losses across different categories ----
 
-richness <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = (Richness_loss/areakm2), BDvariableTitle = "Decrease in richness (per"~km^2~")", fill = LTcateg3, sample_sizes = sample_sizes)
-# richness <- richness + coord_cartesian(ylim = c(0, 100))
-ende <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = (Endemism_loss/areakm2), BDvariableTitle = "Decrease in endemism (per"~km^2~")", fill = LTcateg3, sample_sizes = sample_sizes)
-# ende <- ende + coord_cartesian(ylim = c(0,50))
-# to plot all together
-lossBD <- plot_grid(richness, ende, nrow = 2)
-lossBD
-
-setwd(paste0(wdmain, "/output"))
-png("BDLossProportion_perTenureCategNoOVerlaps_flippedboxplot_20241030.png", width = 2800, height = 3000,   units = "px", res = 300)
-lossBD
-dev.off()
 
 # deforestation ----
 
