@@ -62,6 +62,7 @@ terra::plot(richness[[1]],
      breaks = breaks$brks,
      axes=F,
      mar = c(0, 0, 0, 7.1),
+     plg = list(cex = 1.2),
      col = turbo(n = as.integer(max(breaks$brks)-min(breaks$brks))))
 terra::lines(v, lwd=.1)
 dev.off()
@@ -81,6 +82,7 @@ terra::plot(endemism[[1]],
      breaks = breaks$brks,
      axes=F,
      mar = c(0, 0, 0, 7.1),
+     plg = list(cex = 1.2),
      col = turbo(n = as.integer(max(breaks$brks)-min(breaks$brks))))
 terra::lines(v, lwd=.1)
 dev.off()

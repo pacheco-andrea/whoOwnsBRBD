@@ -39,7 +39,6 @@ biodiv <- terra::project(biodiv, biomes)
 # BUT TO DO THIS, I WOULD NEED TO ACTUALLY PUT AAAAALLLL THE DATA TOGETHER
 # ST_UNION BY THEIR ID
 # AND THEN CONDUCT THE EXTRACTION
-# ALSO, MIGHT BE WORTH ONLY CONDUCTING THE EXTRACTION FOR THE POLYGONS THAT ARE >=900M2
 
 extractBD <- function(listOfShapes, directoryIn, directoryOut, crsBD, biodiv, outNamePrefix){
   
@@ -50,11 +49,22 @@ extractBD <- function(listOfShapes, directoryIn, directoryOut, crsBD, biodiv, ou
     setwd(directoryIn)
     s <- st_read(listOfShapes[i])
     name <- gsub(".shp", "", listOfShapes[i])
+    # i think there should be an if condition here - if the dataset has more ids than rows, then these need to be summarized first
+    # by unioning i'm ensuring there are no duplicate ids within the overlapping categories (i.e. one property overlapping with multiple others)
+    # AND then i calculate the area of the property itself, not the smaller fragments resulting from this division
+    if(length(unique(s$id)) > nrow(s)){
+      s <- s %>% group_by(LTcateg, id) %>% summarize(geometry = st_union(geometry)) %>% st_as_sf 
+    }
     # get areas
     s <- st_transform(s, crsBD) 
     s$areakm2 <- as.numeric(st_area(s)/1000000)
-    # add getting the biome
+    # only conduct extraction for properties over 900m2
+    s <- s[which(s$areakm2 >= .9),]
+    # add the biome, but avoid false duplicates
     s <- st_join(s, biomes, join = st_intersects)
+    s <- s %>%
+      group_by(LTcateg, id) %>%
+      summarize(areakm2 = first(areakm2), biome = first(name_biome))
     # extract
     bd <- exactextractr::exact_extract(biodiv, s, "mean")
     # join data
