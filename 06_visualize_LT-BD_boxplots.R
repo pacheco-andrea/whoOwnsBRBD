@@ -24,18 +24,10 @@ l <- list.files()
 tables <- lapply(l, read.csv)
 lapply(tables, colnames)
 names(tables) <- gsub(".csv","", l)
-lapply(tables, colnames)
-
-# the tables have different column names, need to make them consistent to join into one table
-myColumns <- c("LTcateg", "id", "areakm2", "name_biome",
-               "mean.Endemism_2020","mean.Endemism_baseline","mean.Endemism_loss",
-               "mean.Phylodiversity_2020","mean.Phylodiversity_baseline","mean.Phylodiversity_loss",
-               "mean.Richness_2020","mean.Richness_baseline","mean.Richness_loss")
+lapply(tables, length)
 
 data <- lapply(names(tables), function(name){
   df <- tables[[name]]
-  # select my columns
-  df <- df[,myColumns]
   # create column that identifies the overlap category
   df$myOverCat <- name
   return(df)
@@ -45,21 +37,23 @@ data1 <- do.call(rbind, data)
 colnames(data1) <- gsub("mean.", "", colnames(data1))
 
 
-# DEAL WITH DUPLICATES  ----
+# Deal with duplicated id's  ----
+# duplicates stem from splitting up properties across the overlaps, which is a problem bc my boxplots show biodiversity/property area
+# at the same time, i want to keep the info on whether a property has overlaps
+# but if i don't summarize per id, this biases the boxplots (particularly evident for quilombola lands) 
+nrow(data1)
+length(unique(data1$id))
 
-# deal with duplicated id's, i.e., id's with multiple observations 
-# i've realized that i've got duplicate ids, across all categories
-# there seem to be two sources of duplicates - the assignment of biomes, but also the splitting up across the overlaps
-# most pragmatically (bc we're now ignoring the overlaps)
-# is to go ahead and summarize this data by grouping by id, summing the area, averaging the bd variables, and rechecking if duplicates remain
-
+# so here i need to summarize the data by id, 
+# BUT i first sort by area so that i keep whichever observation had a larger area, meaning i note whether a property had significant overlaps
 data2 <- data1 %>%
   group_by(id) %>%
+  slice_max(order_by = areakm2, n = 1, with_ties = FALSE) %>% # prioritizes by the area/size of the polygon
   summarize(
     LTcateg = first(LTcateg),
-    myOverCat = first(myOverCat),
-    areakm2 = sum(areakm2, na.rm = T), 
-    biome = first(name_biome),
+    myOverCat = first(myOverCat), # this just takes the first overlap category
+    areakm2 = sum(areakm2, na.rm = T),
+    biome = first(biome),
     Endemism_2020 = mean(Endemism_2020, na.rm = T),
     Endemism_baseline = mean(Endemism_baseline, na.rm = T),
     Endemism_loss = mean(Endemism_loss, na.rm = T),
@@ -72,11 +66,10 @@ data2 <- data1 %>%
     ) %>%
   ungroup()
 head(data2)
+length(unique(data2$id))
 data2 %>%
   group_by(LTcateg) %>%
   summarize(n = n())
-
-# NOTE - I SHOULD STILL deal with the duplicates before the extractions ...
 
 # read data on deforestation extractions ----
 
@@ -127,45 +120,18 @@ length(unique(forest_BD_data$id))
 # other data cleaning and organizing ----
 
 data <- forest_BD_data
-# filter out polygons that are < .9 km2 in area - the resolution of the BD data (0.0083 degrees == roughly 900m2)
-data.1km <- data[which(data$areakm2 < .9),] 
-nrow(data.1km)
-# for sure - if the added up version doesn't add up to the minimum, then it should be filtered out
-
-# quick visualization
-# ggplot(data.1km, aes(x = LTcateg)) +
-#   geom_bar() +
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-# note: 5806802 IRU properties were <.5km, out of the 7067703 total (= 82% of records)
-# 5806802/7067703
-# and 693756 properties are >1km, which is only 9% of records
-# write out this data so that i can check it
-# setwd(paste0(wdmain, "data/processed/"))
-# write.csv(data.5km, "LT-BD_areaUnder.5km.csv", row.names = F)
-
-#  only use the parcels with greater area than the BD raster's resolution
-nrow(data[which(data$areakm2 >= .9),])
-data <- data[which(data$areakm2 >= .9),]
-
 
 # filter out these undesignated categories which are a bit ambiguous 
 data <- data[which(data$LTcateg != "OUTROS USOS"),]
 data <- data[which(data$LTcateg != "USO MILITAR"),]
-
-
 # check how many observations per category i have in the original data
 data %>%
-  group_by(LTcateg) %>%
-  summarize(n = n())
-
-data.1km %>%
   group_by(LTcateg) %>%
   summarize(n = n())
 
 # cleaning of the overlaps (creating specific columns): ----
 unique(data$LTcateg)
 unique(data$myOverCat)
-
 # create new column
 data$overlapsWith <- NA
 # no overlaps
@@ -197,10 +163,6 @@ unique(data$overlapsWith)
 
 # create variables for the proportion of loss
 data$rLoss_prop <- data$Richness_loss/(data$Richness_baseline - data$Richness_loss)
-# i wanted to compare the bottom part of this proportion to the "current" layer - which is what it should be
-# through some testing i found there were very minor, slight differences
-# these differences would all point to BD losses which were *not* due to human-driven LUC
-# which means the safest - or the most accurate to human-driven changes - way is to stick to using the difference bt baseline and loss (rather than simply the current)
 data$eLoss_prop <- data$Endemism_loss/(data$Endemism_baseline - data$Endemism_loss)
 data$pLoss_prop <- data$Phylodiversity_loss/(data$Phylodiversity_baseline - data$Phylodiversity_loss)
 
@@ -237,10 +199,8 @@ data$overlapsWith[which(data$overlapsWith == "indigenous")] <- "Indigenous"
 data$overlapsWith[which(data$overlapsWith == "RPPN")] <- "Private PA"
 data$overlapsWith[which(data$overlapsWith == "quilombola")] <- "Quilombola lands"
 unique(data$overlapsWith)
-
 # actually remove private PAs from plotting
 data <- data[which(data$LTcateg2 != "Private PA"),]
-
 
 # make into a factor
 data$overlapsWith2 <- factor(data$overlapsWith, levels = c("Private lands",
@@ -253,7 +213,7 @@ data$overlapsWith2 <- factor(data$overlapsWith, levels = c("Private lands",
                                                            "Quilombola lands"))
 head(as.data.frame(data))
 setwd(paste0(wdmain, "/output"))
-# write.csv(data, "finalTenure&BD&ForestDatasetforPlotting.csv", row.names = FALSE)
+write.csv(data, "finalTenure&BD&ForestDatasetforPlotting.csv", row.names = FALSE)
 
 
 # PLOTS ----
@@ -272,8 +232,6 @@ sample_sizes <- data %>%
   group_by(LTcateg2) %>%
   summarize(n = n())
 
-
-
 # create function for plotting 
 # this function plots a violin (for distribution) with a boxplot on top
 # where showing the overlaps is optional 
@@ -287,8 +245,8 @@ violinplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NUL
     labs(y = BDvariableTitle) +
     theme(panel.background = element_blank(), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
           legend.title = element_blank(), legend.position = "none", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.title.x = element_blank()) +
-    # facet_wrap(vars(LTcateg2), nrow = 1, scales = "free_x") +
-    geom_text(data = sample_sizes, aes(x = LTcateg2, y = Inf, label = paste("n =", n)), vjust = 2, size = 3.5, inherit.aes = F)
+    facet_wrap(vars({{tenureCategory}}), nrow = 1, scales = "free_x") +
+    geom_text(data = sample_sizes, aes(x = {{tenureCategory}}, y = Inf, label = paste("n =", n)), vjust = 2, size = 3.5, inherit.aes = F)
   
   return(plot)
 }
@@ -297,12 +255,9 @@ violinplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NUL
 # current biodiversity under different tenure categories ----
 
 # Version WITH overlaps
-# ACTUALLY - NOW THAT I'VE SUMMARIZED THE DATA, AND KEEPING ONLY THE FIRST OVERLAP
-# THIS ISN'T POSSIBLE BECAUSE I'VE REMOVED ALL THE SPECIFIC OVERLAPS
 richness <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Richness_2020/areakm2), BDvariableTitle = "Species richness 2020 (density)", fill = overlapsWith2)
 richness 
 ende <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Endemism_2020/areakm2), BDvariableTitle = "Endemism 2020 (density)" , fill = overlapsWith2)
-# ende <- ende + coord_cartesian(ylim = c(0,1))
 phyl <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Phylodiversity_2020/areakm2), BDvariableTitle = "Phylodiversity 2020 (density)", fill = overlapsWith2)
 phyl 
 # to plot all together
@@ -311,16 +266,16 @@ currentBDviolin <- plot_grid(richness,
                        phyl, 
                        nrow = 3, labels = c("A", "B", "C"))
 currentBDviolin
-# # save plot
-# setwd(paste0(wdmain, "/output"))
-# png("CurrentBD_perTenureCategOverlaps_violinDensity_202410.png", width = 3300, height = 4000, units = "px", res = 300)
-# currentBDviolin
-# dev.off()
+# save plot
+setwd(paste0(wdmain, "/output"))
+png("CurrentBD_perTenureCategOverlaps_violinDensity_202410.png", width = 3300, height = 4000, units = "px", res = 300)
+currentBDviolin
+dev.off()
 
 # flipped version WITHOUT overlaps side by side
-
 data$LTcateg3 <- factor(data$LTcateg2, levels = rev(levels(data$LTcateg2)))
 data$LTcateg3 <- droplevels(data$LTcateg3)
+
 sample_sizes <- data %>%
   group_by(LTcateg3) %>%
   summarize(n = n())
@@ -360,8 +315,6 @@ setwd(paste0(wdmain, "/output"))
 png("CurrentEndemism_20241126.png", width = 2450, height = 970, units = "px", res = 300)
 currentEndemism
 dev.off()
-
-
 
 # biodiversity losses across different categories ----
 

@@ -139,7 +139,7 @@ tenureColors = c("#FC8D62", "#8DA0CB", "#8C7E5B", "#1B9E77", "#E78AC3", "#FFD700
 # get tenure rasters:
 setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
 l <- grep(".tif$", list.files())
-t <- lapply(list.files()[l], rast) # very weird, changing behavior with lists from terra
+t <- lapply(list.files()[l], rast) 
 # terra::plot(t)
 names(t) <- gsub("landTenure_", "", gsub("_SAalbers_1km.tif","", list.files()[l]))
 
