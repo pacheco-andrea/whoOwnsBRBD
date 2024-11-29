@@ -161,7 +161,10 @@ names(t)
 setwd(paste0(wdmain, "output/maps/"))
 svg("BrazilLandTenureCategories.svg", width = 6, height = 8)
 
+plot(biomes, lwd=.3)
+
 plot(t$`undesignated-oth`, 
+     add = T,
      col = c("#1d6c7d"),
      type = "classes", 
      mar = c(0, 0, 0, 0),

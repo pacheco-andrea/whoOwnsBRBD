@@ -56,6 +56,7 @@ breaks$brks
 
 setwd(paste0(wdmain, "output/maps/"))
 png("richness_v20241010.png", units = "px", width = 1500, height = 1500, res = 300)
+terra::lines(v, lwd=.1)
 terra::plot(richness[[1]], 
      type = "continuous",
      range = c(min(breaks$brks),max(breaks$brks)),

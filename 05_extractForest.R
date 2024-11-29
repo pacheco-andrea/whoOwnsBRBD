@@ -31,6 +31,10 @@ reclass_matrix <- matrix(c(
 ), ncol = 2, byrow = TRUE)
 
 forest <- terra::classify(forest, reclass_matrix, others = 0)
+# reproject to equal area
+forest2 <- terra::project(forest, my_crs_SAaea)
+# aggregate to ~1km
+
 
 # make extraction function
 listofShapes 

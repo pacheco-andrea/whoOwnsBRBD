@@ -79,7 +79,7 @@ tables <- lapply(l, read.csv)
 lapply(tables, colnames)
 names(tables) <- gsub(".csv","", l)
 
-myColumns <- c("LTcateg", "id", "for23", "defor")
+myColumns <- c("LTcateg", "id", "areakm2", "for23", "defor")
 fData <- lapply(names(tables), function(name){
   df <- tables[[name]]
   # select my columns
@@ -91,24 +91,37 @@ fData <- lapply(names(tables), function(name){
 fData <- do.call(rbind, fData)
 head(fData)
 
-# check if the id's are the same in the BD extractions as with the forest extractions
-summary(data2$id == fData$id) # ok, this means i canNOT simply cbind 
+fData <- fData[which(fData$areakm2 >= 0.9),]
 
-# similarly, i have to summarize by id, but sum the forest values (which are counts) 
-
-# sum forest extraction data
+# similarly, i have to summarize by id, but for the forest values (which are counts) 
+duplicated <- fData[which(duplicated(fData$id)),]
+duplicated
+# there are no biome duplicates here - these are all because of the overlaps, meaning they all
+# have different areas and should thus be summed
 forestData <- fData %>%
   group_by(id) %>%
   summarize(LTcateg = first(LTcateg),
+            areakm2_2 = sum(areakm2),
             for23 = sum(for23, na.rm = T),
             defor = sum(defor, na.rm = T))
 nrow(forestData)
 head(forestData)
 length(unique(forestData$id))
+# inspect areas
+summary(data2$id == forestData$id)
+test <- cbind(data2, forestData)
+test2 <- test[which(test$areakm2 != test$areakm2_2), c(1:5, 15:19)]
+head(test2)
+summary(test2$areakm2-test2$areakm2_2) # actually, there might be something here, bc looks very similar to the difference in area overshoot
+test2[c(9,57,98,573,574),]
+
 
 forestData %>%
   group_by(LTcateg) %>%
   summarize(n = n())
+
+f
+sum(f$sumForest)
 
 # join forest data with biodiversity data
 forest_BD_data <- inner_join(data2, forestData, by = c("LTcateg", "id"))
@@ -116,6 +129,15 @@ nrow(forest_BD_data)
 head(forest_BD_data)
 length(unique(forest_BD_data$id))
 
+f <- forest_BD_data %>% 
+  group_by(LTcateg) %>% 
+  summarize(sumForest = sum(for23*0.0111),
+            sumdeForest = sum(defor*0.0111),
+            sumArea = sum(areakm2))
+f # is this still right? then, forests would only cover 3% of indigenous lands...
+
+f$percForest <- f$sumForest/f$sumArea
+f$percdeForest <- f$sumdeForest/f$sumArea
 
 # other data cleaning and organizing ----
 
@@ -316,41 +338,32 @@ png("CurrentEndemism_20241126.png", width = 2450, height = 970, units = "px", re
 currentEndemism
 dev.off()
 
-# biodiversity losses across different categories ----
-
+data %>%
+  group_by(LTcateg) %>%
+  summarise(mArea = mean(areakm2),,
+            minArea = min(areakm2),
+            maxArea = max(areakm2))
 
 # deforestation ----
-
-# first i should make sense of the deforestation data
-# if each count == 30m2, then
-data$defor2 <- data$defor*0.0009
-# are there areas deforested larger than the property itself?
-deforChecking <- data[which(data$defor2 > data$areakm2), c(1:4, 14,15,23)]
-summary(deforChecking$areakm2 - deforChecking$defor2) # ok the largest this error happens for is 27 km2
-data$defor3 <- data$defor2
-# cap it at the area of the parcel
-data$defor3[which(data$defor2 > data$areakm2)] <- data$areakm2[which(data$defor2 > data$areakm2)]
-
-# check current forest
+# i dont need to compare to deforestation - but only to current forest (2023)
+# if each count ~= 30m2, then
 data$for23 <- data$for23*0.0009
-forChecking <- data[which(data$for23 > data$areakm2), c(1:4, 14,15,23)]
-summary(forChecking$areakm2 - forChecking$for23) # this is off by over 700km2 sometimes!
+forChecking <- data[which(data$for23 > data$areakm2), c(1:4,15)]
+summary(forChecking$areakm2 - forChecking$for23) # this is off by over 20,000 km2 sometimes! how did this happen?
 data$for23_2 <- data$for23
 # cap it at the area of the parcel
 data$for23_2[which(data$for23 > data$areakm2)] <- data$areakm2[which(data$for23 > data$areakm2)]
 
-# plot deforestation 1985-2023
-deforestationPlot <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = defor3/areakm2, BDvariableTitle = "Deforestation 1985-2023 (per"~km^2~")", fill = LTcateg3, sample_sizes = sample_sizes)
-deforestationPlot 
-
-setwd(paste0(wdmain, "/output"))
-png("Deforestation1985-2023_flippedboxplot_20241031.png", width = 2800, height = 1500,   units = "px", res = 300)
-deforestationPlot
-dev.off()
+data %>%
+  group_by(LTcateg) %>%
+  summarise(fArea = mean(for23),
+            minArea = min(for23),
+            maxArea = max(for23))
 
 # plot current forest cover
-currentForest <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = (for23_2/areakm2), BDvariableTitle = "Forest cover 2023 (per"~km^2~")", fill = LTcateg3, sample_sizes = sample_sizes)
+currentForest <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = (for23/areakm2), BDvariableTitle = "Forest cover 2023 (per"~km^2~")", fill = LTcateg3, sample_sizes = sample_sizes)
 currentForest
+
 setwd(paste0(wdmain, "/output"))
 png("Forest-2023_flippedboxplot_20241031.png", width = 2800, height = 1500,   units = "px", res = 300)
 currentForest
