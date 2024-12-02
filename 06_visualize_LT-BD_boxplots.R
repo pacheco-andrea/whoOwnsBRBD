@@ -75,11 +75,12 @@ data2 %>%
 
 setwd(paste0(wdmain, "/data/processed/forestExtractions-perPolygon"))
 l <- list.files()
-tables <- lapply(l, read.csv)
+l[grep("1130", l)]
+tables <- lapply(l[grep("1130", l)], read.csv)
 lapply(tables, colnames)
-names(tables) <- gsub(".csv","", l)
+names(tables) <- gsub(".csv","", l[grep("1130", l)])
 
-myColumns <- c("LTcateg", "id", "areakm2", "for23", "defor")
+myColumns <- c("LTcateg", "id", "areakm2", "for23", "defor", "total")
 fData <- lapply(names(tables), function(name){
   df <- tables[[name]]
   # select my columns
@@ -89,39 +90,29 @@ fData <- lapply(names(tables), function(name){
   return(df)
 })
 fData <- do.call(rbind, fData)
-head(fData)
-
-fData <- fData[which(fData$areakm2 >= 0.9),]
-
-# similarly, i have to summarize by id, but for the forest values (which are counts) 
-duplicated <- fData[which(duplicated(fData$id)),]
-duplicated
-# there are no biome duplicates here - these are all because of the overlaps, meaning they all
-# have different areas and should thus be summed
+length(unique(fData$id))
+# similarly, i have to summarize by id, but i can sum the forest/deforest/total values (bc these are counts) 
 forestData <- fData %>%
   group_by(id) %>%
   summarize(LTcateg = first(LTcateg),
-            areakm2_2 = sum(areakm2),
+            areakm2 = sum(areakm2),
             for23 = sum(for23, na.rm = T),
-            defor = sum(defor, na.rm = T))
+            defor = sum(defor, na.rm = T),
+            total = sum(total, na.rm = T))
 nrow(forestData)
 head(forestData)
 length(unique(forestData$id))
-# inspect areas
-summary(data2$id == forestData$id)
-test <- cbind(data2, forestData)
-test2 <- test[which(test$areakm2 != test$areakm2_2), c(1:5, 15:19)]
-head(test2)
-summary(test2$areakm2-test2$areakm2_2) # actually, there might be something here, bc looks very similar to the difference in area overshoot
-test2[c(9,57,98,573,574),]
+# get proportions
+forestData$p_for23 <- (forestData$for23/forestData$total)*100
+forestData$p_defor <- (forestData$defor/forestData$total)*100
 
 
 forestData %>%
   group_by(LTcateg) %>%
-  summarize(n = n())
+  summarize(n = n(),
+            perForest = mean(p_for23),
+            perDeforest = mean(p_defor))
 
-f
-sum(f$sumForest)
 
 # join forest data with biodiversity data
 forest_BD_data <- inner_join(data2, forestData, by = c("LTcateg", "id"))
