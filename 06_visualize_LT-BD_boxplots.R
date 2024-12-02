@@ -106,29 +106,18 @@ length(unique(forestData$id))
 forestData$p_for23 <- (forestData$for23/forestData$total)*100
 forestData$p_defor <- (forestData$defor/forestData$total)*100
 
-
 forestData %>%
   group_by(LTcateg) %>%
   summarize(n = n(),
             perForest = mean(p_for23),
             perDeforest = mean(p_defor))
-
+forestData <- forestData %>%
+  select(id, LTcateg, p_for23, p_defor)
 
 # join forest data with biodiversity data
 forest_BD_data <- inner_join(data2, forestData, by = c("LTcateg", "id"))
-nrow(forest_BD_data)
 head(forest_BD_data)
 length(unique(forest_BD_data$id))
-
-f <- forest_BD_data %>% 
-  group_by(LTcateg) %>% 
-  summarize(sumForest = sum(for23*0.0111),
-            sumdeForest = sum(defor*0.0111),
-            sumArea = sum(areakm2))
-f # is this still right? then, forests would only cover 3% of indigenous lands...
-
-f$percForest <- f$sumForest/f$sumArea
-f$percdeForest <- f$sumdeForest/f$sumArea
 
 # other data cleaning and organizing ----
 
@@ -313,8 +302,12 @@ myboxplots <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL,
     return(plot)
 }
 
-currentRichness <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Richness_2020/areakm2, BDvariableTitle = "Species richness 2020 (per"~km^2~")", fill = LTcateg3, sample_sizes = sample_sizes)
-currentEndemism <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Endemism_2020/areakm2, BDvariableTitle = "Endemism 2020 (per"~km^2~")",fill = LTcateg3, sample_sizes = sample_sizes)
+currentRichness <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Richness_2020/areakm2, 
+                              BDvariableTitle = "Species richness 2020 (per"~km^2~")", 
+                              fill = LTcateg3, sample_sizes = sample_sizes)
+currentEndemism <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Endemism_2020/areakm2, 
+                              BDvariableTitle = "Endemism 2020 (per"~km^2~")",
+                              fill = LTcateg3, sample_sizes = sample_sizes)
 plot_grid(currentRichness, currentEndemism, nrow = 2)
 
 # save plot
@@ -336,32 +329,21 @@ data %>%
             maxArea = max(areakm2))
 
 # deforestation ----
-# i dont need to compare to deforestation - but only to current forest (2023)
-# if each count ~= 30m2, then
-data$for23 <- data$for23*0.0009
-forChecking <- data[which(data$for23 > data$areakm2), c(1:4,15)]
-summary(forChecking$areakm2 - forChecking$for23) # this is off by over 20,000 km2 sometimes! how did this happen?
-data$for23_2 <- data$for23
-# cap it at the area of the parcel
-data$for23_2[which(data$for23 > data$areakm2)] <- data$areakm2[which(data$for23 > data$areakm2)]
-
-data %>%
-  group_by(LTcateg) %>%
-  summarise(fArea = mean(for23),
-            minArea = min(for23),
-            maxArea = max(for23))
 
 # plot current forest cover
-currentForest <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = (for23/areakm2), BDvariableTitle = "Forest cover 2023 (per"~km^2~")", fill = LTcateg3, sample_sizes = sample_sizes)
+currentForest <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = p_for23, 
+                            BDvariableTitle = "% forest cover 2023 (per property)", 
+                            fill = LTcateg3, sample_sizes = sample_sizes)
 currentForest
 
 setwd(paste0(wdmain, "/output"))
-png("Forest-2023_flippedboxplot_20241031.png", width = 2800, height = 1500,   units = "px", res = 300)
+png("Forest-2023_flippedboxplot_20241202.png", width = 2450, height = 970,   units = "px", res = 300)
 currentForest
 dev.off()
 
 
-# repeat boxplots - but distinguish across biomes ----
+# Are results different for Brazil's different biomes? ----
+# repeat boxplots - but distinguish across biomes 
 colnames(data)
 unique(data$biome)
 data$biome2 <- factor(data$biome)
@@ -374,13 +356,60 @@ sample_sizes <- biomeData %>%
   group_by(LTcateg3, biome2) %>%
   summarize(n = n(), .groups = 'drop')
 
-currentRichness <- myboxplots(biomeData, tenureCategory = LTcateg3, BDvariable = Richness_2020/areakm2, BDvariableTitle = "Species richness 2020 (per"~km^2~")", fill = LTcateg3, sample_sizes = sample_sizes)
-currentRichness + facet_wrap(~biome2, nrow = 2, scales = "fixed")
+myBiome_boxplots <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL, fill, sample_sizes) {
+  
+  plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = {{fill}})) +
+    geom_violin(alpha = 0.2) +
+    geom_boxplot(width=0.5, color="grey20", alpha = 0.7) +
+    scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
+    theme(panel.background = element_blank(), 
+          panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
+          legend.title = element_blank(), 
+          legend.position = "none", 
+          axis.title.y = element_blank(),
+          text = element_text(size = 14)) +
+    labs(y = BDvariableTitle) +
+    expand_limits(y = max(data$Richness_2020 / data$areakm2)) + 
+    coord_flip() +
+    geom_text(data = sample_sizes, aes(x = {{tenureCategory}}, y = Inf, label = paste("n =", n)), hjust = 2,
+              vjust = -2, size = 3.5, inherit.aes = F)
+  return(plot)
+}
 
-richnessLoss <- myboxplots(biomeData, tenureCategory = LTcateg3, BDvariable = (Richness_loss/areakm2), BDvariableTitle = "Decrease in richness (per"~km^2~")", fill = LTcateg3, sample_sizes = sample_sizes)
-richnessLoss + facet_wrap(~biome2, nrow = 2, scales = "fixed")
 
-# alright, having examined these disaggregated results, i don't think they're super informative - it's not like amazonia dominates, the pattern holds throughout biomes
+currentRichness <- myBiome_boxplots(biomeData, tenureCategory = LTcateg3, BDvariable = Richness_2020/areakm2, 
+                              BDvariableTitle = "Species richness 2020 (per"~km^2~")", 
+                              fill = LTcateg3, sample_sizes = sample_sizes)
+currentRichness + facet_wrap(~biome2, nrow = 2, scales = "fixed") 
+
+setwd(paste0(wdmain, "/output"))
+png("CurrentRichness_perBiomes.png", width = 3300, height = 3000, units = "px", res = 300)
+currentRichness + facet_wrap(~biome2, nrow = 2, scales = "fixed") 
+dev.off()
+
+currentEndemism <- myBiome_boxplots(biomeData, tenureCategory = LTcateg3, BDvariable =  Endemism_2020/areakm2, 
+                              BDvariableTitle = "Endemism 2020 (per"~km^2~")", 
+                              fill = LTcateg3, sample_sizes = sample_sizes)
+currentEndemism + facet_wrap(~biome2, nrow = 2, scales = "fixed")
+
+setwd(paste0(wdmain, "/output"))
+png("CurrentEndemism_perBiomes.png", width = 3300, height = 3000, units = "px", res = 300)
+currentEndemism + facet_wrap(~biome2, nrow = 2, scales = "fixed")
+dev.off()
+
+# disaggregated plot show that the pattern holds throughout biomes
+# i.e., amazonia does not dominate - whereas this is likely different for forest 2023
+# is this the same for Forest 2023?
+currentForest <- myBiome_boxplots(biomeData, tenureCategory = LTcateg3, BDvariable = p_for23, 
+                            BDvariableTitle = "% forest cover 2023 (per property)", 
+                            fill = LTcateg3, sample_sizes = sample_sizes)
+currentForest + facet_wrap(~biome2, nrow = 2, scales = "fixed")
+
+setwd(paste0(wdmain, "/output"))
+png("CurrentForest_perBiomes.png", width = 3300, height = 3000, units = "px", res = 300)
+currentForest + facet_wrap(~biome2, nrow = 2, scales = "fixed")
+dev.off()
+
 
 
 # biodiversity and FC compliance ----
