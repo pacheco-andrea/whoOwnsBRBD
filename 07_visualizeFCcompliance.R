@@ -36,16 +36,17 @@ ast <- st_read("ruralSettlements.shp")
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps_private"))
 iru <- st_read("ruralProperties.shp")
 # join BD-FC data with geometry data
-FC_data <- left_join(FC_data, rbind(ast,iru), by = "id")
-FC_data <- st_as_sf(FC_data) 
-
-# as I'm only plotting for visualization purposes, i need to simplify these polygons
-# if tocantins is missing then i should st_union before this?
-FC_data2 <- FC_data[!st_is_empty(FC_data),] 
-# FC_data2 <- st_simplify(FC_data2, dTolerance = 100) # at 1000, we lose ~60% of observations
-# FC_data2 <- FC_data2[!st_is_empty(FC_data2),] # i see that this is now 99% of the data, so it takes a while but it is pretty worth it in plotting the map
+s <- rbind(ast, iru)
+head(s)
+s <- s %>% select(id)
+FC_data2 <- left_join(FC_data, s, by = c("id"))
+FC_data2 <- st_as_sf(FC_data2) 
+# check for empty geometries?
+FC_data2[which(st_is_empty(FC_data2)),]
+# transform to AEA
 FC_data2 <- st_transform(FC_data2, my_crs_SAaea)
-
+# get the total deficit
+FC_data2$total_deficit <- abs(FC_data2$rl_def) + abs(FC_data2$app_def)
 # map test ----
 
 # start with a simple choropleth
@@ -55,33 +56,110 @@ try1 <- ggplot(FC_data2) +
   scale_fill_viridis_c(
     trans = "log", breaks = c(100, 1000, 1500, 2000, 2500, 5000),
     )
-
-# # plot
-# setwd(paste0(wdmain, "/output"))
-# png("CurrentSpRichness_choropleth.png", width = 2400, height = 2400, units = "px", res = 300)
-# try1
-# dev.off()
+# plot
+setwd(paste0(wdmain, "/output/maps"))
+png("CurrentSpRichness_choropleth.png", width = 2400, height = 2400, units = "px", res = 300)
+try1
+dev.off()
 
 # also map FC compliance
 try1 <- ggplot(FC_data2) +
-  geom_sf(aes(fill = rl_def), color = NA) +
-  # theme_void() + 
-  scale_fill_viridis_c()
-
-# # plot
-# setwd(paste0(wdmain, "/output"))
-# png("RLdeficit_choropleth.png", width = 2400, height = 2400, units = "px", res = 300)
-# try1
-# dev.off()
+  geom_sf(aes(fill = abs(total_deficit)), color = NA) +
+  theme_void() + 
+  scale_fill_viridis_c(trans = "log", breaks = c(10, 10000, 20000, 40000))
+# plot
+setwd(paste0(wdmain, "/output/maps"))
+png("RLdeficit_choropleth.png", width = 2400, height = 2400, units = "px", res = 300)
+try1
+dev.off()
 
 rm(try1)
+gc()
 
 # get the biomes to add them as a shape on top of the map
 # add biomes 
 biomes <- read_biomes(year=2019)
 biomes <- biomes[-7,]$geom
-biomes <- st_transform(biomes, crs = crs(mask, proj = T))
+biomes <- st_transform(biomes, crs = my_crs_SAaea)
 plot(biomes)
+
+# before investigating biodiversity, what is the distribution of deficit? ----
+# are really only 2% of properties responsible for most deficit/deforestation?
+data <- FC_data2
+deficitTotals <- data %>% 
+  st_drop_geometry() %>%
+  group_by(LTcateg) %>%
+  summarize(total_deficit = sum(total_deficit), # IRU are responsible for 90-91% of total deficit and total deforestation
+            desmat_p08 = sum(desmat_p08))
+sum(deficitTotals$total_deficit)
+# the exact statement from the rotten apples paper is:
+# 2% of of all properties in both biomes, which are bigger than 4FM, are responsible for 62% of all potentially illegal deforestations...
+# based on the mean bt deforestation thresholds of 6.25 ha and 12.5 ha (Table S18)??
+# then, 18% of properties responsible for 80% of illegal deforestation in both biomes
+data$size <- NA
+data[which(data$n_mf <= 4),]$size <- "smallholders"
+data[which(data$n_mf > 4),]$size <- "largeholders"
+summary(data)
+
+deficitTotals <- data %>% 
+  st_drop_geometry() %>%
+  group_by(size, LTcateg) %>%
+  summarize(n = n(),
+            total_deficit = sum(total_deficit), # IRU are responsible for 90-91% of total deficit and total deforestation
+            desmat_p08 = sum(desmat_p08)) %>%
+  ungroup() %>%
+  mutate(
+    total_deficit_pct = total_deficit / sum(total_deficit) * 100,
+    desmat_p08_pct = desmat_p08 / sum(desmat_p08) * 100
+  ) %>%
+  bind_rows(
+    summarize(
+      .,
+      size = "Total",
+      LTcateg = "Summary",
+      n = sum(n),
+      total_deficit = sum(total_deficit),
+      desmat_p08 = sum(desmat_p08),
+      total_deficit_pct = 100,
+      desmat_p08_pct = 100
+    )
+  )
+deficitTotals
+# ok this shows consistency with the rotten apples paper:
+# ~83% of deforestation post 2008 is in largeholders (73% in private lands, specifically) 
+# BUT the properties are many more than those reported in the original paper
+# almost 400,000 properties are larger than 4 FM and responsible for 73% deforestation after 2008...
+# the paper reported 17,557. is this because they only considered amazon and cerrado?
+deficitTotals_AMCE <- data %>% 
+  st_drop_geometry() %>%
+  filter(biome %in% c("Amazonia", "Cerrado"))  %>%
+  group_by(size, LTcateg) %>%
+  summarize(n = n(),
+            total_deficit = sum(total_deficit), # IRU are responsible for 90-91% of total deficit and total deforestation
+            desmat_p08 = sum(desmat_p08)) %>%
+  ungroup() %>%
+  mutate(
+    total_deficit_pct = total_deficit / sum(total_deficit) * 100,
+    desmat_p08_pct = desmat_p08 / sum(desmat_p08) * 100
+  ) %>%
+  bind_rows(
+    summarize(
+      .,
+      size = "Total",
+      LTcateg = "Summary",
+      n = sum(n),
+      total_deficit = sum(total_deficit),
+      desmat_p08 = sum(desmat_p08),
+      total_deficit_pct = 100,
+      desmat_p08_pct = 100
+    )
+  )
+deficitTotals_AMCE
+deficitTotals
+# the pattern is a bit more distinguishable here - 
+
+# what does this mean for biodiversity
+
 
 # Biodiversity declines that could be reversed with full compliance of the FC in Brazil ----
 
