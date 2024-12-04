@@ -157,114 +157,108 @@ deficitTotals_AMCE <- data %>%
 deficitTotals_AMCE
 deficitTotals
 # the pattern is a bit more distinguishable here - 
+# amazon and cerrado properties account for about 37% of properties, but almost 50% of deforestation post 2008
+# but the amount of largeholders responsible is closer to 150,000 (rather than the 17,000 that was reported in the rotten apples)
+# write out this information into a table for easy reference
+setwd(paste0(wdmain, "/output"))
+write.csv(deficitTotals, "deficitTotals.csv", row.names = F)
+write.csv(deficitTotals_AMCE, "deficitTotals_amazon-cerrado.csv", row.names = F)
 
-# what does this mean for biodiversity
+# what does this mean for biodiversity?? ----
 
+# 1) Current biodiversity in areas with deficit 
 
-# Biodiversity declines that could be reversed with full compliance of the FC in Brazil ----
+# filter data to A) private lands - largeholders with deficit
+IRU_Deficit <- data[which(data$size == "largeholders" & data$LTcateg == "Private lands" & data$total_deficit > 0),]
+summary(IRU_Deficit) 
+# filter data to B) rural-settlement-largeholders with deficit
+AST_Deficit <- data[which(data$size == "largeholders" & data$LTcateg == "Rural settlements" & data$total_deficit > 0),]
+summary(AST_Deficit) 
 
-head(FC_data2)
-# create new column
-FC_data2$deficit <- "no deficit" 
-# identify the observations with deforestation where there was a deficit for either RL or APPs
-# note this could overwrite the places where there was rl ativo (surplus), because app deficit is still be potentially illegal
-# summary(FC_data2[which(FC_data2$rl_def < 0 | FC_data2$app_def < 0),])
-# overwrite 
-FC_data2[which(FC_data2$rl_def < 0 | FC_data2$app_def < 0),]$deficit <- "deficit"
-FC_data2$deficit <- as.factor(FC_data2$deficit)
-summary(FC_data2)
-
-# filter data to only observations with deficit
-propsDeficit <- FC_data2[which(FC_data2$deficit == "deficit"),] 
-summary(propsDeficit) 
-
-# PLOT BIODIVERSITY LOSS IN AREAS WITH FOREST CODE DEFICIT (RESTORATION) ----
-# actually, i was thinking it would be good to have a raster base of all the properties in brazil
-
-sample_FC <- sample_frac(FC_data2, 0.1)
-
-deficitCols <- c("no deficit" = "#f0f0f0", "deficit" = "#f03b20")
-
-# base map of all properties + properties with forest code deficits ----
+# plot areas with deficit (areas with potential restoration) 
+# make base map of all properties + properties with forest code deficits
 # read in raster of all the properties we have
 setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
 l <- grep("SAalbers_1km.tif$", list.files())
-t <- lapply(list.files()[l], rast) # very weird, changing behavior with lists from terra
-# terra::plot(t)
+t <- lapply(list.files()[l], rast) 
 names(t) <- gsub("landTenure_", "", gsub("_SAalbers_1km.tif","", list.files()[l]))
 # get rid of sigef and snci properties
 t$SIGEF_properties <- NULL
 t$SNCI_properties <- NULL
-
-# add biomes 
-biomes <- read_biomes(year=2019)
-biomes <- biomes[-7,]$geom
-biomes <- st_transform(biomes, crs = crs(mask, proj = T))
-plot(biomes)
 v <- vect(biomes)
 
 # make very simple map of all the areas with deficit in the forest code
 setwd(paste0(wdmain, "/output/maps"))
-png("MapDeficitAreas.png", width = 2400, height = 2400, units = "px", res = 300)
-# plot first one
-plot(t[[1]], axes = F, mar = NA, legend = F, col = "gray90")
-# add others on top
-for (i in 2:length(t)) {
+png("MapDeficitAreas_largeholders.png", width = 2400, height = 2400, units = "px", res = 300)
+# start by plotting biomes to roraima isn't sliced off
+plot(biomes)
+# plot rasters of other tenure categories as a base
+for (i in 1:length(t)) {
   plot(t[[i]], axes = F, , col = "gray90", mar = NA, legend = F, add = TRUE)  # Add each raster on top of the previous one
 }
 # add the properties with deficits 
-plot(propsDeficit, add = T, col = "#f03b20", border = NA, alpha = .8)
+plot(IRU_Deficit, add = T, col = "#993404", border = NA, alpha = .8)
+plot(AST_Deficit, add = T, col = "#fec44f", border = NA, alpha = .8)
 terra::lines(v, lwd=.1)
-dev.off()
+dev.off() # remember, this shows the properties responsible for more than 80% of deforestation, and 90% of all deficit
 
-# make quick map to visualize the deficit in a continuous way
-# total deficit for both APP and RL
-propsDeficit$totalDeficit <- propsDeficit$rl_def + propsDeficit$app_def
-propsDeficit$totalDeficit2 <- abs(propsDeficit$totalDeficit)
-propsDeficit$totalDeficit2 <- propsDeficit$totalDeficit2*10 # convert to km2 for consistency
-# make color palette
-myCols <- c('#fff7bc','#fee391','#fec44f','#fe9929','#993404','#662506')
+# plot biodiversity in these areas
 
-# create breaks that correspond with the palette
-breaks <- classIntervals(propsDeficit$totalDeficit2, na.rm = T, n=6)
-propsDeficit$myCol3 <- cut(propsDeficit$totalDeficit2, breaks = c(0,10,50,100,1000,10000,100000), labels = myCols, include.lowest = T)
-
-# Legend parameters
-legend_colors <- c('#fff7bc','#fee391','#fec44f','#fe9929','#993404','#662506')
-legend_labels <- c("<10", "11-50", "51-1000", "1001-10,000", "10,001-100,000", ">100,000")
-
-# write out
 setwd(paste0(wdmain, "/output/maps"))
-png("map_DeficitAreas_continuous_20241031.png", width = 2400, height = 2400, units = "px", res = 300)
-# plot first one
-plot(t[[1]], axes = F, mar = NA, legend = F, col = "gray90")
-# add others on top
-for (i in 2:length(t)) {
+png("MapDeficitAreas_largeholders_richness.png", width = 2400, height = 2400, units = "px", res = 300) # this one isn't working...
+# start by plotting biomes to roraima isn't sliced off
+plot(biomes)
+# plot rasters of other tenure categories as a base
+for (i in 1:length(t)) {
   plot(t[[i]], axes = F, , col = "gray90", mar = NA, legend = F, add = TRUE)  # Add each raster on top of the previous one
 }
-plot(propsDeficit, col = as.character(propsDeficit$myCol3), add = T, border = NA)
+# add the properties with deficits 
+plot(IRU_Deficit["Richness_2020"], add = T, col = hcl.colors(100, "Viridis"), border = NA, alpha = .8)
 terra::lines(v, lwd=.1)
+dev.off() # the colors are off from the data...
 
-# Add legend in the bottom left
-legend("bottomleft", 
-       legend = legend_labels, 
-       fill = legend_colors, 
-       border = "gray30",
-       bty = "n",    # No box around legend
-       title = "Deficit (km2)",
-       cex = 0.8)    # Adjust text size if necessary
-
+# try with ggplot
+setwd(paste0(wdmain, "/output/maps"))
+png("MapDeficitAreas_largeholders_richness_test.png", width = 2400, height = 2400, units = "px", res = 300)
+ggplot() + 
+  geom_sf(data = IRU_Deficit, aes(fill = Richness_2020), color = NA) +
+  scale_fill_viridis_c() +
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1)) +
+  geom_sf(data = biomes, fill = NA, color = "black", size = 1)
 dev.off()
 
+# another way to show this is: what is the RL ativo in these areas?
+# in other words, how much are properties currently conserving?
+data_largeholders <- data[which(data$size == "largeholders"),]
+data_largeholders$rich_x_rlat <- data_largeholders$Richness_2020*data_largeholders$rl_ativo
+setwd(paste0(wdmain, "/output/maps"))
+png("MapDeficitAreas_rich_x_rlativo.png", width = 2400, height = 2400, units = "px", res = 300)
+ggplot() + 
+  geom_sf(data = data_largeholders, aes(fill = rich_x_rlat), color = NA) +
+  scale_fill_viridis_c() +
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1)) +
+  geom_sf(data = biomes, fill = NA, color = "black", size = 1)
+dev.off()
 
-# map of how much biodiversity declines could be improved with compliance with the forest code? ----
-# how much biodiversity weighted by how much is "owed"
-# add the properties with deficits 
+data_largeholders$ende_x_rlat <- data_largeholders$Endemism_2020*data_largeholders$rl_ativo
+setwd(paste0(wdmain, "/output/maps"))
+png("MapDeficitAreas_ende_x_rlativo.png", width = 2400, height = 2400, units = "px", res = 300)
+ggplot() + 
+  geom_sf(data = data_largeholders, aes(fill = ende_x_rlat), color = NA) +
+  scale_fill_viridis_c() +
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1)) +
+  geom_sf(data = biomes, fill = NA, color = "black", size = 1)
+dev.off()
 
+# maybe pick up here: make a similar table as before - who has RL_ativo?
 
+# 2) how much biodiversity could be restored potentially, with full compliance of the FC? ----
+# option A): weigh biodiversity "loss/change" (the difference bt current and potential) by the amount owed (total_deficit)
+IRU_Deficit
+# option B): how much are RL's conserving current BD - that is, RL ativo
 
 # richness
-# create variable of richness lost weighed by total deficit
+# create variable of richness loss weighed by total deficit
 propsDeficit$BDFC <- (propsDeficit$Richness_loss*propsDeficit$totalDeficit2)
 myCols <- c('#f7fcf0','#ccebc5','#a8ddb5','#7bccc4','#2b8cbe','#084081')
 breaks <- classIntervals(propsDeficit$BDFC, na.rm = T, n=6)
@@ -316,6 +310,7 @@ dev.off()
 
 
 
+deficitCols <- c("no deficit" = "#f0f0f0", "deficit" = "#f03b20")
 
 
 # ...relate this to forest/deforestation somehow?
