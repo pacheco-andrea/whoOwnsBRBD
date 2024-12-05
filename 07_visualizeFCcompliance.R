@@ -83,19 +83,17 @@ biomes <- biomes[-7,]$geom
 biomes <- st_transform(biomes, crs = my_crs_SAaea)
 plot(biomes)
 
-# before investigating biodiversity, what is the distribution of deficit? ----
-# are really only 2% of properties responsible for most deficit/deforestation?
+# (before mapping) what is the distribution of surplus and deficit with these two categories? ----
 data <- FC_data2
 deficitTotals <- data %>% 
   st_drop_geometry() %>%
   group_by(LTcateg) %>%
-  summarize(total_deficit = sum(total_deficit), # IRU are responsible for 90-91% of total deficit and total deforestation
+  summarize(total_deficit = sum(total_deficit), 
             desmat_p08 = sum(desmat_p08))
 sum(deficitTotals$total_deficit)
 # the exact statement from the rotten apples paper is:
 # 2% of of all properties in both biomes, which are bigger than 4FM, are responsible for 62% of all potentially illegal deforestations...
-# based on the mean bt deforestation thresholds of 6.25 ha and 12.5 ha (Table S18)??
-# then, 18% of properties responsible for 80% of illegal deforestation in both biomes
+# also, 18% of properties responsible for 80% of illegal deforestation in both biomes
 data$size <- NA
 data[which(data$n_mf <= 4),]$size <- "smallholders"
 data[which(data$n_mf > 4),]$size <- "largeholders"
@@ -105,7 +103,7 @@ deficitTotals <- data %>%
   st_drop_geometry() %>%
   group_by(size, LTcateg) %>%
   summarize(n = n(),
-            total_deficit = sum(total_deficit), # IRU are responsible for 90-91% of total deficit and total deforestation
+            total_deficit = sum(total_deficit), 
             desmat_p08 = sum(desmat_p08),
             total_surplus = sum(rl_ativo)) %>%
   ungroup() %>%
@@ -172,7 +170,8 @@ setwd(paste0(wdmain, "/output"))
 write.csv(deficitTotals, "deficitTotals.csv", row.names = F)
 write.csv(deficitTotals_AMCE, "deficitTotals_amazon-cerrado.csv", row.names = F)
 
-# make accompanying figure of surplus and deficit
+# make accompanying figure to illustrate proportions of surplus and deficit ----
+# transform data
 deficitTotals_long <- deficitTotals %>%
   filter(!LTcateg %in% c("Summary")) %>% # Exclude summary rows
   select(size, LTcateg, total_deficit, total_surplus, total_deficit_pct, total_surplus_pct) %>% 
@@ -184,7 +183,7 @@ deficitTotals_long <- deficitTotals %>%
     pct = ifelse(type == "total_deficit", total_deficit_pct, total_surplus_pct), # Add percentages
     color_group = paste(type, LTcateg, sep = "_") # Create unique levels for color mapping
  )
-# Define separate color palettes
+# Define separate color palettes - these labels don't make sense, but they are sorted and correct in the figure
 palette_deficit <- c("private lands" = "#fdc086", 
                      "rural settlements" = "#ff7f00", 
                      "smallholders" = "#fb9a99", 
@@ -203,6 +202,7 @@ color_mapping <- c(
   setNames(palette_deficit, unique(deficitTotals_long$color_group[deficitTotals_long$type == "total_deficit"])),
   setNames(palette_surplus, unique(deficitTotals_long$color_group[deficitTotals_long$type == "total_surplus"]))
 )
+# clean up labeling
 colnames(deficitTotals_long) <- gsub("total_", "", colnames(deficitTotals_long))
 deficitTotals_long$type <- gsub("total_", "", deficitTotals_long$type)
 # convert to km2 
@@ -230,16 +230,47 @@ vegDeficitSurplus <- ggplot(deficitTotals_long, aes(x = type, y = value, fill = 
     legend.position = "bottom"
   ) +
   coord_flip()
-
+# write out - note minor manual edits are made in inkscape
 setwd(paste0(wdmain, "/output"))
 svg("vegDeficitSurplus_barplot.svg", width = 10, height = 3, bg = "white", pointsize = 12)
 vegDeficitSurplus
 dev.off()
 
+
+
+
+
 # what does this mean for biodiversity?? ----
 
-# 1) Current biodiversity in areas with deficit 
+# 1) Current biodiversity in areas with SURPLUS 
+# in other words, how much are properties currently conserving?
+map_surplusData <- data[which(data$size != "smallholders" & data$LTcateg != "Rural settlements"),]
+summary(map_surplusData)
+data_largeholders <- data[which(data$size == "largeholders"),]
+data_largeholders$rich_x_rlat <- data_largeholders$Richness_2020*data_largeholders$rl_ativo
+setwd(paste0(wdmain, "/output/maps"))
+png("MapDeficitAreas_rich_x_rlativo.png", width = 2400, height = 2400, units = "px", res = 300)
+ggplot() + 
+  geom_sf(data = data_largeholders, aes(fill = rich_x_rlat), color = NA) +
+  scale_fill_viridis_c() +
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1)) +
+  geom_sf(data = biomes, fill = NA, color = "black", size = 1)
+dev.off()
 
+data_largeholders$ende_x_rlat <- data_largeholders$Endemism_2020*data_largeholders$rl_ativo
+setwd(paste0(wdmain, "/output/maps"))
+png("MapDeficitAreas_ende_x_rlativo.png", width = 2400, height = 2400, units = "px", res = 300)
+ggplot() + 
+  geom_sf(data = data_largeholders, aes(fill = ende_x_rlat), color = NA) +
+  scale_fill_viridis_c() +
+  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1)) +
+  geom_sf(data = biomes, fill = NA, color = "black", size = 1)
+dev.off()
+
+
+
+# Current biodiversity in areas with DEFICIT (not needed)
+# Rather, Biodiversity potential increase in areas with DEFICIT
 # filter data to A) private lands - largeholders with deficit
 IRU_Deficit <- data[which(data$size == "largeholders" & data$LTcateg == "Private lands" & data$total_deficit > 0),]
 summary(IRU_Deficit) 
@@ -299,28 +330,8 @@ ggplot() +
   geom_sf(data = biomes, fill = NA, color = "black", size = 1)
 dev.off()
 
-# another way to show this is: what is the RL ativo in these areas?
-# in other words, how much are properties currently conserving?
-data_largeholders <- data[which(data$size == "largeholders"),]
-data_largeholders$rich_x_rlat <- data_largeholders$Richness_2020*data_largeholders$rl_ativo
-setwd(paste0(wdmain, "/output/maps"))
-png("MapDeficitAreas_rich_x_rlativo.png", width = 2400, height = 2400, units = "px", res = 300)
-ggplot() + 
-  geom_sf(data = data_largeholders, aes(fill = rich_x_rlat), color = NA) +
-  scale_fill_viridis_c() +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1)) +
-  geom_sf(data = biomes, fill = NA, color = "black", size = 1)
-dev.off()
 
-data_largeholders$ende_x_rlat <- data_largeholders$Endemism_2020*data_largeholders$rl_ativo
-setwd(paste0(wdmain, "/output/maps"))
-png("MapDeficitAreas_ende_x_rlativo.png", width = 2400, height = 2400, units = "px", res = 300)
-ggplot() + 
-  geom_sf(data = data_largeholders, aes(fill = ende_x_rlat), color = NA) +
-  scale_fill_viridis_c() +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1)) +
-  geom_sf(data = biomes, fill = NA, color = "black", size = 1)
-dev.off()
+
 
 
 
