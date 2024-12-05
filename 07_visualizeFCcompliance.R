@@ -106,11 +106,13 @@ deficitTotals <- data %>%
   group_by(size, LTcateg) %>%
   summarize(n = n(),
             total_deficit = sum(total_deficit), # IRU are responsible for 90-91% of total deficit and total deforestation
-            desmat_p08 = sum(desmat_p08)) %>%
+            desmat_p08 = sum(desmat_p08),
+            total_surplus = sum(rl_ativo)) %>%
   ungroup() %>%
   mutate(
     total_deficit_pct = total_deficit / sum(total_deficit) * 100,
-    desmat_p08_pct = desmat_p08 / sum(desmat_p08) * 100
+    desmat_p08_pct = desmat_p08 / sum(desmat_p08) * 100,
+    total_surplus_pct = total_surplus / sum(total_surplus) * 100
   ) %>%
   bind_rows(
     summarize(
@@ -120,8 +122,10 @@ deficitTotals <- data %>%
       n = sum(n),
       total_deficit = sum(total_deficit),
       desmat_p08 = sum(desmat_p08),
+      total_surplus = sum(total_surplus),
       total_deficit_pct = 100,
-      desmat_p08_pct = 100
+      desmat_p08_pct = 100,
+      total_surplus_pct = 100
     )
   )
 deficitTotals
@@ -136,11 +140,13 @@ deficitTotals_AMCE <- data %>%
   group_by(size, LTcateg) %>%
   summarize(n = n(),
             total_deficit = sum(total_deficit), # IRU are responsible for 90-91% of total deficit and total deforestation
-            desmat_p08 = sum(desmat_p08)) %>%
+            desmat_p08 = sum(desmat_p08),
+            total_surplus = sum(rl_ativo)) %>%
   ungroup() %>%
   mutate(
     total_deficit_pct = total_deficit / sum(total_deficit) * 100,
-    desmat_p08_pct = desmat_p08 / sum(desmat_p08) * 100
+    desmat_p08_pct = desmat_p08 / sum(desmat_p08) * 100,
+    total_surplus_pct = total_surplus / sum(total_surplus) * 100
   ) %>%
   bind_rows(
     summarize(
@@ -150,8 +156,10 @@ deficitTotals_AMCE <- data %>%
       n = sum(n),
       total_deficit = sum(total_deficit),
       desmat_p08 = sum(desmat_p08),
+      total_surplus = sum(total_surplus),
       total_deficit_pct = 100,
-      desmat_p08_pct = 100
+      desmat_p08_pct = 100,
+      total_surplus_pct = 100
     )
   )
 deficitTotals_AMCE
@@ -163,6 +171,70 @@ deficitTotals
 setwd(paste0(wdmain, "/output"))
 write.csv(deficitTotals, "deficitTotals.csv", row.names = F)
 write.csv(deficitTotals_AMCE, "deficitTotals_amazon-cerrado.csv", row.names = F)
+
+# make accompanying figure of surplus and deficit
+deficitTotals_long <- deficitTotals %>%
+  filter(!LTcateg %in% c("Summary")) %>% # Exclude summary rows
+  select(size, LTcateg, total_deficit, total_surplus, total_deficit_pct, total_surplus_pct) %>% 
+  pivot_longer(cols = c(total_deficit, total_surplus),
+               names_to = "type",
+               values_to = "value") %>%
+  mutate(
+    value = ifelse(type == "total_deficit", -value, value), # Negative for deficits
+    pct = ifelse(type == "total_deficit", total_deficit_pct, total_surplus_pct), # Add percentages
+    color_group = paste(type, LTcateg, sep = "_") # Create unique levels for color mapping
+ )
+# Define separate color palettes
+palette_deficit <- c("private lands" = "#fdc086", 
+                     "rural settlements" = "#ff7f00", 
+                     "smallholders" = "#fb9a99", 
+                     "largeholders" = "#b30000") # Light to dark red-orange
+
+palette_surplus <- c("private lands" = "#b2df8a", 
+                     "rural settlements" = "#238b45", 
+                     "smallholders" = "#8dd3c7", 
+                     "largeholders" = "red") # Light to dark green
+
+# Assign colors based on type (deficit/surplus) and categories
+deficitTotals_long <- deficitTotals_long %>%
+  mutate(color_group = interaction(type, size, LTcateg, drop = TRUE)) # Unique group for colors
+# Define a color mapping
+color_mapping <- c(
+  setNames(palette_deficit, unique(deficitTotals_long$color_group[deficitTotals_long$type == "total_deficit"])),
+  setNames(palette_surplus, unique(deficitTotals_long$color_group[deficitTotals_long$type == "total_surplus"]))
+)
+colnames(deficitTotals_long) <- gsub("total_", "", colnames(deficitTotals_long))
+deficitTotals_long$type <- gsub("total_", "", deficitTotals_long$type)
+# convert to km2 
+deficitTotals_long$value <- deficitTotals_long$value/100
+
+# Create the stacked bar plot
+vegDeficitSurplus <- ggplot(deficitTotals_long, aes(x = type, y = value, fill = color_group)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = color_mapping) + # Apply custom color palette
+  theme_minimal() +
+  geom_text(data = deficitTotals_long %>% filter(pct > 5), # Only plot labels for percentages > 5%
+    aes(label = paste0(round(pct, 1), "%")),
+    position = position_stack(vjust = 0.9),
+    size = 4
+  ) + # Add percentage labels
+  labs(
+    x = "",
+    y = "",
+    fill = "Category",
+    title = "Vegetation requirements for FC compliance"
+  ) +
+  scale_y_continuous(labels = scales::comma) + # Format y-axis
+  theme(
+    text = element_text(size = 14),
+    legend.position = "bottom"
+  ) +
+  coord_flip()
+
+setwd(paste0(wdmain, "/output"))
+svg("vegDeficitSurplus_barplot.svg", width = 10, height = 3, bg = "white", pointsize = 12)
+vegDeficitSurplus
+dev.off()
 
 # what does this mean for biodiversity?? ----
 
@@ -250,7 +322,7 @@ ggplot() +
   geom_sf(data = biomes, fill = NA, color = "black", size = 1)
 dev.off()
 
-# maybe pick up here: make a similar table as before - who has RL_ativo?
+
 
 # 2) how much biodiversity could be restored potentially, with full compliance of the FC? ----
 # option A): weigh biodiversity "loss/change" (the difference bt current and potential) by the amount owed (total_deficit)
