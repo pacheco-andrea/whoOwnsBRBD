@@ -242,31 +242,77 @@ dev.off()
 
 # what does this mean for biodiversity?? ----
 
+# filter out the properties which were smallholder-rural-settlements bc they were <1% of either deficit or surplus
+mapData <- data %>%
+  filter(!(size == "smallholders" & LTcateg == "Rural settlements"))
+
 # 1) Current biodiversity in areas with SURPLUS 
 # in other words, how much are properties currently conserving?
-map_surplusData <- data[which(data$size != "smallholders" & data$LTcateg != "Rural settlements"),]
-summary(map_surplusData)
-data_largeholders <- data[which(data$size == "largeholders"),]
-data_largeholders$rich_x_rlat <- data_largeholders$Richness_2020*data_largeholders$rl_ativo
+# make surplus data subset
+surplusData <- mapData[which(mapData$rl_ativo > 0),]
+# Calculate natural breaks 
+surplusData$rl_ativo_area <- (surplusData$rl_ativo/100)/surplusData$areakm2
+breaks <- classInt::classIntervals(surplusData$rl_ativo_area, n = 5, style = "fisher")$brks
+# Define colors for each break
+colors <- c("#edf8e9", "#bae4b3", "#74c476", "#31a354", "#00441b") # Green gradient
+
+# continuous map of the surplus 
 setwd(paste0(wdmain, "/output/maps"))
-png("MapDeficitAreas_rich_x_rlativo.png", width = 2400, height = 2400, units = "px", res = 300)
-ggplot() + 
-  geom_sf(data = data_largeholders, aes(fill = rich_x_rlat), color = NA) +
-  scale_fill_viridis_c() +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1)) +
+png("MapSurplusAreas_continuous.png", width = 2400, height = 2400, units = "px", res = 300)
+ggplot(surplusData) + 
+  geom_sf(aes(fill = rl_ativo_area), color = NA) +
+  scale_fill_gradientn(
+    colors = colors, 
+    values = scales::rescale(breaks), # Rescale breaks to fit between 0 and 1
+    limits = range(breaks), # Ensures scale matches the breaks
+    oob = scales::squish # Handles out-of-bounds values
+  ) +
+  theme(
+    panel.background = element_blank(), 
+    legend.title = element_blank(), 
+    axis.text = element_blank(), 
+    axis.ticks = element_blank(), 
+    legend.position = c(0.1, 0.1)
+  ) +
   geom_sf(data = biomes, fill = NA, color = "black", size = 1)
 dev.off()
 
-data_largeholders$ende_x_rlat <- data_largeholders$Endemism_2020*data_largeholders$rl_ativo
+# make richness * surplus variable
+surplusData$rich_x_rlat <- surplusData$Richness_2020*surplusData$rl_ativo_area
+
+# Calculate natural breaks using the Jenks method
+breaks <- classInt::classIntervals(surplusData$rich_x_rlat, n = 5, style = "fisher")$brks
+# Define colors for each break
+colors <- c('#f6eff7','#bdc9e1','#67a9cf','#1c9099','#016c59') # Green gradient
+
 setwd(paste0(wdmain, "/output/maps"))
-png("MapDeficitAreas_ende_x_rlativo.png", width = 2400, height = 2400, units = "px", res = 300)
-ggplot() + 
-  geom_sf(data = data_largeholders, aes(fill = ende_x_rlat), color = NA) +
-  scale_fill_viridis_c() +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1)) +
+png("MapSurplusAreas_rich_x_rlativo.png", width = 2400, height = 2400, units = "px", res = 300)
+ggplot(surplusData) + 
+  geom_sf(aes(fill = rich_x_rlat), color = NA) +
+  scale_fill_gradientn(
+    colors = colors, 
+    values = scales::rescale(breaks), # Rescale breaks to fit between 0 and 1
+    limits = range(breaks), # Ensures scale matches the breaks
+    oob = scales::squish # Handles out-of-bounds values
+  ) +
+  theme(
+    panel.background = element_blank(), 
+    legend.title = element_blank(), 
+    axis.text = element_blank(), 
+    axis.ticks = element_blank(), 
+    legend.position = c(0.1, 0.1)
+  ) +
+  # i think i need to conduct an st_union for all rural settlements
+  # geom_sf(
+  #   data = rSett, 
+  #   fill = NA, color = "#FC8D62", size = 0.01) +
   geom_sf(data = biomes, fill = NA, color = "black", size = 1)
 dev.off()
 
+# repeat for endemism
+
+# check whether surplus and deficit coexist?
+check <- mapData[which(mapData$rl_ativo > 0),] # not for the RL but yes, some, for the total
 
 
 # Current biodiversity in areas with DEFICIT (not needed)
