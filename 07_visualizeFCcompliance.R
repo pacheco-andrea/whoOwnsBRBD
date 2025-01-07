@@ -170,7 +170,7 @@ setwd(paste0(wdmain, "/output"))
 write.csv(deficitTotals, "deficitTotals.csv", row.names = F)
 write.csv(deficitTotals_AMCE, "deficitTotals_amazon-cerrado.csv", row.names = F)
 
-# make accompanying figure to illustrate proportions of surplus and deficit ----
+# make barplot to illustrate proportions of surplus and deficit ----
 # transform data
 deficitTotals_long <- deficitTotals %>%
   filter(!LTcateg %in% c("Summary")) %>% # Exclude summary rows
@@ -235,17 +235,82 @@ svg("vegDeficitSurplus_barplot2.svg", width = 3, height = 10, bg = "white", poin
 vegDeficitSurplus
 dev.off()
 
+# is there a relationship bt compliance and biodiversity?----
+# in other words, are the ones that conserve the most, the ones under most compliance
+# AND does this include the overlaps?
+deficitTotals
 
+test <- data %>% 
+  st_drop_geometry()
+head(test)
 
+ggplot(test, aes(x = total_deficit, y = Richness_2020)) +
+  geom_point(color = "blue", alpha = 0.3) +
+  labs(
+    title = "Scatterplot of Total Deficit vs Richness (2020)",
+    x = "Total Deficit",
+    y = "Richness (2020)"
+  ) +
+  theme_minimal()
 
+unique(test$overlapsWith)
 
-# what does this mean for biodiversity?? ----
+#identify overlaps
+test2 <- test[which(test$LTcateg != test$overlapsWith),]
+test2[,c(2,17)]
+# map overlaps with UCs or indigenous lands which would be the confounding thing
+test3 <- test2[which(test2$overlapsWith != "Undesignated lands"),]
+test3[,c(2,17)]
+
+overl_deficit_plot <- ggplot(test3, aes(x = total_deficit, y = Richness_2020)) +
+  geom_point(color = "#d95f0e", alpha = 0.2) +
+  labs(
+    title = "Overlapping private lands",
+    x = "Total Deficit",
+    y = "Richness (2020)"
+  ) +
+  theme_minimal()
+overl_surplus_plot <- ggplot(test3, aes(x = rl_ativo, y = Richness_2020)) +
+  geom_point(color = "#43a2ca", alpha = 0.2) +
+  labs(
+    title = "Overlapping private lands",
+    x = "Total Surplus",
+    y = "Richness (2020)"
+  ) +
+  theme_minimal()
+
+# only non overlaps
+test4 <- test[which(test$LTcateg == test$overlapsWith),]
+nonoverl_deficit_plot <- ggplot(test4, aes(x = total_deficit, y = Richness_2020)) +
+  geom_point(color = "#d95f0e", alpha = 0.2) +
+  labs(
+    title = "Non-overlapping private lands & rural settlements",
+    x = "Total Deficit",
+    y = "Richness (2020)"
+  ) +
+  theme_minimal()
+nonoverl_surplus_plot <- ggplot(test4, aes(x = rl_ativo, y = Richness_2020)) +
+  geom_point(color = "#43a2ca", alpha = 0.2) +
+  labs(
+    title = "Non-overlapping private lands & rural settlements",
+    x = "Total Surplus",
+    y = "Richness (2020)"
+  ) +
+  theme_minimal()
+
+setwd(paste0(wdmain, "/output"))
+png("scatterplot_BD-deficit-surplus_overlappingProperties.png", width = 2400, height = 2000, units = "px", res = 300)
+plot_grid(overl_deficit_plot, nonoverl_deficit_plot, 
+          overl_surplus_plot, nonoverl_surplus_plot, nrow = 2)
+dev.off()
+
+# make maps with biodiversity ----
 
 # filter out the properties which were smallholder-rural-settlements bc they were <1% of either deficit or surplus
 mapData <- data %>%
   filter(!(size == "smallholders" & LTcateg == "Rural settlements"))
 
-# 1) Current biodiversity in areas with SURPLUS 
+# plot areas with SURPLUS ----
 # in other words, how much are properties currently conserving?
 # make surplus data subset
 surplusData <- mapData[which(mapData$rl_ativo > 0),]
@@ -276,6 +341,7 @@ ggplot(surplusData) +
   geom_sf(data = biomes, fill = NA, color = "black", size = 1)
 dev.off()
 
+# plot biodiversity weighed by amount of SURPLUS ----
 # make richness * surplus variable
 surplusData$rich_x_rlat <- surplusData$Richness_2020*surplusData$rl_ativo_area
 # Calculate natural breaks using the Jenks method
@@ -357,7 +423,7 @@ dev.off()
 
 
 
-# Current biodiversity in areas with DEFICIT 
+# plot current DEFICIT per property ----
 # (not really needed for the paper, just for me to see)
 
 deficitData <- mapData[which(mapData$total_deficit > 0),] # remember this is abs() in ha
@@ -388,9 +454,34 @@ ggplot(deficitData) +
   geom_sf(data = biomes, fill = NA, color = "black", size = 1)
 dev.off()
 
-# plot potential increase in biodiversity in properties with DEFICIT
+# try out what a proportion would look like 
+summary((deficitData$total_deficit/100)/deficitData$areakm2)
+# proportional map of the deficit 
+setwd(paste0(wdmain, "/output/maps"))
+png("MapDeficitAreas_proportional.png", width = 2400, height = 2400, units = "px", res = 300)
+ggplot(deficitData) + 
+  geom_sf(data = biomes, fill = "grey90", color = NA, size = 1) +
+  geom_sf(aes(fill = (total_deficit/100)/areakm2), color = NA) +
+  scale_fill_gradientn(
+    colors = colors, 
+    values = scales::rescale(breaks), 
+    limits = range(breaks), 
+    oob = scales::squish 
+  ) +
+  theme(
+    panel.background = element_blank(), 
+    legend.title = element_blank(), 
+    axis.text = element_blank(), 
+    axis.ticks = element_blank(), 
+    legend.position = c(0.2, 0.2)
+  ) +
+  geom_sf(data = biomes, fill = NA, color = "black", size = 1)
+dev.off()
+
+# plot potential RESTORATION (increase in biodiversity) in properties with DEFICIT ----
 # restor variable
 deficitData$restor_rich <- deficitData$Richness_baseline*(deficitData$total_deficit/100)
+
 summary(deficitData$restor_rich)
 breaks <- classInt::classIntervals(deficitData$restor_rich, n = 5, style = "fisher")$brks
 colors <- c('#fcc5c0','#fa9fb5','#f768a1','#c51b8a','#7a0177')
