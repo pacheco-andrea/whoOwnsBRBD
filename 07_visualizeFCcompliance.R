@@ -228,11 +228,10 @@ vegDeficitSurplus <- ggplot(deficitTotals_long, aes(x = type, y = value, fill = 
   theme(
     text = element_text(size = 14),
     legend.position = "bottom"
-  ) +
-  coord_flip()
+  ) 
 # write out - note minor manual edits are made in inkscape
 setwd(paste0(wdmain, "/output"))
-svg("vegDeficitSurplus_barplot.svg", width = 10, height = 3, bg = "white", pointsize = 12)
+svg("vegDeficitSurplus_barplot2.svg", width = 3, height = 10, bg = "white", pointsize = 12)
 vegDeficitSurplus
 dev.off()
 
@@ -250,7 +249,7 @@ mapData <- data %>%
 # in other words, how much are properties currently conserving?
 # make surplus data subset
 surplusData <- mapData[which(mapData$rl_ativo > 0),]
-# Calculate natural breaks 
+# surplus per property area
 surplusData$rl_ativo_area <- (surplusData$rl_ativo/100)/surplusData$areakm2
 breaks <- classInt::classIntervals(surplusData$rl_ativo_area, n = 5, style = "fisher")$brks
 # Define colors for each break
@@ -279,15 +278,15 @@ dev.off()
 
 # make richness * surplus variable
 surplusData$rich_x_rlat <- surplusData$Richness_2020*surplusData$rl_ativo_area
-
 # Calculate natural breaks using the Jenks method
 breaks <- classInt::classIntervals(surplusData$rich_x_rlat, n = 5, style = "fisher")$brks
 # Define colors for each break
-colors <- c('#f6eff7','#bdc9e1','#67a9cf','#1c9099','#016c59') # Green gradient
+colors <- c('#f0f9e8','#bae4bc','#7bccc4','#43a2ca','#0868ac') # Green gradient
 
 setwd(paste0(wdmain, "/output/maps"))
 png("MapSurplusAreas_rich_x_rlativo.png", width = 2400, height = 2400, units = "px", res = 300)
 ggplot(surplusData) + 
+  geom_sf(data = biomes, fill = "grey90", color = NA, size = 1) +
   geom_sf(aes(fill = rich_x_rlat), color = NA) +
   scale_fill_gradientn(
     colors = colors, 
@@ -300,183 +299,176 @@ ggplot(surplusData) +
     legend.title = element_blank(), 
     axis.text = element_blank(), 
     axis.ticks = element_blank(), 
-    legend.position = c(0.1, 0.1)
+    legend.position = c(0.2, 0.2)
   ) +
-  # i think i need to conduct an st_union for all rural settlements
-  # geom_sf(
-  #   data = rSett, 
-  #   fill = NA, color = "#FC8D62", size = 0.01) +
   geom_sf(data = biomes, fill = NA, color = "black", size = 1)
 dev.off()
+
+# save as svg
+setwd(paste0(wdmain, "/output/maps"))
+svg("MapSurplusAreas_rich_x_rlativo.svg", width = 5, height = 5, pointsize = 12)
+ggplot(surplusData) + 
+  geom_sf(data = biomes, fill = "grey90", color = NA, size = 1) +
+  geom_sf(aes(fill = rich_x_rlat), color = NA) +
+  scale_fill_gradientn(
+    colors = colors, 
+    values = scales::rescale(breaks), # Rescale breaks to fit between 0 and 1
+    limits = range(breaks), # Ensures scale matches the breaks
+    oob = scales::squish # Handles out-of-bounds values
+  ) +
+  theme(
+    panel.background = element_blank(), 
+    legend.title = element_blank(), 
+    axis.text = element_blank(), 
+    axis.ticks = element_blank(), 
+    legend.position = c(0.2, 0.2)
+  ) +
+  geom_sf(data = biomes, fill = NA, color = "black", size = 1)
+dev.off()
+
 
 # repeat for endemism
-
-# check whether surplus and deficit coexist?
-check <- mapData[which(mapData$rl_ativo > 0),] # not for the RL but yes, some, for the total
-
-
-# Current biodiversity in areas with DEFICIT (not needed)
-# Rather, Biodiversity potential increase in areas with DEFICIT
-# filter data to A) private lands - largeholders with deficit
-IRU_Deficit <- data[which(data$size == "largeholders" & data$LTcateg == "Private lands" & data$total_deficit > 0),]
-summary(IRU_Deficit) 
-# filter data to B) rural-settlement-largeholders with deficit
-AST_Deficit <- data[which(data$size == "largeholders" & data$LTcateg == "Rural settlements" & data$total_deficit > 0),]
-summary(AST_Deficit) 
-
-# plot areas with deficit (areas with potential restoration) 
-# make base map of all properties + properties with forest code deficits
-# read in raster of all the properties we have
-setwd(paste0(wdmain,"/data/processed/raster_landTenureCategs/"))
-l <- grep("SAalbers_1km.tif$", list.files())
-t <- lapply(list.files()[l], rast) 
-names(t) <- gsub("landTenure_", "", gsub("_SAalbers_1km.tif","", list.files()[l]))
-# get rid of sigef and snci properties
-t$SIGEF_properties <- NULL
-t$SNCI_properties <- NULL
-v <- vect(biomes)
-
-# make very simple map of all the areas with deficit in the forest code
-setwd(paste0(wdmain, "/output/maps"))
-png("MapDeficitAreas_largeholders.png", width = 2400, height = 2400, units = "px", res = 300)
-# start by plotting biomes to roraima isn't sliced off
-plot(biomes)
-# plot rasters of other tenure categories as a base
-for (i in 1:length(t)) {
-  plot(t[[i]], axes = F, , col = "gray90", mar = NA, legend = F, add = TRUE)  # Add each raster on top of the previous one
-}
-# add the properties with deficits 
-plot(IRU_Deficit, add = T, col = "#993404", border = NA, alpha = .8)
-plot(AST_Deficit, add = T, col = "#fec44f", border = NA, alpha = .8)
-terra::lines(v, lwd=.1)
-dev.off() # remember, this shows the properties responsible for more than 80% of deforestation, and 90% of all deficit
-
-# plot biodiversity in these areas
+surplusData$ende_x_rlat <- surplusData$Endemism_2020*surplusData$rl_ativo_area
+# Calculate natural breaks using the Jenks method
+breaks <- classInt::classIntervals(surplusData$ende_x_rlat, n = 5, style = "fisher")$brks
+# Define colors for each break
+colors <- c('#f0f9e8','#bae4bc','#7bccc4','#43a2ca','#0868ac') # Green gradient
 
 setwd(paste0(wdmain, "/output/maps"))
-png("MapDeficitAreas_largeholders_richness.png", width = 2400, height = 2400, units = "px", res = 300) # this one isn't working...
-# start by plotting biomes to roraima isn't sliced off
-plot(biomes)
-# plot rasters of other tenure categories as a base
-for (i in 1:length(t)) {
-  plot(t[[i]], axes = F, , col = "gray90", mar = NA, legend = F, add = TRUE)  # Add each raster on top of the previous one
-}
-# add the properties with deficits 
-plot(IRU_Deficit["Richness_2020"], add = T, col = hcl.colors(100, "Viridis"), border = NA, alpha = .8)
-terra::lines(v, lwd=.1)
-dev.off() # the colors are off from the data...
-
-# try with ggplot
-setwd(paste0(wdmain, "/output/maps"))
-png("MapDeficitAreas_largeholders_richness_test.png", width = 2400, height = 2400, units = "px", res = 300)
-ggplot() + 
-  geom_sf(data = IRU_Deficit, aes(fill = Richness_2020), color = NA) +
-  scale_fill_viridis_c() +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1)) +
+png("MapSurplusAreas_endemism_x_rlativo.png", width = 2400, height = 2400, units = "px", res = 300)
+ggplot(surplusData) + 
+  geom_sf(data = biomes, fill = "grey90", color = NA, size = 1) +
+  geom_sf(aes(fill = ende_x_rlat), color = NA) +
+  scale_fill_gradientn(
+    colors = colors, 
+    values = scales::rescale(breaks), # Rescale breaks to fit between 0 and 1
+    limits = range(breaks), # Ensures scale matches the breaks
+    oob = scales::squish # Handles out-of-bounds values
+  ) +
+  theme(
+    panel.background = element_blank(), 
+    legend.title = element_blank(), 
+    axis.text = element_blank(), 
+    axis.ticks = element_blank(), 
+    legend.position = c(0.2, 0.2)
+  ) +
   geom_sf(data = biomes, fill = NA, color = "black", size = 1)
 dev.off()
 
 
 
+# Current biodiversity in areas with DEFICIT 
+# (not really needed for the paper, just for me to see)
 
+deficitData <- mapData[which(mapData$total_deficit > 0),] # remember this is abs() in ha
+# note, it does not make sense to normalize deficit property area bc the calculation of deficit implicitly includes a property's size
+breaks <- classInt::classIntervals(deficitData$total_deficit, n = 5, style = "fisher")$brks
+# Define colors for each break
+colors <- c('#ffffd4','#fed98e','#fe9929','#d95f0e','#993404')
 
-
-# 2) how much biodiversity could be restored potentially, with full compliance of the FC? ----
-# option A): weigh biodiversity "loss/change" (the difference bt current and potential) by the amount owed (total_deficit)
-IRU_Deficit
-# option B): how much are RL's conserving current BD - that is, RL ativo
-
-# richness
-# create variable of richness loss weighed by total deficit
-propsDeficit$BDFC <- (propsDeficit$Richness_loss*propsDeficit$totalDeficit2)
-myCols <- c('#f7fcf0','#ccebc5','#a8ddb5','#7bccc4','#2b8cbe','#084081')
-breaks <- classIntervals(propsDeficit$BDFC, na.rm = T, n=6)
-# create factor variable based on these bins
-propsDeficit$myCol1 <- cut(propsDeficit$BDFC, breaks = breaks$brks, labels = myCols, include.lowest = T)
-
+# continuous map of the deficit 
 setwd(paste0(wdmain, "/output/maps"))
-png("BD-Richness_x_DeficitAreas.png", width = 2400, height = 2400, units = "px", res = 300)
-# plot first one
-plot(t[[1]], axes = F, mar = NA, legend = F, col = "gray90")
-# add others on top
-for (i in 2:length(t)) {
-  plot(t[[i]], axes = F, , col = "gray90", mar = NA, legend = F, add = TRUE)  # Add each raster on top of the previous one
-}
-plot(propsDeficit, col = as.character(propsDeficit$myCol1), add = T, border = NA)
-terra::lines(v, lwd=.1)
+png("MapDeficitAreas_continuous.png", width = 2400, height = 2400, units = "px", res = 300)
+ggplot(deficitData) + 
+  geom_sf(data = biomes, fill = "grey90", color = NA, size = 1) +
+  geom_sf(aes(fill = total_deficit), color = NA) +
+  scale_fill_gradientn(
+    colors = colors, 
+    values = scales::rescale(breaks), 
+    limits = range(breaks), 
+    oob = scales::squish 
+  ) +
+  theme(
+    panel.background = element_blank(), 
+    legend.title = element_blank(), 
+    axis.text = element_blank(), 
+    axis.ticks = element_blank(), 
+    legend.position = c(0.2, 0.2)
+  ) +
+  geom_sf(data = biomes, fill = NA, color = "black", size = 1)
+dev.off()
+
+# plot potential increase in biodiversity in properties with DEFICIT
+# restor variable
+deficitData$restor_rich <- deficitData$Richness_baseline*(deficitData$total_deficit/100)
+summary(deficitData$restor_rich)
+breaks <- classInt::classIntervals(deficitData$restor_rich, n = 5, style = "fisher")$brks
+colors <- c('#fcc5c0','#fa9fb5','#f768a1','#c51b8a','#7a0177')
+#  map of the potential species to be restored per km2 (without human LUC) in properties with deficit 
+setwd(paste0(wdmain, "/output/maps"))
+png("MapDeficitAreas_richnessRestore_baselineTest.png", width = 2400, height = 2400, units = "px", res = 300)
+ggplot(deficitData) + 
+  geom_sf(data = biomes, fill = "grey90", color = NA, size = 1) +
+  geom_sf(aes(fill = restor_rich), color = NA) +
+  scale_fill_gradientn(
+    colors = colors, 
+    values = scales::rescale(breaks), 
+    limits = range(breaks), 
+    oob = scales::squish 
+  ) +
+  theme(
+    panel.background = element_blank(), 
+    legend.title = element_blank(), 
+    axis.text = element_blank(), 
+    axis.ticks = element_blank(), 
+    legend.position = c(0.2, 0.2)
+  ) +
+  geom_sf(data = biomes, fill = NA, color = "black", size = 1)
+dev.off()
+
+# svg version for the legend - figure out better way to do this
+setwd(paste0(wdmain, "/output/maps"))
+svg("MapDeficitAreas_richnessRestore.svg", width = 5, height = 5, pointsize = 12)
+ggplot(deficitData) + 
+  geom_sf(data = biomes, fill = "grey90", color = NA, size = 1) +
+  geom_sf(aes(fill = restor_rich), color = NA) +
+  scale_fill_gradientn(
+    colors = colors, 
+    values = scales::rescale(breaks), 
+    limits = range(breaks), 
+    oob = scales::squish 
+  ) +
+  theme(
+    panel.background = element_blank(), 
+    legend.title = element_blank(), 
+    axis.text = element_blank(), 
+    axis.ticks = element_blank(), 
+    legend.position = c(0.2, 0.2)
+  ) +
+  geom_sf(data = biomes, fill = NA, color = "black", size = 1)
 dev.off()
 
 # endemism
-# create variable of endemism lost weighed by total deficit
-propsDeficit$EndeFC <- (propsDeficit$Endemism_loss*propsDeficit$totalDeficit2)
-myCols <- c('#f7fcf0','#ccebc5','#a8ddb5','#7bccc4','#2b8cbe','#084081')
-breaks <- classIntervals(propsDeficit$BDFC, na.rm = T, n=6)
-# create factor variable based on these bins
-propsDeficit$myCol2 <- cut(propsDeficit$EndeFC, breaks = breaks$brks, labels = myCols, include.lowest = T)
-
+deficitData$restor_ende <- deficitData$Endemism_loss*(deficitData$total_deficit/100)
+summary(deficitData$restor_ende)
+breaks <- classInt::classIntervals(deficitData$restor_ende, n = 5, style = "fisher")$brks
+#  map of the potential endemism to be restored per km2 (without human LUC) in properties with deficit 
 setwd(paste0(wdmain, "/output/maps"))
-png("BD-Endemism_x_DeficitAreas.png", width = 2400, height = 2400, units = "px", res = 300)
-# plot first one
-plot(t[[1]], axes = F, mar = NA, legend = F, col = "gray90")
-# add others on top
-for (i in 2:length(t)) {
-  plot(t[[i]], axes = F, , col = "gray90", mar = NA, legend = F, add = TRUE)  # Add each raster on top of the previous one
-}
-plot(propsDeficit, col = as.character(propsDeficit$myCol2), add = T, border = NA)
-terra::lines(v, lwd=.1)
+png("MapDeficitAreas_endemismRestore.png", width = 2400, height = 2400, units = "px", res = 300)
+ggplot(deficitData) + 
+  geom_sf(data = biomes, fill = "grey90", color = NA, size = 1) +
+  geom_sf(aes(fill = restor_ende), color = NA) +
+  scale_fill_gradientn(
+    colors = colors, 
+    values = scales::rescale(breaks), 
+    limits = range(breaks), 
+    oob = scales::squish 
+  ) +
+  theme(
+    panel.background = element_blank(), 
+    legend.title = element_blank(), 
+    axis.text = element_blank(), 
+    axis.ticks = element_blank(), 
+    legend.position = c(0.2, 0.2)
+  ) +
+  geom_sf(data = biomes, fill = NA, color = "black", size = 1)
 dev.off()
 
 
-# need to create legend for areas - what is a high amount of deficit, and, what is a high amount of biodiversity loss?
-# actually i'm re-evaluating the possibility of doing a bivariate map
-# where i identify the areas with high biodiversity losses and high biodivesity deficits - to identify the most potential for restoration
-# and the places where there isn't as high biodiversity loss, but high deficit
 
 
 
 
-
-
-
-
-deficitCols <- c("no deficit" = "#f0f0f0", "deficit" = "#f03b20")
-
-
-# ...relate this to forest/deforestation somehow?
-# richness:
-ggplot(sample_FC) +
-  geom_sf(aes(fill = deficit), color = NA) +
-  scale_fill_manual(values = deficitCols) +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1))
-
-
-
-  geom_sf(aes(fill = Richness_loss), color = NA) +
-  scale_fill_viridis_c(direction = -1) +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1))
-finalrichLoss <- richLoss + 
-  geom_sf(data = biomes, fill = NA, color = "gray10") +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
-# save plot
-setwd(paste0(wdmain, "/output/maps"))
-png("RichnessLoss_deficitAreas.png", width = 2400, height = 2400, units = "px", res = 300)
-finalrichLoss
-dev.off()
-
-
-# endemism 
-endLoss <- ggplot(illegalBDloss) +
-  geom_sf(aes(fill = Endemism_loss), color = NA) +
-  scale_fill_viridis_c(option = "magma", direction =-1) +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(), legend.position = c(0.1, 0.1))
-finalendLoss <- endLoss + 
-  geom_sf(data = biomes, fill = NA, color = "gray10") +
-  theme(panel.background = element_blank(), legend.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank())
-# save plot
-setwd(paste0(wdmain, "/output/maps"))
-png("EndemismLoss_deficitAreas.png", width = 2400, height = 2400, units = "px", res = 300)
-finalendLoss
-dev.off()
 
 
 
