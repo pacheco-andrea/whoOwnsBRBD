@@ -44,7 +44,118 @@ colnames(data1) <- gsub("mean.", "", colnames(data1))
 nrow(data1)
 length(unique(data1$id))
 
-# so here i need to summarize the data by id, 
+# TESTING DUPLICATES AGAIN 
+test <- data1[sample(nrow(data1),78000),]
+test2 <- data1[,c(2,3,14)] %>%
+  group_by(id) %>%
+  filter(n()>1) %>%
+  arrange(id, areakm2)
+nrow(test2)
+unique(test2$myOverCat)
+
+
+# 08.01.2025: so here, instead of summarizing with dplyr, i believe i need to do the detailed relabeling of overlaps FIRST ---
+# filter out these undesignated categories which are a bit ambiguous 
+data <- data1
+data <- data[which(data$LTcateg != "OUTROS USOS"),]
+data <- data[which(data$LTcateg != "USO MILITAR"),]
+# rename categories:
+unique(data$LTcateg)
+data$LTcateg[which(data$LTcateg == "IRU")] <- "Private lands"
+data$LTcateg[which(data$LTcateg == "SEM DESTINACAO")] <- "Undesignated lands"
+data$LTcateg[which(data$LTcateg ==  "AST")] <- "Rural settlements"
+data$LTcateg[which(data$LTcateg == "PI")] <- "PA strict protection"
+data$LTcateg[which(data$LTcateg == "US")] <- "PA sustainable use"
+data$LTcateg[which(data$LTcateg == "indigenous")] <- "Indigenous"
+data$LTcateg[which(data$LTcateg == "RPPN")] <- "Private PA"
+data$LTcateg[which(data$LTcateg == "quilombola")] <- "Quilombola lands"
+data$LTcateg2 <- factor(data$LTcateg, levels = c("Private lands",
+                                                 "Undesignated lands",
+                                                 "Rural settlements",
+                                                 "PA strict protection",
+                                                 "PA sustainable use",
+                                                 "Indigenous" ,
+                                                 "Private PA",
+                                                 "Quilombola lands"))
+# in order to clean/organize the overlaps 
+# split data into lists of each tenure category
+head(data)
+data$ovl_PA_strict <- NA
+data$ovl_PA_sustuse <- NA
+
+data_list <- split(data, data$LTcateg2)
+for(i in 1:length(data_list))
+{
+  # get the name of the category
+  name <- names(data_list[i]) # needed??
+  # how much area overlaps with strict PAs?
+  pastr_ovlp <- grep("PA_strict", data_list[[i]]$myOverCat)
+  data_list[[i]][pastr_ovlp,]$ovl_PA_strict <- data_list[[i]][pastr_ovlp,]$areakm2
+  # how much area overlaps with sustainable use PAs?
+  pasus_ovlp <- grep("PA_sustuse", data_list[[i]]$myOverCat)
+  data_list[[i]][pasus_ovlp,]$ovl_PA_strict <- data_list[[i]][pasus_ovlp,]$areakm2
+  # how much area overlaps with indigenous lands?
+  # pasus_ovlp <- grep("PA_sustuse", data_list[[i]]$myOverCat)
+  # data_list[[i]][pasus_ovlp,]$ovl_PA_strict <- data_list[[i]][pasus_ovlp,]$areakm2
+  
+  unique(data_list[[i]][pa_ovlp,]$myOverCat)
+  
+  # overlaps with 
+}
+
+
+# check how many observations per category i have in the original data
+
+unique(data$LTcateg)
+unique(data$myOverCat)
+# create new column
+data$ovl_self <- NA
+# have a look at all the ones that overlap with itself 
+data[grep("selfOverlaps", data$myOverCat),]  %>%
+  group_by(id) %>%
+  filter(n()>1) %>%
+  arrange(id, areakm2)
+
+
+# note, i did some checking and understood that:
+# the no-overlaps did indeed have duplicated ids bc they refer to the part of the polygon that did not overlap with other categs
+# meaning i don't need to create a separate column for this
+
+# no overlaps
+data$overlapsWith[grep("no-overlaps", data$myOverCat)] <- "none"
+# overlaps with self
+data$overlapsWith[grep("self", data$myOverCat)] <- "self"
+# more complicated situations
+head(data[which(is.na(data$overlapsWith)),])
+unique(data$myOverCat[which(is.na(data$overlapsWith))])
+data$overlapsWith[which(is.na(data$overlapsWith))] <- gsub("overlaps_", "", data$myOverCat[which(is.na(data$overlapsWith))])
+unique(data$overlapsWith) 
+data$overlapsWith <- gsub("pubxpri_", "", data$overlapsWith)
+unique(data$overlapsWith)
+
+overlapsToCheck <- unique(data$overlapsWith)[-c(grep("self", unique(data$overlapsWith)), grep("none", unique(data$overlapsWith)))]
+
+# easiest to just replace manually each set
+data$overlapsWith[which(data$overlapsWith == "indPAoverlap-ruralSettlements")] <- gsub("indPAoverlap-", "", data$overlapsWith[which(data$overlapsWith == "indPAoverlap-ruralSettlements")])
+data$overlapsWith[which(data$overlapsWith == "PA_strict-indigenous")] <- gsub("PA_strict-", "", data$overlapsWith[which(data$overlapsWith == "PA_strict-indigenous")])
+data$overlapsWith[which(data$overlapsWith == "PA_sustuse-indigenous")] <- gsub("PA_sustuse-", "", data$overlapsWith[which(data$overlapsWith == "PA_sustuse-indigenous")])
+data$overlapsWith[which(data$overlapsWith == "privatePAs-ruralProperties")] <- gsub("privatePAs-ruralProperties", "none", data$overlapsWith[which(data$overlapsWith == "privatePAs-ruralProperties")])
+data$overlapsWith[which(data$overlapsWith == "quilombola-ruralProperties")] <- gsub("quilombola-", "", data$overlapsWith[which(data$overlapsWith == "quilombola-ruralProperties")])
+data$overlapsWith[which(data$overlapsWith == "sustUsePAs-ruralSettlements")] <- gsub("sustUsePAs-", "", data$overlapsWith[which(data$overlapsWith == "sustUsePAs-ruralSettlements")])
+data$overlapsWith[which(data$overlapsWith == "undesignated-ruralSettlements")] <- gsub("undesignated-", "", data$overlapsWith[which(data$overlapsWith == "undesignated-ruralSettlements")])
+data$overlapsWith[which(data$overlapsWith == "ruralProperties-PA_strict")] <- gsub("ruralProperties-", "", data$overlapsWith[which(data$overlapsWith == "ruralProperties-PA_strict")])
+data$overlapsWith[which(data$overlapsWith == "ruralProperties-PA_sustuse")] <- gsub("ruralProperties-", "", data$overlapsWith[which(data$overlapsWith == "ruralProperties-PA_sustuse")])
+data$overlapsWith[which(data$overlapsWith == "ruralProperties-undesignated")] <- gsub("ruralProperties-", "", data$overlapsWith[which(data$overlapsWith == "ruralProperties-undesignated")])
+unique(data$overlapsWith)
+
+
+
+# the dyplyr-based summarizing
+
+
+
+
+# so here i need to summarize the data by id in order to have one row per property
 # BUT i first sort by area so that i keep whichever observation had a larger area, meaning i note whether a property had significant overlaps
 data2 <- data1 %>%
   group_by(id) %>%
@@ -123,45 +234,6 @@ length(unique(forest_BD_data$id))
 
 data <- forest_BD_data
 
-# filter out these undesignated categories which are a bit ambiguous 
-data <- data[which(data$LTcateg != "OUTROS USOS"),]
-data <- data[which(data$LTcateg != "USO MILITAR"),]
-# check how many observations per category i have in the original data
-data %>%
-  group_by(LTcateg) %>%
-  summarize(n = n())
-
-# cleaning of the overlaps (creating specific columns): ----
-unique(data$LTcateg)
-unique(data$myOverCat)
-# create new column
-data$overlapsWith <- NA
-# no overlaps
-data$overlapsWith[grep("no-overlaps", data$myOverCat)] <- "none"
-# overlaps with self
-data$overlapsWith[grep("self", data$myOverCat)] <- "self"
-# more complicated situations
-head(data[which(is.na(data$overlapsWith)),])
-unique(data$myOverCat[which(is.na(data$overlapsWith))])
-data$overlapsWith[which(is.na(data$overlapsWith))] <- gsub("overlaps_", "", data$myOverCat[which(is.na(data$overlapsWith))])
-unique(data$overlapsWith) 
-data$overlapsWith <- gsub("pubxpri_", "", data$overlapsWith)
-unique(data$overlapsWith)
-
-overlapsToCheck <- unique(data$overlapsWith)[-c(grep("self", unique(data$overlapsWith)), grep("none", unique(data$overlapsWith)))]
-
-# easiest to just replace manually each set
-data$overlapsWith[which(data$overlapsWith == "indPAoverlap-ruralSettlements")] <- gsub("indPAoverlap-", "", data$overlapsWith[which(data$overlapsWith == "indPAoverlap-ruralSettlements")])
-data$overlapsWith[which(data$overlapsWith == "PA_strict-indigenous")] <- gsub("PA_strict-", "", data$overlapsWith[which(data$overlapsWith == "PA_strict-indigenous")])
-data$overlapsWith[which(data$overlapsWith == "PA_sustuse-indigenous")] <- gsub("PA_sustuse-", "", data$overlapsWith[which(data$overlapsWith == "PA_sustuse-indigenous")])
-data$overlapsWith[which(data$overlapsWith == "privatePAs-ruralProperties")] <- gsub("privatePAs-ruralProperties", "none", data$overlapsWith[which(data$overlapsWith == "privatePAs-ruralProperties")])
-data$overlapsWith[which(data$overlapsWith == "quilombola-ruralProperties")] <- gsub("quilombola-", "", data$overlapsWith[which(data$overlapsWith == "quilombola-ruralProperties")])
-data$overlapsWith[which(data$overlapsWith == "sustUsePAs-ruralSettlements")] <- gsub("sustUsePAs-", "", data$overlapsWith[which(data$overlapsWith == "sustUsePAs-ruralSettlements")])
-data$overlapsWith[which(data$overlapsWith == "undesignated-ruralSettlements")] <- gsub("undesignated-", "", data$overlapsWith[which(data$overlapsWith == "undesignated-ruralSettlements")])
-data$overlapsWith[which(data$overlapsWith == "ruralProperties-PA_strict")] <- gsub("ruralProperties-", "", data$overlapsWith[which(data$overlapsWith == "ruralProperties-PA_strict")])
-data$overlapsWith[which(data$overlapsWith == "ruralProperties-PA_sustuse")] <- gsub("ruralProperties-", "", data$overlapsWith[which(data$overlapsWith == "ruralProperties-PA_sustuse")])
-data$overlapsWith[which(data$overlapsWith == "ruralProperties-undesignated")] <- gsub("ruralProperties-", "", data$overlapsWith[which(data$overlapsWith == "ruralProperties-undesignated")])
-unique(data$overlapsWith)
 
 # create variables for the proportion of loss
 data$rLoss_prop <- data$Richness_loss/(data$Richness_baseline - data$Richness_loss)
@@ -171,23 +243,7 @@ data$pLoss_prop <- data$Phylodiversity_loss/(data$Phylodiversity_baseline - data
 # clean names for plotting -----
 
 # make overlapsWith correspond with my naming of categories
-unique(data$LTcateg)
-data$LTcateg[which(data$LTcateg == "IRU")] <- "Private lands"
-data$LTcateg[which(data$LTcateg == "SEM DESTINACAO")] <- "Undesignated lands"
-data$LTcateg[which(data$LTcateg ==  "AST")] <- "Rural settlements"
-data$LTcateg[which(data$LTcateg == "PI")] <- "PA strict protection"
-data$LTcateg[which(data$LTcateg == "US")] <- "PA sustainable use"
-data$LTcateg[which(data$LTcateg == "indigenous")] <- "Indigenous"
-data$LTcateg[which(data$LTcateg == "RPPN")] <- "Private PA"
-data$LTcateg[which(data$LTcateg == "quilombola")] <- "Quilombola lands"
-data$LTcateg2 <- factor(data$LTcateg, levels = c("Private lands",
-                                                 "Undesignated lands",
-                                                 "Rural settlements",
-                                                 "PA strict protection",
-                                                 "PA sustainable use",
-                                                 "Indigenous" ,
-                                                 "Private PA",
-                                                 "Quilombola lands"))
+
 unique(data$overlapsWith)
 # replace the self and none overlaps with the category itself
 data$overlapsWith[which(data$overlapsWith == "self")] <- as.character(data$LTcateg2[which(data$overlapsWith == "self")])

@@ -299,7 +299,7 @@ nonoverl_surplus_plot <- ggplot(test4, aes(x = rl_ativo, y = Richness_2020)) +
   theme_minimal()
 
 setwd(paste0(wdmain, "/output"))
-png("scatterplot_BD-deficit-surplus_overlappingProperties.png", width = 2400, height = 2000, units = "px", res = 300)
+png("scatterplot_BD-deficit-surplus_overlappingProperties.png", width = 3000, height = 2000, units = "px", res = 300)
 plot_grid(overl_deficit_plot, nonoverl_deficit_plot, 
           overl_surplus_plot, nonoverl_surplus_plot, nrow = 2)
 dev.off()
@@ -455,13 +455,15 @@ ggplot(deficitData) +
 dev.off()
 
 # try out what a proportion would look like 
-summary((deficitData$total_deficit/100)/deficitData$areakm2)
+deficitData$deficit_perc <- ((deficitData$total_deficit/100)/deficitData$areakm2)*100
+breaks <- classInt::classIntervals(deficitData$deficit_perc, n = 5, style = "fisher")$brks
+
 # proportional map of the deficit 
 setwd(paste0(wdmain, "/output/maps"))
 png("MapDeficitAreas_proportional.png", width = 2400, height = 2400, units = "px", res = 300)
 ggplot(deficitData) + 
   geom_sf(data = biomes, fill = "grey90", color = NA, size = 1) +
-  geom_sf(aes(fill = (total_deficit/100)/areakm2), color = NA) +
+  geom_sf(aes(fill = deficit_perc), color = NA) + # this would map the % of that property that is under deficit
   scale_fill_gradientn(
     colors = colors, 
     values = scales::rescale(breaks), 
@@ -476,18 +478,18 @@ ggplot(deficitData) +
     legend.position = c(0.2, 0.2)
   ) +
   geom_sf(data = biomes, fill = NA, color = "black", size = 1)
-dev.off()
+dev.off() 
 
 # plot potential RESTORATION (increase in biodiversity) in properties with DEFICIT ----
 # restor variable
-deficitData$restor_rich <- deficitData$Richness_baseline*(deficitData$total_deficit/100)
-
+deficitData$restor_rich <- deficitData$Richness_baseline*deficitData$deficit_perc
 summary(deficitData$restor_rich)
 breaks <- classInt::classIntervals(deficitData$restor_rich, n = 5, style = "fisher")$brks
 colors <- c('#fcc5c0','#fa9fb5','#f768a1','#c51b8a','#7a0177')
 #  map of the potential species to be restored per km2 (without human LUC) in properties with deficit 
+# weighed by the proportion of a property
 setwd(paste0(wdmain, "/output/maps"))
-png("MapDeficitAreas_richnessRestore_baselineTest.png", width = 2400, height = 2400, units = "px", res = 300)
+png("MapDeficitAreas_richnessRestore_proportional.png", width = 2400, height = 2400, units = "px", res = 300)
 ggplot(deficitData) + 
   geom_sf(data = biomes, fill = "grey90", color = NA, size = 1) +
   geom_sf(aes(fill = restor_rich), color = NA) +
