@@ -44,18 +44,8 @@ colnames(data1) <- gsub("mean.", "", colnames(data1))
 nrow(data1)
 length(unique(data1$id))
 
-# TESTING DUPLICATES AGAIN 
-test <- data1[sample(nrow(data1),78000),]
-test2 <- data1[,c(2,3,14)] %>%
-  group_by(id) %>%
-  filter(n()>1) %>%
-  arrange(id, areakm2)
-nrow(test2)
-unique(test2$myOverCat)
-
-
-# 08.01.2025: so here, instead of summarizing with dplyr, i believe i need to do the detailed relabeling of overlaps FIRST ---
-# filter out these undesignated categories which are a bit ambiguous 
+# 08.01.2025: so here, instead of summarizing with dplyr, FIRST i need to account for the areas of overlap  ---
+# filter out these undesignated categories 
 data <- data1
 data <- data[which(data$LTcateg != "OUTROS USOS"),]
 data <- data[which(data$LTcateg != "USO MILITAR"),]
@@ -80,91 +70,67 @@ data$LTcateg2 <- factor(data$LTcateg, levels = c("Private lands",
 # in order to clean/organize the overlaps 
 # split data into lists of each tenure category
 head(data)
+# create columns for the overlaps i'm concerned about controlling for
 data$ovl_PA_strict <- NA
 data$ovl_PA_sustuse <- NA
+data$ovl_undesignated <- NA
+data$ovl_ruralSett <- NA
 
 data_list <- split(data, data$LTcateg2)
+names(data_list)
 for(i in 1:length(data_list))
 {
+  # the the unique overlaps for this category
+  unique(data_list[[i]]$myOverCat)
   # get the name of the category
-  name <- names(data_list[i]) # needed??
-  # how much area overlaps with strict PAs?
-  pastr_ovlp <- grep("PA_strict", data_list[[i]]$myOverCat)
-  data_list[[i]][pastr_ovlp,]$ovl_PA_strict <- data_list[[i]][pastr_ovlp,]$areakm2
-  # how much area overlaps with sustainable use PAs?
-  pasus_ovlp <- grep("PA_sustuse", data_list[[i]]$myOverCat)
-  data_list[[i]][pasus_ovlp,]$ovl_PA_strict <- data_list[[i]][pasus_ovlp,]$areakm2
-  # how much area overlaps with indigenous lands?
-  # pasus_ovlp <- grep("PA_sustuse", data_list[[i]]$myOverCat)
-  # data_list[[i]][pasus_ovlp,]$ovl_PA_strict <- data_list[[i]][pasus_ovlp,]$areakm2
-  
-  unique(data_list[[i]][pa_ovlp,]$myOverCat)
-  
-  # overlaps with 
+  name <- names(data_list[i]) 
+  # record areas of overlaps for private lands and rural settlements
+  if(name == "Private lands" | name == "Rural settlements"){
+    # how much area overlaps with strict PAs?
+    pastr_ovlp <- grep("PA_strict", data_list[[i]]$myOverCat)
+    data_list[[i]][pastr_ovlp,]$ovl_PA_strict <- data_list[[i]][pastr_ovlp,]$areakm2
+    # how much area overlaps with sustainable use PAs?
+    pasus_ovlp <- grep("PA_sustuse", data_list[[i]]$myOverCat)
+    data_list[[i]][pasus_ovlp,]$ovl_PA_sustuse <- data_list[[i]][pasus_ovlp,]$areakm2
+    # how much area overlaps with undesignated?
+    undes_ovlp <- grep("undesignated", data_list[[i]]$myOverCat)
+    data_list[[i]][undes_ovlp,]$ovl_undesignated <- data_list[[i]][undes_ovlp,]$areakm2
+    # note, no private lands at this point overlap with indigenous lands, which might be bc the properties were <1km, 
+    # and the BD was not extracted
+  }
+  # record areas of overlaps for PA sustainable use 
+  if(name == "PA sustainable use"){
+    # how much area overlaps with rural settlements?
+    rsett_ovlp <- grep("sustUsePAs-ruralSettlements", data_list[[i]]$myOverCat)
+    data_list[[i]][rsett_ovlp,]$ovl_ruralSett <- data_list[[i]][rsett_ovlp,]$areakm2
+  }
+  # IMPORTANT NOTE HERE:
+  # i did in fact cross-check whether other PA categs or indigenous lands had overlaps we could account for
+  # but these were limited to self overlaps, or just the overlaps bt PAs-Indigenous which i don't believe we need to account for
+  # hence, these are the only columns that need to be recorded
 }
+data2 <- do.call(rbind, data_list)
+head(data2)
+summary(data2)
 
-
+# now, i can:
+# summarize the data by id ----
+# without losing the information on areas of overlap
 # check how many observations per category i have in the original data
 
-unique(data$LTcateg)
-unique(data$myOverCat)
-# create new column
-data$ovl_self <- NA
-# have a look at all the ones that overlap with itself 
-data[grep("selfOverlaps", data$myOverCat),]  %>%
+unique(data2$LTcateg)
+unique(data2$myOverCat)
+colnames(data2)
+# summarize the data by id in order to have one row per property
+data3 <- data2 %>%
   group_by(id) %>%
-  filter(n()>1) %>%
-  arrange(id, areakm2)
-
-
-# note, i did some checking and understood that:
-# the no-overlaps did indeed have duplicated ids bc they refer to the part of the polygon that did not overlap with other categs
-# meaning i don't need to create a separate column for this
-
-# no overlaps
-data$overlapsWith[grep("no-overlaps", data$myOverCat)] <- "none"
-# overlaps with self
-data$overlapsWith[grep("self", data$myOverCat)] <- "self"
-# more complicated situations
-head(data[which(is.na(data$overlapsWith)),])
-unique(data$myOverCat[which(is.na(data$overlapsWith))])
-data$overlapsWith[which(is.na(data$overlapsWith))] <- gsub("overlaps_", "", data$myOverCat[which(is.na(data$overlapsWith))])
-unique(data$overlapsWith) 
-data$overlapsWith <- gsub("pubxpri_", "", data$overlapsWith)
-unique(data$overlapsWith)
-
-overlapsToCheck <- unique(data$overlapsWith)[-c(grep("self", unique(data$overlapsWith)), grep("none", unique(data$overlapsWith)))]
-
-# easiest to just replace manually each set
-data$overlapsWith[which(data$overlapsWith == "indPAoverlap-ruralSettlements")] <- gsub("indPAoverlap-", "", data$overlapsWith[which(data$overlapsWith == "indPAoverlap-ruralSettlements")])
-data$overlapsWith[which(data$overlapsWith == "PA_strict-indigenous")] <- gsub("PA_strict-", "", data$overlapsWith[which(data$overlapsWith == "PA_strict-indigenous")])
-data$overlapsWith[which(data$overlapsWith == "PA_sustuse-indigenous")] <- gsub("PA_sustuse-", "", data$overlapsWith[which(data$overlapsWith == "PA_sustuse-indigenous")])
-data$overlapsWith[which(data$overlapsWith == "privatePAs-ruralProperties")] <- gsub("privatePAs-ruralProperties", "none", data$overlapsWith[which(data$overlapsWith == "privatePAs-ruralProperties")])
-data$overlapsWith[which(data$overlapsWith == "quilombola-ruralProperties")] <- gsub("quilombola-", "", data$overlapsWith[which(data$overlapsWith == "quilombola-ruralProperties")])
-data$overlapsWith[which(data$overlapsWith == "sustUsePAs-ruralSettlements")] <- gsub("sustUsePAs-", "", data$overlapsWith[which(data$overlapsWith == "sustUsePAs-ruralSettlements")])
-data$overlapsWith[which(data$overlapsWith == "undesignated-ruralSettlements")] <- gsub("undesignated-", "", data$overlapsWith[which(data$overlapsWith == "undesignated-ruralSettlements")])
-data$overlapsWith[which(data$overlapsWith == "ruralProperties-PA_strict")] <- gsub("ruralProperties-", "", data$overlapsWith[which(data$overlapsWith == "ruralProperties-PA_strict")])
-data$overlapsWith[which(data$overlapsWith == "ruralProperties-PA_sustuse")] <- gsub("ruralProperties-", "", data$overlapsWith[which(data$overlapsWith == "ruralProperties-PA_sustuse")])
-data$overlapsWith[which(data$overlapsWith == "ruralProperties-undesignated")] <- gsub("ruralProperties-", "", data$overlapsWith[which(data$overlapsWith == "ruralProperties-undesignated")])
-unique(data$overlapsWith)
-
-
-
-# the dyplyr-based summarizing
-
-
-
-
-# so here i need to summarize the data by id in order to have one row per property
-# BUT i first sort by area so that i keep whichever observation had a larger area, meaning i note whether a property had significant overlaps
-data2 <- data1 %>%
-  group_by(id) %>%
-  slice_max(order_by = areakm2, n = 1, with_ties = FALSE) %>% # prioritizes by the area/size of the polygon
   summarize(
     LTcateg = first(LTcateg),
-    myOverCat = first(myOverCat), # this just takes the first overlap category
-    areakm2 = sum(areakm2, na.rm = T),
-    biome = first(biome),
+    LTcateg2 = first(LTcateg2),
+    # myOverCat = first(myOverCat), # do not need this column anymore 
+    areakm2 = sum(areakm2, na.rm = T), # the total area of each individual property across polygons
+    biome = first(biome), # whichever biome is first, not a huge issue
+    # the average biodiversity across polygons:
     Endemism_2020 = mean(Endemism_2020, na.rm = T),
     Endemism_baseline = mean(Endemism_baseline, na.rm = T),
     Endemism_loss = mean(Endemism_loss, na.rm = T),
@@ -174,12 +140,19 @@ data2 <- data1 %>%
     Richness_2020 = mean(Richness_2020, na.rm = T),
     Richness_baseline = mean(Richness_baseline, na.rm = T),
     Richness_loss = mean(Richness_loss, na.rm = T),
+    # the sum of the overlapping areas
+    ovl_PA_strict = sum(ovl_PA_strict, na.rm = T),
+    ovl_PA_sustuse = sum(ovl_PA_sustuse, na.rm = T),
+    ovl_undesignated = sum(ovl_undesignated, na.rm = T),
+    ovl_ruralSett = sum(ovl_ruralSett, na.rm = T),
     ) %>%
   ungroup()
-head(data2)
-length(unique(data2$id))
-data2 %>%
-  group_by(LTcateg) %>%
+# examine:
+head(data3)
+nrow(data3)
+length(unique(data3$id))
+data3 %>%
+  group_by(LTcateg2) %>%
   summarize(n = n())
 
 # read data on deforestation extractions ----
@@ -202,7 +175,7 @@ fData <- lapply(names(tables), function(name){
 })
 fData <- do.call(rbind, fData)
 length(unique(fData$id))
-# similarly, i have to summarize by id, but i can sum the forest/deforest/total values (bc these are counts) 
+# similarly, summarize by id, but i can sum the forest/deforest/total values (bc these are counts) over id's
 forestData <- fData %>%
   group_by(id) %>%
   summarize(LTcateg = first(LTcateg),
@@ -223,18 +196,16 @@ forestData %>%
             perForest = mean(p_for23),
             perDeforest = mean(p_defor))
 forestData <- forestData %>%
-  select(id, LTcateg, p_for23, p_defor)
+  select(id, p_for23, p_defor)
 
 # join forest data with biodiversity data
-forest_BD_data <- inner_join(data2, forestData, by = c("LTcateg", "id"))
-head(forest_BD_data)
+forest_BD_data <- inner_join(data3, forestData, by = c("id"))
+head(as.data.frame(forest_BD_data))
 length(unique(forest_BD_data$id))
 
 # other data cleaning and organizing ----
 
 data <- forest_BD_data
-
-
 # create variables for the proportion of loss
 data$rLoss_prop <- data$Richness_loss/(data$Richness_baseline - data$Richness_loss)
 data$eLoss_prop <- data$Endemism_loss/(data$Endemism_baseline - data$Endemism_loss)
@@ -242,34 +213,10 @@ data$pLoss_prop <- data$Phylodiversity_loss/(data$Phylodiversity_baseline - data
 
 # clean names for plotting -----
 
-# make overlapsWith correspond with my naming of categories
-
-unique(data$overlapsWith)
-# replace the self and none overlaps with the category itself
-data$overlapsWith[which(data$overlapsWith == "self")] <- as.character(data$LTcateg2[which(data$overlapsWith == "self")])
-data$overlapsWith[which(data$overlapsWith == "none")] <- as.character(data$LTcateg2[which(data$overlapsWith == "none")])
-data$overlapsWith[which(data$overlapsWith == "ruralProperties")] <- "Private lands"
-data$overlapsWith[which(data$overlapsWith == "undesignated")] <- "Undesignated lands"
-data$overlapsWith[which(data$overlapsWith ==  "ruralSettlements")] <- "Rural settlements"
-data$overlapsWith[which(data$overlapsWith == "PA_strict")] <- "PA strict protection"
-data$overlapsWith[which(data$overlapsWith == "PA_sustuse")] <- "PA sustainable use"
-data$overlapsWith[which(data$overlapsWith == "indigenous")] <- "Indigenous"
-data$overlapsWith[which(data$overlapsWith == "RPPN")] <- "Private PA"
-data$overlapsWith[which(data$overlapsWith == "quilombola")] <- "Quilombola lands"
-unique(data$overlapsWith)
 # actually remove private PAs from plotting
 data <- data[which(data$LTcateg2 != "Private PA"),]
-
-# make into a factor
-data$overlapsWith2 <- factor(data$overlapsWith, levels = c("Private lands",
-                                                           "Undesignated lands",
-                                                           "Rural settlements",
-                                                           "PA strict protection",
-                                                           "PA sustainable use",
-                                                           "Indigenous" ,
-                                                           "Private PA",
-                                                           "Quilombola lands"))
 head(as.data.frame(data))
+# write out updated final dataset
 setwd(paste0(wdmain, "/output"))
 write.csv(data, "finalTenure&BD&ForestDatasetforPlotting.csv", row.names = FALSE)
 
@@ -289,48 +236,10 @@ tenureColors <- c("Indigenous" = "#E78AC3",
 sample_sizes <- data %>%
   group_by(LTcateg2) %>%
   summarize(n = n())
-
-# create function for plotting 
-# this function plots a violin (for distribution) with a boxplot on top
-# where showing the overlaps is optional 
-
-violinplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL, fill) {
-  
-  plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = {{fill}})) +
-    geom_violin(position = position_dodge(width = 0.9), alpha = 0.2) +
-    geom_boxplot(width=0.2, color="grey20", position = position_dodge(width = 0.9), alpha = 0.8) +
-    scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
-    labs(y = BDvariableTitle) +
-    theme(panel.background = element_blank(), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
-          legend.title = element_blank(), legend.position = "none", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.title.x = element_blank()) +
-    facet_wrap(vars({{tenureCategory}}), nrow = 1, scales = "free_x") +
-    geom_text(data = sample_sizes, aes(x = {{tenureCategory}}, y = Inf, label = paste("n =", n)), vjust = 2, size = 3.5, inherit.aes = F)
-  
-  return(plot)
-}
-
+sample_sizes
 
 # current biodiversity under different tenure categories ----
-
-# Version WITH overlaps
-richness <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Richness_2020/areakm2), BDvariableTitle = "Species richness 2020 (density)", fill = overlapsWith2)
-richness 
-ende <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Endemism_2020/areakm2), BDvariableTitle = "Endemism 2020 (density)" , fill = overlapsWith2)
-phyl <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Phylodiversity_2020/areakm2), BDvariableTitle = "Phylodiversity 2020 (density)", fill = overlapsWith2)
-phyl 
-# to plot all together
-currentBDviolin <- plot_grid(richness, 
-                       ende, 
-                       phyl, 
-                       nrow = 3, labels = c("A", "B", "C"))
-currentBDviolin
-# save plot
-setwd(paste0(wdmain, "/output"))
-png("CurrentBD_perTenureCategOverlaps_violinDensity_202410.png", width = 3300, height = 4000, units = "px", res = 300)
-currentBDviolin
-dev.off()
-
-# flipped version WITHOUT overlaps side by side
+# flipped boxplot WITHOUT overlaps side by side
 data$LTcateg3 <- factor(data$LTcateg2, levels = rev(levels(data$LTcateg2)))
 data$LTcateg3 <- droplevels(data$LTcateg3)
 
@@ -355,7 +264,7 @@ myboxplots <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL,
     coord_flip() +
     geom_text(data = sample_sizes, aes(x = {{tenureCategory}}, y = Inf, label = paste("n =", n)), hjust = 6,
               vjust = -2, size = 2.5, inherit.aes = F)
-    return(plot)
+  return(plot)
 }
 
 currentRichness <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Richness_2020/areakm2, 
@@ -380,9 +289,110 @@ dev.off()
 
 data %>%
   group_by(LTcateg) %>%
-  summarise(mArea = mean(areakm2),,
+  summarise(mArea = mean(areakm2),
             minArea = min(areakm2),
             maxArea = max(areakm2))
+
+# make version that filters out those properties with overlaps ----
+# will need to do some data transformation
+data_novl <- data %>%
+  mutate(
+    no_overlap = rowSums(select(., starts_with("ovl_")), na.rm = TRUE) == 0
+  )
+head(as.data.frame(data_novl))
+# Pivot the overlap columns into a long format
+data_long <- data_novl %>%
+  pivot_longer(
+    cols = starts_with("ovl_"),
+    names_to = "overlap",
+    values_to = "value"
+  ) %>%
+  mutate(overlap_present = value > 0)
+head(as.data.frame(data_long))
+# Separate data for plotting
+no_overlap_data <- data_novl %>% filter(no_overlap)
+overlap_data <- data_long %>% filter(overlap_present)
+
+my_overlapsBarplots <- function(no_overlap_data, overlap_data, fill_color = "blue") {
+  # Create the barplot
+  ggplot() +
+    # Bar for no-overlap observations
+    geom_bar(data = no_overlap_data,
+             aes(x = "No Overlap", fill = "No Overlap"),
+             position = "dodge", stat = "count") +
+    # Bars for overlap observations
+    geom_bar(data = overlap_data,
+             aes(x = overlap, fill = overlap),
+             position = "dodge", stat = "count") +
+    scale_fill_manual(values = c("No Overlap" = "grey", "ovl_a" = "red", "ovl_b" = "green", "ovl_c" = "blue")) +
+    labs(
+      title = "Side-by-Side Barplot of Overlaps",
+      x = "Category",
+      y = "Count",
+      fill = "Overlap Type"
+    ) +
+    theme_minimal()
+}
+my_overlapsBarplots(no_overlap_data, overlap_data)
+
+
+
+currentRichness <- myboxplots(data_novl, tenureCategory = LTcateg3, BDvariable = Richness_2020/areakm2, 
+                              BDvariableTitle = "Species richness 2020 (per"~km^2~")", 
+                              fill = LTcateg3, sample_sizes = sample_sizes)
+currentEndemism <- myboxplots(data_novl, tenureCategory = LTcateg3, BDvariable = Endemism_2020/areakm2, 
+                              BDvariableTitle = "Endemism 2020 (per"~km^2~")",
+                              fill = LTcateg3, sample_sizes = sample_sizes)
+plot_grid(currentRichness, currentEndemism, nrow = 2)
+
+# save plot
+
+setwd(paste0(wdmain, "/output"))
+png("CurrentRichness_noOverlaps_20250109.png", width = 2450, height = 970, units = "px", res = 300)
+currentRichness
+dev.off()
+
+setwd(paste0(wdmain, "/output"))
+png("CurrentEndemism_noOverlaps_20250109.png", width = 2450, height = 970, units = "px", res = 300)
+currentEndemism
+dev.off()
+
+
+
+# Version WITH overlaps ----
+
+violinplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL, fill) {
+  
+  plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = {{fill}})) +
+    geom_violin(position = position_dodge(width = 0.9), alpha = 0.2) +
+    geom_boxplot(width=0.2, color="grey20", position = position_dodge(width = 0.9), alpha = 0.8) +
+    scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
+    labs(y = BDvariableTitle) +
+    theme(panel.background = element_blank(), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
+          legend.title = element_blank(), legend.position = "none", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.title.x = element_blank()) +
+    facet_wrap(vars({{tenureCategory}}), nrow = 1, scales = "free_x") +
+    geom_text(data = sample_sizes, aes(x = {{tenureCategory}}, y = Inf, label = paste("n =", n)), vjust = 2, size = 3.5, inherit.aes = F)
+  
+  return(plot)
+}
+richness <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Richness_2020/areakm2), BDvariableTitle = "Species richness 2020 (density)", fill = overlapsWith2)
+richness 
+ende <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Endemism_2020/areakm2), BDvariableTitle = "Endemism 2020 (density)" , fill = overlapsWith2)
+phyl <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Phylodiversity_2020/areakm2), BDvariableTitle = "Phylodiversity 2020 (density)", fill = overlapsWith2)
+phyl 
+# to plot all together
+currentBDviolin <- plot_grid(richness, 
+                       ende, 
+                       phyl, 
+                       nrow = 3, labels = c("A", "B", "C"))
+currentBDviolin
+# save plot
+setwd(paste0(wdmain, "/output"))
+png("CurrentBD_perTenureCategOverlaps_violinDensity_202410.png", width = 3300, height = 4000, units = "px", res = 300)
+currentBDviolin
+dev.off()
+
+
 
 # deforestation ----
 
