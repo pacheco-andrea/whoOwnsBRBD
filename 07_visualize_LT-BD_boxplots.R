@@ -36,7 +36,7 @@ tenureColors <- c("Indigenous" = "#E78AC3",
 
 
 # current biodiversity under different tenure categories ----
-# flipped boxplot WITHOUT overlaps side by side
+# including all observations
 data$LTcateg2 <- data$LTcateg2 <- factor(data$LTcateg, levels = c("Private lands",
                                                                   "Undesignated lands",
                                                                   "Rural settlements",
@@ -92,13 +92,8 @@ png("CurrentEndemism_20241126.png", width = 2450, height = 970, units = "px", re
 currentEndemism
 dev.off()
 
-data %>%
-  group_by(LTcateg) %>%
-  summarise(mArea = mean(areakm2),
-            minArea = min(areakm2),
-            maxArea = max(areakm2))
 
-# make version that filters out those properties with overlaps ----
+# version accounting for the overlaps  ----
 # will need to do some data transformation
 head(data)
 
@@ -109,112 +104,66 @@ class(data$ovl_exists)
 
 data2 <- data
 # create new column for overlaps
-data2$ovlWith <- data2$LTcateg3
+data2$ovlWith <- data2$LTcateg
 # overwrite this column when there are overlaps
-data2[which(data2$ovl_exists == TRUE),]$ovlWith <- "PA strict protection"
+unique(data2[which(data2$LTcateg == "Private lands" & data2$ovl_exists == TRUE),]$LTcateg)
+data2[which(data2$LTcateg == "Private lands" & data2$ovl_exists == TRUE),]$ovlWith <- "Private-land overlaps" # just to flag all overlaps
+data2$ovlWith <- factor(data2$ovlWith, levels = c("Private lands",
+                                          "Private-land overlaps",
+                                          "Undesignated lands",
+                                          "Rural settlements",
+                                          "PA strict protection",
+                                          "PA sustainable use",
+                                          "Indigenous" ,
+                                          "Private PA",
+                                          "Quilombola lands"))
+summary(data2)
 
-ggplot(data2, aes(x = LTcateg2, y = Richness_2020/areakm2, fill = ovlWith)) +
-  geom_violin(position = position_dodge(width = 0.9), alpha = 0.2) +
-  geom_boxplot(width=0.2, color="grey20", position = position_dodge(width = 0.9), alpha = 0.8) +
-  scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
-  labs(y = "title") +
-  theme(panel.background = element_blank(), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
-        legend.title = element_blank(), legend.position = "none", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.title.x = element_blank()) +
-  facet_wrap(vars(LTcateg2), nrow = 1, scales = "free_x") +
-  geom_text(data = sample_sizes, aes(x = LTcateg3, y = Inf, label = paste("n =", n)), vjust = 2, size = 3.5, inherit.aes = F)
+tenureColors2 <- c("Indigenous" = "#E78AC3",
+                  # "non-overlapped" = "gray70",   
+                  "PA strict protection" = "#1B9E77",       
+                  "PA sustainable use" =  "#8C7E5B",
+                  "Private-land overlaps" = "#CCF66F",  
+                  "Quilombola lands" =  "#FFD700",
+                  "Private lands" = "#8DA0CB",
+                  "Rural settlements" = "#FC8D62",
+                  "Undesignated lands" ="#1d6c7d")
 
+data2$ovlWith2 <- factor(data2$ovlWith, levels = rev(levels(data2$ovlWith)))
+# label the n of the overlaps
+sample_sizes2 <- data2 %>%
+  group_by(ovlWith2) %>%
+  summarize(n = n())
 
-# Pivot the overlapdata# Pivot the overlap columns into a long format ----
-# data_long <- data_novl %>%
-#   pivot_longer(
-#     cols = starts_with("ovl_"),
-#     names_to = "overlap",
-#     values_to = "value"
-#   ) %>%
-#   mutate(overlap_present = value > 0)
-# head(as.data.frame(data_long))
-# # Separate data for plotting
-# no_overlap_data <- data_novl %>% filter(no_overlap)
-# overlap_data <- data_long %>% filter(overlap_present)
-# 
-# my_overlapsBarplots <- function(no_overlap_data, overlap_data, fill_color = "blue") {
-#   # Create the barplot
-#   ggplot() +
-#     # Bar for no-overlap observations
-#     geom_bar(data = no_overlap_data,
-#              aes(x = "No Overlap", fill = "No Overlap"),
-#              position = "dodge", stat = "count") +
-#     # Bars for overlap observations
-#     geom_bar(data = overlap_data,
-#              aes(x = overlap, fill = overlap),
-#              position = "dodge", stat = "count") +
-#     scale_fill_manual(values = c("No Overlap" = "grey", "ovl_a" = "red", "ovl_b" = "green", "ovl_c" = "blue")) +
-#     labs(
-#       title = "Side-by-Side Barplot of Overlaps",
-#       x = "Category",
-#       y = "Count",
-#       fill = "Overlap Type"
-#     ) +
-#     theme_minimal()
-# }
-# my_overlapsBarplots(no_overlap_data, overlap_data)
-
-
-
-currentRichness <- myboxplots(data_novl, tenureCategory = LTcateg3, BDvariable = Richness_2020/areakm2, 
+currentRichness <- myboxplots(data2, tenureCategory = ovlWith2, BDvariable = Richness_2020/areakm2, 
                               BDvariableTitle = "Species richness 2020 (per"~km^2~")", 
-                              fill = LTcateg3, sample_sizes = sample_sizes)
-currentEndemism <- myboxplots(data_novl, tenureCategory = LTcateg3, BDvariable = Endemism_2020/areakm2, 
-                              BDvariableTitle = "Endemism 2020 (per"~km^2~")",
-                              fill = LTcateg3, sample_sizes = sample_sizes)
-plot_grid(currentRichness, currentEndemism, nrow = 2)
+                              fill = ovlWith2, sample_sizes = sample_sizes2) +
+  scale_colour_manual(values = tenureColors2, aesthetics = c("color", "fill"))
+currentRichness
+
+currentEndemism <- myboxplots(data2, tenureCategory = ovlWith2, BDvariable = Endemism_2020/areakm2, 
+                              BDvariableTitle = "Species richness 2020 (per"~km^2~")", 
+                              fill = ovlWith2, sample_sizes = sample_sizes2) +
+  scale_colour_manual(values = tenureColors2, aesthetics = c("color", "fill"))
+currentEndemism
 
 # save plot
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentRichness_noOverlaps_20250109.png", width = 2450, height = 970, units = "px", res = 300)
+png("CurrentRichness_overlaps.png", width = 2450, height = 970, units = "px", res = 300)
 currentRichness
 dev.off()
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentEndemism_noOverlaps_20250109.png", width = 2450, height = 970, units = "px", res = 300)
+png("CurrentEndemism_overlaps.png", width = 2450, height = 970, units = "px", res = 300)
 currentEndemism
 dev.off()
 
 
 
-# Version WITH overlaps ----
 
-violinplotBD <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL, fill) {
-  
-  plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = {{fill}})) +
-    geom_violin(position = position_dodge(width = 0.9), alpha = 0.2) +
-    geom_boxplot(width=0.2, color="grey20", position = position_dodge(width = 0.9), alpha = 0.8) +
-    scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
-    labs(y = BDvariableTitle) +
-    theme(panel.background = element_blank(), panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
-          legend.title = element_blank(), legend.position = "none", axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.title.x = element_blank()) +
-    facet_wrap(vars({{tenureCategory}}), nrow = 1, scales = "free_x") +
-    geom_text(data = sample_sizes, aes(x = {{tenureCategory}}, y = Inf, label = paste("n =", n)), vjust = 2, size = 3.5, inherit.aes = F)
-  
-  return(plot)
-}
-richness <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Richness_2020/areakm2), BDvariableTitle = "Species richness 2020 (density)", fill = overlapsWith2)
-richness 
-ende <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Endemism_2020/areakm2), BDvariableTitle = "Endemism 2020 (density)" , fill = overlapsWith2)
-phyl <- violinplotBD(data, tenureCategory = LTcateg2, BDvariable = (Phylodiversity_2020/areakm2), BDvariableTitle = "Phylodiversity 2020 (density)", fill = overlapsWith2)
-phyl 
-# to plot all together
-currentBDviolin <- plot_grid(richness, 
-                       ende, 
-                       phyl, 
-                       nrow = 3, labels = c("A", "B", "C"))
-currentBDviolin
-# save plot
-setwd(paste0(wdmain, "/output"))
-png("CurrentBD_perTenureCategOverlaps_violinDensity_202410.png", width = 3300, height = 4000, units = "px", res = 300)
-currentBDviolin
-dev.off()
+
+
 
 
 
