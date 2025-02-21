@@ -236,7 +236,7 @@ vegDeficitSurplus
 dev.off()
 
 # is there a relationship bt compliance and biodiversity?----
-# in other words, are the ones that conserve the most, the ones under most compliance
+# in other words, do the properties that conserve the most, the ones with most compliance
 # AND does this include the overlaps?
 deficitTotals
 
