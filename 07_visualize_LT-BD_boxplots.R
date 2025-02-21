@@ -65,20 +65,30 @@ myboxplots <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL,
           axis.title.y = element_blank(),
           text = element_text(size = 10)) +
     labs(y = BDvariableTitle) +
-    expand_limits(y = max(data$Richness_2020 / data$areakm2)) + 
+    # expand_limits(y = max(data$Richness_2020 * data$areakm2)) + 
+    # expand_limits(y = mean(data$Richness_2020 * data$areakm2)) + 
     coord_flip() +
     geom_text(data = sample_sizes, aes(x = {{tenureCategory}}, y = Inf, label = paste("n =", n)), hjust = 6,
               vjust = -2, size = 2.5, inherit.aes = F)
   return(plot)
 }
 
-currentRichness <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Richness_2020/areakm2, 
+currentRichness <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = log(Richness_2020*areakm2), 
                               BDvariableTitle = "Species richness 2020 (per"~km^2~")", 
                               fill = LTcateg3, sample_sizes = sample_sizes)
-currentEndemism <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Endemism_2020/areakm2, 
+currentEndemism <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Endemism_2020*areakm2, 
                               BDvariableTitle = "Endemism 2020 (per"~km^2~")",
                               fill = LTcateg3, sample_sizes = sample_sizes)
 plot_grid(currentRichness, currentEndemism, nrow = 2)
+
+# average richness of all properties without the artifice of dividing by area
+currentRichness2 <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Richness_2020, 
+                              BDvariableTitle = "mean species richness 2020", 
+                              fill = LTcateg3, sample_sizes = sample_sizes)
+currentEndemism2 <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Endemism_2020, 
+                              BDvariableTitle = "mean endemism 2020",
+                              fill = LTcateg3, sample_sizes = sample_sizes)
+plot_grid(currentRichness, currentEndemism, currentRichness2, currentEndemism2, nrow = 2)
 
 # save plot
 
@@ -90,6 +100,11 @@ dev.off()
 setwd(paste0(wdmain, "/output"))
 png("CurrentEndemism_20241126.png", width = 2450, height = 970, units = "px", res = 300)
 currentEndemism
+dev.off()
+
+setwd(paste0(wdmain, "/output"))
+png("comparisonBD_mean-and-perArea.png", width = 2450, height = 2000, units = "px", res = 300)
+plot_grid(currentRichness, currentEndemism, currentRichness2, currentEndemism2, nrow = 2)
 dev.off()
 
 
