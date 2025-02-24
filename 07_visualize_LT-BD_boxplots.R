@@ -69,54 +69,57 @@ myboxplots <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL,
     # expand_limits(y = mean(data$Richness_2020 * data$areakm2)) + 
     coord_flip() +
     geom_text(data = sample_sizes, aes(x = {{tenureCategory}}, y = Inf, label = paste("n =", n)), hjust = 6,
-              vjust = -2, size = 2.5, inherit.aes = F)
+              vjust = -2, size = 2.5, inherit.aes = F) +
+    geom_text(data = medianBD, aes(x = {{tenureCategory}}, y = medianBD + (0.02 * max(medianBD)), label = paste(medianBD)), 
+              hjust = 0.6, vjust = 0, size = 2.5, inherit.aes = FALSE)
   return(plot)
 }
-
-currentRichness <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = log(Richness_2020*areakm2), 
-                              BDvariableTitle = "Species richness 2020 (per"~km^2~")", 
-                              fill = LTcateg3, sample_sizes = sample_sizes)
-currentEndemism <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Endemism_2020*areakm2, 
-                              BDvariableTitle = "Endemism 2020 (per"~km^2~")",
-                              fill = LTcateg3, sample_sizes = sample_sizes)
-plot_grid(currentRichness, currentEndemism, nrow = 2)
-
 # average richness of all properties without the artifice of dividing by area
+medianBD <- data %>%
+  group_by(LTcateg3) %>%
+  summarize(medianBD = round(median(Richness_2020, na.rm = T),0))
 currentRichness2 <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Richness_2020, 
-                              BDvariableTitle = "mean species richness 2020", 
+                              BDvariableTitle = "Species richness 2020", 
                               fill = LTcateg3, sample_sizes = sample_sizes)
+medianBD <- data %>%
+  group_by(LTcateg3) %>%
+  summarize(medianBD = round(median(Endemism_2020, na.rm = T),0))
 currentEndemism2 <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Endemism_2020, 
-                              BDvariableTitle = "mean endemism 2020",
+                              BDvariableTitle = "Endemism 2020",
                               fill = LTcateg3, sample_sizes = sample_sizes)
-plot_grid(currentRichness, currentEndemism, currentRichness2, currentEndemism2, nrow = 2)
+plot_grid(currentRichness2, currentEndemism2, nrow = 2)
+
+# if i divide by area, then i have the artifice effect: it appears that private lands have more BD than others bc they're smaller properties
+# currentRichness <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = (Richness_2020/areakm2), 
+#                               BDvariableTitle = "Species richness 2020 (per"~km^2~")", 
+#                               fill = LTcateg3, sample_sizes = sample_sizes)
+# currentEndemism <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Endemism_2020/areakm2, 
+#                               BDvariableTitle = "Endemism 2020 (per"~km^2~")",
+#                               fill = LTcateg3, sample_sizes = sample_sizes)
+# plot_grid(currentRichness, currentEndemism, nrow = 2)
 
 # save plot
-
 setwd(paste0(wdmain, "/output"))
-png("CurrentRichness_20241126.png", width = 2450, height = 970, units = "px", res = 300)
-currentRichness
+png("CurrentRichness_20250224.png", width = 2450, height = 970, units = "px", res = 300)
+currentRichness2
 dev.off()
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentEndemism_20241126.png", width = 2450, height = 970, units = "px", res = 300)
-currentEndemism
+png("CurrentEndemism_20250224.png", width = 2450, height = 970, units = "px", res = 300)
+currentEndemism2
 dev.off()
 
-setwd(paste0(wdmain, "/output"))
-png("comparisonBD_mean-and-perArea.png", width = 2450, height = 2000, units = "px", res = 300)
-plot_grid(currentRichness, currentEndemism, currentRichness2, currentEndemism2, nrow = 2)
-dev.off()
-
+# setwd(paste0(wdmain, "/output"))
+# png("comparisonBD_mean-and-perArea.png", width = 2450, height = 2000, units = "px", res = 300)
+# plot_grid(currentRichness, currentEndemism, currentRichness2, currentEndemism2, nrow = 2)
+# dev.off()
 
 # version accounting for the overlaps  ----
+# this is essentially to see whether there is a difference in the private lands that overlap with conservation areas
 # will need to do some data transformation
-head(data)
-
 data <- data %>%
   mutate(ovl_exists = rowSums(select(., starts_with("ovl_")), na.rm = TRUE) > 0)
 head(as.data.frame(data))
-class(data$ovl_exists)
-
 data2 <- data
 # create new column for overlaps
 data2$ovlWith <- data2$LTcateg
@@ -149,51 +152,49 @@ data2$ovlWith2 <- factor(data2$ovlWith, levels = rev(levels(data2$ovlWith)))
 sample_sizes2 <- data2 %>%
   group_by(ovlWith2) %>%
   summarize(n = n())
+medianBD <- data2 %>%
+  group_by(ovlWith2) %>%
+  summarize(medianBD = round(median(Richness_2020, na.rm = T),0))
 
-currentRichness <- myboxplots(data2, tenureCategory = ovlWith2, BDvariable = Richness_2020/areakm2, 
-                              BDvariableTitle = "Species richness 2020 (per"~km^2~")", 
+currentRichness3 <- myboxplots(data2, tenureCategory = ovlWith2, BDvariable = Richness_2020, 
+                              BDvariableTitle = "Species richness 2020", 
                               fill = ovlWith2, sample_sizes = sample_sizes2) +
   scale_colour_manual(values = tenureColors2, aesthetics = c("color", "fill"))
-currentRichness
+currentRichness3
 
-currentEndemism <- myboxplots(data2, tenureCategory = ovlWith2, BDvariable = Endemism_2020/areakm2, 
-                              BDvariableTitle = "Species richness 2020 (per"~km^2~")", 
+medianBD <- data2 %>%
+  group_by(ovlWith2) %>%
+  summarize(medianBD = round(median(Endemism_2020, na.rm = T),0))
+currentEndemism3 <- myboxplots(data2, tenureCategory = ovlWith2, BDvariable = Endemism_2020, 
+                              BDvariableTitle = "Species richness 2020", 
                               fill = ovlWith2, sample_sizes = sample_sizes2) +
   scale_colour_manual(values = tenureColors2, aesthetics = c("color", "fill"))
-currentEndemism
+currentEndemism3
 
 # save plot
-
 setwd(paste0(wdmain, "/output"))
 png("CurrentRichness_overlaps.png", width = 2450, height = 970, units = "px", res = 300)
-currentRichness
+currentRichness3
 dev.off()
 
 setwd(paste0(wdmain, "/output"))
 png("CurrentEndemism_overlaps.png", width = 2450, height = 970, units = "px", res = 300)
-currentEndemism
+currentEndemism3
 dev.off()
-
-
-
-
-
-
-
 
 
 # deforestation ----
 
-# plot current forest cover
-currentForest <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = p_for23, 
-                            BDvariableTitle = "% forest cover 2023 (per property)", 
-                            fill = LTcateg3, sample_sizes = sample_sizes)
-currentForest
-
-setwd(paste0(wdmain, "/output"))
-png("Forest-2023_flippedboxplot_20241202.png", width = 2450, height = 970,   units = "px", res = 300)
-currentForest
-dev.off()
+# # plot current forest cover
+# currentForest <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = p_for23, 
+#                             BDvariableTitle = "% forest cover 2023 (per property)", 
+#                             fill = LTcateg3, sample_sizes = sample_sizes)
+# currentForest
+# 
+# setwd(paste0(wdmain, "/output"))
+# png("Forest-2023_flippedboxplot_20241202.png", width = 2450, height = 970,   units = "px", res = 300)
+# currentForest
+# dev.off()
 
 
 # Are results different for Brazil's different biomes? ----
@@ -205,10 +206,6 @@ data$biome2
 summary(data)
 
 biomeData <- data %>% filter(!is.na(biome2))
-
-sample_sizes <- biomeData %>%
-  group_by(LTcateg3, biome2) %>%
-  summarize(n = n(), .groups = 'drop')
 
 myBiome_boxplots <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL, fill, sample_sizes) {
   
@@ -230,8 +227,11 @@ myBiome_boxplots <- function(data, tenureCategory, BDvariable, BDvariableTitle =
   return(plot)
 }
 
+sample_sizes <- biomeData %>%
+  group_by(LTcateg3, biome2) %>%
+  summarize(n = n(), .groups = 'drop')
 
-currentRichness <- myBiome_boxplots(biomeData, tenureCategory = LTcateg3, BDvariable = Richness_2020/areakm2, 
+currentRichness <- myBiome_boxplots(biomeData, tenureCategory = LTcateg3, BDvariable = Richness_2020, 
                               BDvariableTitle = "Species richness 2020 (per"~km^2~")", 
                               fill = LTcateg3, sample_sizes = sample_sizes)
 currentRichness + facet_wrap(~biome2, nrow = 2, scales = "fixed") 
@@ -241,7 +241,7 @@ png("CurrentRichness_perBiomes.png", width = 3300, height = 3000, units = "px", 
 currentRichness + facet_wrap(~biome2, nrow = 2, scales = "fixed") 
 dev.off()
 
-currentEndemism <- myBiome_boxplots(biomeData, tenureCategory = LTcateg3, BDvariable =  Endemism_2020/areakm2, 
+currentEndemism <- myBiome_boxplots(biomeData, tenureCategory = LTcateg3, BDvariable =  Endemism_2020, 
                               BDvariableTitle = "Endemism 2020 (per"~km^2~")", 
                               fill = LTcateg3, sample_sizes = sample_sizes)
 currentEndemism + facet_wrap(~biome2, nrow = 2, scales = "fixed")
