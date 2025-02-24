@@ -87,8 +87,8 @@ plot(biomes, col = "gray90", border = NA)
 plot(surplusBD, col = surplus_colors, add =T)
 plot(biomes, add =T, lwd = 0.5)
 dev.off()
-setwd(paste0(wdmain, "/output/maps"))
 
+setwd(paste0(wdmain, "/output/maps"))
 png("MapDeficitAreas_ende_x_pCompliance.png", width = 3000, height = 3000, units = "px", res = 500)
 deficitBD <- endemism_resampled[[2]]*abs((deficit/100)) # this richness layer is the baseline
 deficit_colors <- colorRampPalette(c('#feebe2','#fbb4b9','#f768a1','#c51b8a','#7a0177'))(50)
