@@ -54,7 +54,7 @@ sample_sizes <- data %>%
 
 myboxplots <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL, fill, sample_sizes) {
   
-  plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = {{fill}})) +
+   plot <- ggplot(data, aes(x = {{tenureCategory}}, y = {{BDvariable}}, fill = {{fill}})) +
     geom_violin(alpha = 0.2) +
     geom_boxplot(width=0.5, color="grey20", alpha = 0.7) +
     scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
@@ -67,7 +67,7 @@ myboxplots <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL,
     labs(y = BDvariableTitle) +
     # expand_limits(y = max(data$Richness_2020 * data$areakm2)) + 
     # expand_limits(y = mean(data$Richness_2020 * data$areakm2)) + 
-    coord_flip() +
+    # coord_flip() +
     geom_text(data = sample_sizes, aes(x = {{tenureCategory}}, y = Inf, label = paste("n =", n)), hjust = 6,
               vjust = -2, size = 2.5, inherit.aes = F) +
     geom_text(data = medianBD, aes(x = {{tenureCategory}}, y = medianBD + (0.02 * max(medianBD)), label = paste(medianBD)), 
@@ -81,6 +81,8 @@ medianBD <- data %>%
 currentRichness2 <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Richness_2020, 
                               BDvariableTitle = "Species richness 2020", 
                               fill = LTcateg3, sample_sizes = sample_sizes)
+currentRichness2 + coord_cartesian(ylim = c(400,900))
+
 medianBD <- data %>%
   group_by(LTcateg3) %>%
   summarize(medianBD = round(median(Endemism_2020, na.rm = T),0))
@@ -100,13 +102,13 @@ plot_grid(currentRichness2, currentEndemism2, nrow = 2)
 
 # save plot
 setwd(paste0(wdmain, "/output"))
-png("CurrentRichness_20250224.png", width = 2450, height = 970, units = "px", res = 300)
-currentRichness2
+png("CurrentRichness_20250226.png", width = 970, height = 2000, units = "px", res = 300)
+currentRichness2 + coord_cartesian(ylim = c(400,900))
 dev.off()
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentEndemism_20250224.png", width = 2450, height = 970, units = "px", res = 300)
-currentEndemism2
+png("CurrentEndemism_20250226.png", width = 970, height = 2000, units = "px", res = 300)
+currentEndemism2 + coord_cartesian(ylim = c(100,230))
 dev.off()
 
 # setwd(paste0(wdmain, "/output"))
@@ -116,70 +118,79 @@ dev.off()
 
 # version accounting for the overlaps  ----
 # this is essentially to see whether there is a difference in the private lands that overlap with conservation areas
-# will need to do some data transformation
-data <- data %>%
-  mutate(ovl_exists = rowSums(select(., starts_with("ovl_")), na.rm = TRUE) > 0)
-head(as.data.frame(data))
-data2 <- data
-# create new column for overlaps
-data2$ovlWith <- data2$LTcateg
-# overwrite this column when there are overlaps
-unique(data2[which(data2$LTcateg == "Private lands" & data2$ovl_exists == TRUE),]$LTcateg)
-data2[which(data2$LTcateg == "Private lands" & data2$ovl_exists == TRUE),]$ovlWith <- "Private-land overlaps" # just to flag all overlaps
-data2$ovlWith <- factor(data2$ovlWith, levels = c("Private lands",
-                                          "Private-land overlaps",
-                                          "Undesignated lands",
-                                          "Rural settlements",
-                                          "PA strict protection",
-                                          "PA sustainable use",
-                                          "Indigenous" ,
-                                          "Private PA",
-                                          "Quilombola lands"))
+# create a column that flags all the overlaps
+data2 <- data %>%
+  mutate(ovlExists = rowSums(select(., starts_with("ovl_")), na.rm = TRUE) > 0)
+head(as.data.frame(data2))
+data2 <- data2[which(data2$ovlExists == "TRUE"),]
+# summary(data2)
+# i looked into the percentage of overlapping area, and as in the overlapping analysis, the majority of overlaps are in undesignated lands
+# but ultimately, since i dont think i can completely rely on these exact numbers, i dont incorporate this into calculations
+# instead, i just want to verify the amount of BD in properties with overlaps in PAs/undesignated lands
+
+# create another column to summarize which categories overlap
+data2$ovlWith <- NA 
+# one by one, overwrite this "overlaps with" column to flag which other category it overlaps with 
+data2$ovlWith[which(data2$ovl_PA_strict > 0 & data2$ovl_PA_sustuse == 0 & data2$ovl_undesignated == 0)] <- "PA strict protection"
+data2$ovlWith[which(data2$ovl_PA_sustuse > 0 & data2$ovl_PA_strict == 0 & data2$ovl_undesignated == 0)] <- "PA sustainable use"
+data2$ovlWith[which(data2$ovl_undesignated > 0 & data2$ovl_PA_strict == 0 & data2$ovl_PA_sustuse == 0)] <- "Undesignated lands"
+# also flag cases where there are multiple overlaps
+data2$ovlWith[which(data2$ovl_undesignated == 0 & (data2$ovl_PA_strict > 0 & data2$ovl_PA_sustuse > 0))] <- "Both PAs"
+data2$ovlWith[which(data2$ovl_undesignated > 0 & 
+                      (data2$ovl_PA_strict > 0 | data2$ovl_PA_sustuse > 0))] <- "PAs & Undesignated lands"
+# i have to switch the tenure and rural sett categories here
+data2$LTcateg3[which(data2$ovl_ruralSett > 0)] <- "Rural settlements"
+data2$ovlWith[which(data2$ovl_ruralSett > 0)] <- "PA sustainable use"
+# check there's nothing missing
+data2[is.na(data2$ovlWith),]
+unique(data2$ovlWith)
+# make factor
+data2$ovlWith2 <- factor(data2$ovlWith, levels = c("PA strict protection",
+                                                  "PA sustainable use",
+                                                  "Both PAs",
+                                                  "Undesignated lands",
+                                                  "PAs & Undesignated lands"))
 summary(data2)
 
-tenureColors2 <- c("Indigenous" = "#E78AC3",
-                  # "non-overlapped" = "gray70",   
-                  "PA strict protection" = "#1B9E77",       
-                  "PA sustainable use" =  "#8C7E5B",
-                  "Private-land overlaps" = "#CCF66F",  
-                  "Quilombola lands" =  "#FFD700",
-                  "Private lands" = "#8DA0CB",
-                  "Rural settlements" = "#FC8D62",
-                  "Undesignated lands" ="#1d6c7d")
+overlapColors <- c("PA strict protection" = "#1B9E77",
+                   "PA sustainable use" = "#8C7E5B",
+                   "Both PAs" = "#548E69",
+                   "Undesignated lands" ="#1d6c7d",
+                   "PAs & Undesignated lands" = "#397D73")
 
-data2$ovlWith2 <- factor(data2$ovlWith, levels = rev(levels(data2$ovlWith)))
+# plot overlaps ----
 # label the n of the overlaps
-sample_sizes2 <- data2 %>%
+sample_sizes <- data2 %>%
   group_by(ovlWith2) %>%
   summarize(n = n())
 medianBD <- data2 %>%
   group_by(ovlWith2) %>%
   summarize(medianBD = round(median(Richness_2020, na.rm = T),0))
 
+# richness
 currentRichness3 <- myboxplots(data2, tenureCategory = ovlWith2, BDvariable = Richness_2020, 
                               BDvariableTitle = "Species richness 2020", 
-                              fill = ovlWith2, sample_sizes = sample_sizes2) +
-  scale_colour_manual(values = tenureColors2, aesthetics = c("color", "fill"))
-currentRichness3
+                              fill = ovlWith2, sample_sizes) +
+  scale_colour_manual(values = overlapColors, aesthetics = c("color", "fill")) +
+  theme(axis.text.x = element_text(angle = 35, hjust = 1))
+currentRichness3 + coord_cartesian(ylim = c(400,900))
+setwd(paste0(wdmain, "/output"))
+png("CurrentRichness_overlapsFocus_20250226.png", width = 1250, height = 2000, units = "px", res = 300)
+currentRichness3 + coord_cartesian(ylim = c(400,900))
+dev.off()
 
+# endemism
 medianBD <- data2 %>%
   group_by(ovlWith2) %>%
   summarize(medianBD = round(median(Endemism_2020, na.rm = T),0))
 currentEndemism3 <- myboxplots(data2, tenureCategory = ovlWith2, BDvariable = Endemism_2020, 
-                              BDvariableTitle = "Species richness 2020", 
-                              fill = ovlWith2, sample_sizes = sample_sizes2) +
-  scale_colour_manual(values = tenureColors2, aesthetics = c("color", "fill"))
-currentEndemism3
-
-# save plot
+                              BDvariableTitle = "Endemism 2020", 
+                              fill = ovlWith2, sample_sizes = sample_sizes) +
+  scale_colour_manual(values = overlapColors, aesthetics = c("color", "fill"))
+currentEndemism3 + coord_cartesian(ylim = c(100,230))
 setwd(paste0(wdmain, "/output"))
-png("CurrentRichness_overlaps.png", width = 2450, height = 970, units = "px", res = 300)
-currentRichness3
-dev.off()
-
-setwd(paste0(wdmain, "/output"))
-png("CurrentEndemism_overlaps.png", width = 2450, height = 970, units = "px", res = 300)
-currentEndemism3
+png("CurrentEndemism_overlapsFocus_20250226.png", width = 1250, height = 2000, units = "px", res = 300)
+currentEndemism3 + coord_cartesian(ylim = c(100,230))
 dev.off()
 
 
