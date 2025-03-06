@@ -14,6 +14,8 @@ library(sf)
 library(terra)
 library(stringr)
 library(cowplot)
+library(effsize)
+
 source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 
 # read pre-cleaned data
@@ -67,10 +69,10 @@ myboxplots <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL,
     labs(y = BDvariableTitle) +
     # expand_limits(y = max(data$Richness_2020 * data$areakm2)) + 
     # expand_limits(y = mean(data$Richness_2020 * data$areakm2)) + 
-    # coord_flip() +
+    coord_flip() +
     geom_text(data = sample_sizes, aes(x = {{tenureCategory}}, y = Inf, label = paste("n =", n)), hjust = 6,
               vjust = -2, size = 2.5, inherit.aes = F) +
-    geom_text(data = medianBD, aes(x = {{tenureCategory}}, y = medianBD + (0.02 * max(medianBD)), label = paste(medianBD)), 
+    geom_text(data = medianBD, aes(x = {{tenureCategory}}, y = medianBD + (0.03 * max(medianBD)), label = paste(medianBD)), 
               hjust = 0.6, vjust = 0, size = 2.5, inherit.aes = FALSE)
   return(plot)
 }
@@ -81,7 +83,7 @@ medianBD <- data %>%
 currentRichness2 <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Richness_2020, 
                               BDvariableTitle = "Species richness 2020", 
                               fill = LTcateg3, sample_sizes = sample_sizes)
-currentRichness2 + coord_cartesian(ylim = c(400,900))
+currentRichness2 
 
 medianBD <- data %>%
   group_by(LTcateg3) %>%
@@ -89,7 +91,7 @@ medianBD <- data %>%
 currentEndemism2 <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Endemism_2020, 
                               BDvariableTitle = "Endemism 2020",
                               fill = LTcateg3, sample_sizes = sample_sizes)
-plot_grid(currentRichness2, currentEndemism2, nrow = 2)
+currentEndemism2
 
 # if i divide by area, then i have the artifice effect: it appears that private lands have more BD than others bc they're smaller properties
 # currentRichness <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = (Richness_2020/areakm2), 
@@ -102,14 +104,39 @@ plot_grid(currentRichness2, currentEndemism2, nrow = 2)
 
 # save plot
 setwd(paste0(wdmain, "/output"))
-png("CurrentRichness_20250226.png", width = 970, height = 2000, units = "px", res = 300)
-currentRichness2 + coord_cartesian(ylim = c(400,900))
+png("CurrentRichness_20250226.png", width = 2450, height = 970, units = "px", res = 300)
+currentRichness2
 dev.off()
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentEndemism_20250226.png", width = 970, height = 2000, units = "px", res = 300)
-currentEndemism2 + coord_cartesian(ylim = c(100,230))
+png("CurrentEndemism_20250226.png", width = 2450, height = 970, units = "px", res = 300)
+currentEndemism2 
 dev.off()
+
+# summarize standardized differences between LT categories
+category_list <- unique(data2$LTcateg)
+richness_summary <- list()
+for(i in 1:length(category_list))
+{
+  effsize <- cohen.d(data$Richness_2020[data2$LTcateg3 == paste0(category_list[i])], data$Richness_2020[data2$LTcateg3 != paste0(category_list[i])], na.rm = T, 
+                     conf.level = 0.99)
+  richness_summary[[i]] <- data.frame("LTcateg" = paste0(category_list[i]),
+                                      "cohen_d_R" = effsize$estimate, 
+                                      "sig_R" = effsize$magnitude)
+}
+richness_summary <- do.call(rbind, richness_summary)
+endemism_summary <- list()
+for(i in 1:length(category_list))
+{
+  effsize <- cohen.d(data$Endemism_2020[data$LTcateg3 == paste0(category_list[i])], data$Endemism_2020[data2$LTcateg3 != paste0(category_list[i])], na.rm = T, 
+                     conf.level = 0.99)
+  endemism_summary[[i]] <- data.frame("LTcateg" = paste0(category_list[i]),
+                                      "cohen_d_E" = effsize$estimate, 
+                                      "sig_E" = effsize$magnitude)
+}
+endemism_summary <- do.call(rbind, endemism_summary)
+bdDiffs_summary <- left_join(richness_summary, endemism_summary, by = "LTcateg")
+
 
 # setwd(paste0(wdmain, "/output"))
 # png("comparisonBD_mean-and-perArea.png", width = 2450, height = 2000, units = "px", res = 300)
@@ -174,6 +201,7 @@ currentRichness3 <- myboxplots(data2, tenureCategory = ovlWith2, BDvariable = Ri
   scale_colour_manual(values = overlapColors, aesthetics = c("color", "fill")) +
   theme(axis.text.x = element_text(angle = 35, hjust = 1))
 currentRichness3 + coord_cartesian(ylim = c(400,900))
+
 setwd(paste0(wdmain, "/output"))
 png("CurrentRichness_overlapsFocus_20250226.png", width = 1250, height = 2000, units = "px", res = 300)
 currentRichness3 + coord_cartesian(ylim = c(400,900))
@@ -188,6 +216,7 @@ currentEndemism3 <- myboxplots(data2, tenureCategory = ovlWith2, BDvariable = En
                               fill = ovlWith2, sample_sizes = sample_sizes) +
   scale_colour_manual(values = overlapColors, aesthetics = c("color", "fill"))
 currentEndemism3 + coord_cartesian(ylim = c(100,230))
+
 setwd(paste0(wdmain, "/output"))
 png("CurrentEndemism_overlapsFocus_20250226.png", width = 1250, height = 2000, units = "px", res = 300)
 currentEndemism3 + coord_cartesian(ylim = c(100,230))
@@ -243,13 +272,13 @@ sample_sizes <- biomeData %>%
   summarize(n = n(), .groups = 'drop')
 
 currentRichness <- myBiome_boxplots(biomeData, tenureCategory = LTcateg3, BDvariable = Richness_2020, 
-                              BDvariableTitle = "Species richness 2020 (per"~km^2~")", 
+                              BDvariableTitle = "Species richness 2020", 
                               fill = LTcateg3, sample_sizes = sample_sizes)
-currentRichness + facet_wrap(~biome2, nrow = 2, scales = "fixed") 
+currentRichness + facet_wrap(~biome2, nrow = 3, scales = "fixed") 
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentRichness_perBiomes.png", width = 3300, height = 3000, units = "px", res = 300)
-currentRichness + facet_wrap(~biome2, nrow = 2, scales = "fixed") 
+png("CurrentRichness_perBiomes.png", width = 2450, height = 5000, units = "px", res = 300)
+currentRichness + facet_wrap(~biome2, nrow = 3, scales = "fixed") 
 dev.off()
 
 currentEndemism <- myBiome_boxplots(biomeData, tenureCategory = LTcateg3, BDvariable =  Endemism_2020, 
@@ -275,6 +304,74 @@ png("CurrentForest_perBiomes.png", width = 3300, height = 3000, units = "px", re
 currentForest + facet_wrap(~biome2, nrow = 2, scales = "fixed")
 dev.off()
 
+# add cohen's d for biome disaggregation ----
+colnames(biomeData)
+# 1) add how much tenure categories differ from each other within biomes
+category_list <- unique(biomeData$LTcateg)
+biome_list <- unique(biomeData$biome)
+
+biomeData2 <- split(biomeData, biomeData$biome2)
+biome_summary <- list()
+for(j in 1:length(biomeData2))
+{
+  # for every biome, create a list of the tenure categories (which will vary)
+  richness_summary <- list()
+  tenure_categories <- unique(biomeData2[[j]]$LTcateg)
+for(i in 1:length(tenure_categories))
+{
+  effsize <- cohen.d(data$Richness_2020[data2$LTcateg3 == paste0(tenure_categories[i])], data$Richness_2020[data2$LTcateg3 != paste0(tenure_categories[i])], na.rm = T, 
+                     conf.level = 0.99)
+  richness_summary[[i]] <- data.frame("LTcateg" = paste0(tenure_categories[i]),
+                                      "biome" = paste0(names(biomeData2[j])),
+                                      "cohen_d_R" = effsize$estimate, 
+                                      "sig_R" = effsize$magnitude)
+}
+richness_summary <- do.call(rbind, richness_summary)
+
+biome_summary[[j]] <- richness_summary
+}
+biome_summary_richness <- do.call(rbind, biome_summary)
+
+biome_summary <- list()
+for(j in 1:length(biomeData2))
+{
+  # for every biome, create a list of the tenure categories (which will vary)
+  endemism_summary <- list()
+  tenure_categories <- unique(biomeData2[[j]]$LTcateg)
+  for(i in 1:length(category_list))
+  {
+    effsize <- cohen.d(data$Endemism_2020[data$LTcateg3 == paste0(category_list[i])], data$Endemism_2020[data2$LTcateg3 != paste0(category_list[i])], na.rm = T, 
+                       conf.level = 0.99)
+    endemism_summary[[i]] <- data.frame("LTcateg" = paste0(category_list[i]),
+                                        "biome" = paste0(names(biomeData2[j])),
+                                        "cohen_d_E" = effsize$estimate, 
+                                        "sig_E" = effsize$magnitude)
+  }
+
+endemism_summary <- do.call(rbind, endemism_summary)
+biome_summary[[j]] <- endemism_summary
+}
+biome_summary_endemism <- do.call(rbind, biome_summary)
+
+# summarize into one df
+bdDiffs_summary <- left_join(biome_summary_richness, biome_summary_endemism, by = c("LTcateg",))
+
+
+# 2) how much biomes BD varies
+diffsBiomes <- list()
+biomes <- unique(biomeData$biome2)
+for(i in 1:length(biomes))
+{
+  r <- cohen.d(biomeData$Richness_2020[biomeData$biome == paste0(biomes[i])], biomeData$Richness_2020[biomeData$biome != paste0(biomes[i])], na.rm = T, conf.level = 0.95)
+  e <- cohen.d(biomeData$Endemism_2020[biomeData$biome == paste0(biomes[i])], biomeData$Endemism_2020[biomeData$biome != paste0(biomes[i])], na.rm = T, conf.level = 0.95)
+  diffsBiomes[[i]] <- data.frame("biome" = paste0(biomes[i]),
+                                 "cohen_d_R" = r$estimate, 
+                                 "sig_R" = r$magnitude,
+                                 "cohen_d_E" = e$estimate, 
+                                 "sig_E" = e$magnitude)
+}
+do.call(rbind, diffsBiomes) # this is interesting because some things flip, but it doesnt get at the magnitude of differences   
+    
 
 
 # biodiversity and FC compliance ----
