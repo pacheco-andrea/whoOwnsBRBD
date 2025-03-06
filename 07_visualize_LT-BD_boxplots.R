@@ -50,9 +50,6 @@ data$LTcateg2 <- data$LTcateg2 <- factor(data$LTcateg, levels = c("Private lands
 data$LTcateg3 <- factor(data$LTcateg2, levels = rev(levels(data$LTcateg2)))
 data$LTcateg3 <- droplevels(data$LTcateg3)
 # create variable with amount of observations per category to include as a label in my plots
-sample_sizes <- data %>%
-  group_by(LTcateg3) %>%
-  summarize(n = n())
 
 myboxplots <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL, fill, sample_sizes) {
   
@@ -77,6 +74,9 @@ myboxplots <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL,
   return(plot)
 }
 # average richness of all properties without the artifice of dividing by area
+sample_sizes <- data %>%
+  group_by(LTcateg3) %>%
+  summarize(n = n())
 medianBD <- data %>%
   group_by(LTcateg3) %>%
   summarize(medianBD = round(median(Richness_2020, na.rm = T),0))
@@ -114,11 +114,11 @@ currentEndemism2
 dev.off()
 
 # summarize standardized differences between LT categories
-category_list <- unique(data2$LTcateg)
+category_list <- unique(data$LTcateg)
 richness_summary <- list()
 for(i in 1:length(category_list))
 {
-  effsize <- cohen.d(data$Richness_2020[data2$LTcateg3 == paste0(category_list[i])], data$Richness_2020[data2$LTcateg3 != paste0(category_list[i])], na.rm = T, 
+  effsize <- cohen.d(data$Richness_2020[data$LTcateg3 == paste0(category_list[i])], data$Richness_2020[data$LTcateg3 != paste0(category_list[i])], na.rm = T, 
                      conf.level = 0.99)
   richness_summary[[i]] <- data.frame("LTcateg" = paste0(category_list[i]),
                                       "cohen_d_R" = effsize$estimate, 
@@ -128,7 +128,7 @@ richness_summary <- do.call(rbind, richness_summary)
 endemism_summary <- list()
 for(i in 1:length(category_list))
 {
-  effsize <- cohen.d(data$Endemism_2020[data$LTcateg3 == paste0(category_list[i])], data$Endemism_2020[data2$LTcateg3 != paste0(category_list[i])], na.rm = T, 
+  effsize <- cohen.d(data$Endemism_2020[data$LTcateg3 == paste0(category_list[i])], data$Endemism_2020[data$LTcateg3 != paste0(category_list[i])], na.rm = T, 
                      conf.level = 0.99)
   endemism_summary[[i]] <- data.frame("LTcateg" = paste0(category_list[i]),
                                       "cohen_d_E" = effsize$estimate, 
@@ -136,7 +136,7 @@ for(i in 1:length(category_list))
 }
 endemism_summary <- do.call(rbind, endemism_summary)
 bdDiffs_summary <- left_join(richness_summary, endemism_summary, by = "LTcateg")
-
+bdDiffs_summary
 
 # setwd(paste0(wdmain, "/output"))
 # png("comparisonBD_mean-and-perArea.png", width = 2450, height = 2000, units = "px", res = 300)
@@ -195,17 +195,29 @@ medianBD <- data2 %>%
   summarize(medianBD = round(median(Richness_2020, na.rm = T),0))
 
 # richness
-currentRichness3 <- myboxplots(data2, tenureCategory = ovlWith2, BDvariable = Richness_2020, 
+# private land overlaps
+currentRichness3 <- myboxplots(data2[which(data2$LTcateg == "Private lands"),], tenureCategory = ovlWith2, BDvariable = Richness_2020, 
                               BDvariableTitle = "Species richness 2020", 
                               fill = ovlWith2, sample_sizes) +
-  scale_colour_manual(values = overlapColors, aesthetics = c("color", "fill")) +
-  theme(axis.text.x = element_text(angle = 35, hjust = 1))
-currentRichness3 + coord_cartesian(ylim = c(400,900))
+  scale_colour_manual(values = overlapColors, aesthetics = c("color", "fill"))
+currentRichness3 + coord_cartesian(ylim = c(400,1000)) + coord_flip()
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentRichness_overlapsFocus_20250226.png", width = 1250, height = 2000, units = "px", res = 300)
-currentRichness3 + coord_cartesian(ylim = c(400,900))
+png("CurrentRichness_overlapsPrivate.png",  width = 2450, height = 970, units = "px", res = 300)
+currentRichness3 + coord_cartesian(ylim = c(400,1000)) + coord_flip()
 dev.off()
+# rural settlement overlaps 
+currentRichness3 <- myboxplots(data2[which(data2$LTcateg != "Private lands"),], tenureCategory = ovlWith2, BDvariable = Richness_2020, 
+                               BDvariableTitle = "Species richness 2020", 
+                               fill = ovlWith2, sample_sizes) +
+  scale_colour_manual(values = overlapColors, aesthetics = c("color", "fill"))
+currentRichness3 + coord_cartesian(ylim = c(400,1000)) + coord_flip()
+
+setwd(paste0(wdmain, "/output"))
+png("CurrentRichness_overlapsRurSetts.png",  width = 2450, height = 970, units = "px", res = 300)
+currentRichness3 + coord_cartesian(ylim = c(400,1000)) + coord_flip()
+dev.off()
+
 
 # endemism
 medianBD <- data2 %>%
@@ -221,6 +233,67 @@ setwd(paste0(wdmain, "/output"))
 png("CurrentEndemism_overlapsFocus_20250226.png", width = 1250, height = 2000, units = "px", res = 300)
 currentEndemism3 + coord_cartesian(ylim = c(100,230))
 dev.off()
+
+# rerun of entire first-figure analysis excluding the overlaps
+dataNoOverlaps <- data %>% 
+  mutate(ovlExists = rowSums(select(., starts_with("ovl_")), na.rm = TRUE) > 0) %>% # note there's a small classification mistake here, which means that it excludes some PA sust use bc they overlap w rural settlemtns (instead of the other way around)
+  filter(ovlExists == FALSE)
+sample_sizes <- dataNoOverlaps %>% 
+  group_by(LTcateg3) %>%
+  summarize(n = n())
+medianBD <- dataNoOverlaps %>% 
+  group_by(LTcateg3) %>%
+  summarize(medianBD = round(median(Richness_2020, na.rm = T),0))
+
+currentRichness2 <- myboxplots(dataNoOverlaps, tenureCategory = LTcateg3, BDvariable = Richness_2020, 
+                               BDvariableTitle = "Species richness 2020", 
+                               fill = LTcateg3, sample_sizes = sample_sizes)
+currentRichness2 
+
+medianBD <- data %>%
+  group_by(LTcateg3) %>%
+  summarize(medianBD = round(median(Endemism_2020, na.rm = T),0))
+currentEndemism2 <- myboxplots(dataNoOverlaps, tenureCategory = LTcateg3, BDvariable = Endemism_2020, 
+                               BDvariableTitle = "Endemism 2020",
+                               fill = LTcateg3, sample_sizes = sample_sizes)
+currentEndemism2
+
+# save plot
+setwd(paste0(wdmain, "/output"))
+png("CurrentRichness_20250226_noOverlaps.png", width = 2450, height = 970, units = "px", res = 300)
+currentRichness2
+dev.off()
+
+setwd(paste0(wdmain, "/output"))
+png("CurrentEndemism_20250226_noOverlaps.png", width = 2450, height = 970, units = "px", res = 300)
+currentEndemism2 
+dev.off()
+# do the summaries change?
+# summarize standardized differences between LT categories
+category_list <- unique(dataNoOverlaps$LTcateg)
+richness_summary <- list()
+for(i in 1:length(category_list))
+{
+  effsize <- cohen.d(dataNoOverlaps$Richness_2020[dataNoOverlaps$LTcateg3 == paste0(category_list[i])], dataNoOverlaps$Richness_2020[dataNoOverlaps$LTcateg3 != paste0(category_list[i])], na.rm = T, 
+                     conf.level = 0.99)
+  richness_summary[[i]] <- data.frame("LTcateg" = paste0(category_list[i]),
+                                      "cohen_d_R" = effsize$estimate, 
+                                      "sig_R" = effsize$magnitude)
+}
+richness_summary <- do.call(rbind, richness_summary)
+endemism_summary <- list()
+for(i in 1:length(category_list))
+{
+  effsize <- cohen.d(dataNoOverlaps$Endemism_2020[dataNoOverlaps$LTcateg3 == paste0(category_list[i])], dataNoOverlaps$Endemism_2020[dataNoOverlaps$LTcateg3 != paste0(category_list[i])], na.rm = T, 
+                     conf.level = 0.99)
+  endemism_summary[[i]] <- data.frame("LTcateg" = paste0(category_list[i]),
+                                      "cohen_d_E" = effsize$estimate, 
+                                      "sig_E" = effsize$magnitude)
+}
+endemism_summary <- do.call(rbind, endemism_summary)
+bdDiffs_summary <- left_join(richness_summary, endemism_summary, by = "LTcateg")
+bdDiffs_summary
+
 
 
 # deforestation ----
