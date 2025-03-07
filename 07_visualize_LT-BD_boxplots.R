@@ -137,6 +137,9 @@ for(i in 1:length(category_list))
 endemism_summary <- do.call(rbind, endemism_summary)
 bdDiffs_summary <- left_join(richness_summary, endemism_summary, by = "LTcateg")
 bdDiffs_summary
+setwd(paste0(wdmain, "/output"))
+write.csv(bdDiffs_summary, "cohensD_withOverlaps.csv", row.names = F)
+
 
 # setwd(paste0(wdmain, "/output"))
 # png("comparisonBD_mean-and-perArea.png", width = 2450, height = 2000, units = "px", res = 300)
@@ -293,6 +296,9 @@ for(i in 1:length(category_list))
 endemism_summary <- do.call(rbind, endemism_summary)
 bdDiffs_summary <- left_join(richness_summary, endemism_summary, by = "LTcateg")
 bdDiffs_summary
+# write out this table
+setwd(paste0(wdmain, "/output"))
+write.csv(bdDiffs_summary, "cohensD_withoutOverlaps.csv", row.names = F)
 
 
 
@@ -427,7 +433,16 @@ biome_summary[[j]] <- endemism_summary
 biome_summary_endemism <- do.call(rbind, biome_summary)
 
 # summarize into one df
-bdDiffs_summary <- left_join(biome_summary_richness, biome_summary_endemism, by = c("LTcateg",))
+bdDiffs_summary <- left_join(biome_summary_richness, biome_summary_endemism, by = c("LTcateg", "biome"))
+bdDiffs_summary
+# write out
+
+
+
+
+
+
+
 
 
 # 2) how much biomes BD varies
