@@ -115,30 +115,33 @@ dev.off()
 
 # summarize standardized differences between LT categories
 category_list <- unique(data$LTcateg)
-richness_summary <- list()
+s <- list()
 for(i in 1:length(category_list))
 {
-  effsize <- cohen.d(data$Richness_2020[data$LTcateg3 == paste0(category_list[i])], data$Richness_2020[data$LTcateg3 != paste0(category_list[i])], na.rm = T, 
+  r <- cohen.d(data$Richness_2020[data$LTcateg3 == paste0(category_list[i])], data$Richness_2020[data$LTcateg3 != paste0(category_list[i])], na.rm = T, 
                      conf.level = 0.99)
-  richness_summary[[i]] <- data.frame("LTcateg" = paste0(category_list[i]),
-                                      "cohen_d_R" = effsize$estimate, 
-                                      "sig_R" = effsize$magnitude)
-}
-richness_summary <- do.call(rbind, richness_summary)
-endemism_summary <- list()
-for(i in 1:length(category_list))
-{
-  effsize <- cohen.d(data$Endemism_2020[data$LTcateg3 == paste0(category_list[i])], data$Endemism_2020[data$LTcateg3 != paste0(category_list[i])], na.rm = T, 
+  e <- cohen.d(data$Endemism_2020[data$LTcateg3 == paste0(category_list[i])], data$Endemism_2020[data$LTcateg3 != paste0(category_list[i])], na.rm = T, 
                      conf.level = 0.99)
-  endemism_summary[[i]] <- data.frame("LTcateg" = paste0(category_list[i]),
-                                      "cohen_d_E" = effsize$estimate, 
-                                      "sig_E" = effsize$magnitude)
+  s[[i]] <- data.frame("LTcateg" = paste0(category_list[i]),
+                                      "cohen_d_R" = r$estimate, 
+                                      "sig_R" = r$magnitude,
+                                      "cohen_d_E" = e$estimate, 
+                                      "sig_E" = e$magnitude)
 }
-endemism_summary <- do.call(rbind, endemism_summary)
-bdDiffs_summary <- left_join(richness_summary, endemism_summary, by = "LTcateg")
-bdDiffs_summary
+s <- do.call(rbind, s)
+s
 setwd(paste0(wdmain, "/output"))
-write.csv(bdDiffs_summary, "cohensD_withOverlaps.csv", row.names = F)
+write.csv(s, "cohensD_withOverlaps.csv", row.names = F)
+
+# double check diffs in groups with anova
+anova_rich <- aov(Richness_2020 ~ LTcateg3, data = data)
+summary(anova_rich)
+tukey_rich <- TukeyHSD(anova_rich)
+anova_ende <- aov(Endemism_2020 ~ LTcateg, data = data)
+summary(anova_ende)
+tukey_ende <- TukeyHSD(anova_ende)
+tukey_rich
+tukey_ende
 
 
 # setwd(paste0(wdmain, "/output"))
@@ -237,7 +240,33 @@ png("CurrentEndemism_overlapsFocus_20250226.png", width = 1250, height = 2000, u
 currentEndemism3 + coord_cartesian(ylim = c(100,230))
 dev.off()
 
-# rerun of entire first-figure analysis excluding the overlaps
+# check cohen's d of overlapping areas compared to non-overlapping private lands ----
+ovl_list <- unique(data2$ovlWith2)
+diffs <- list()
+for(i in 1:length(ovl_list)) # for each overlap
+{
+  # compare richness
+  r <- cohen.d(data2$Richness_2020[data2$ovlWith2 == paste0(ovl_list[i])], # remember, data2 is the data that DOES overlap
+                dataNoOverlaps$Richness_2020[dataNoOverlaps$LTcateg3 == "Private lands"], # so, we're comparing the private lands that overlap with xyz with the private lands that do not overlap
+                na.rm = T, conf.level = 0.99)
+  # compare endemism
+  e <- cohen.d(data2$Endemism_2020[data2$ovlWith2 == paste0(ovl_list[i])], # remember, data2 is the data that DOES overlap
+               dataNoOverlaps$Endemism_2020[dataNoOverlaps$LTcateg3 == "Private lands"], # so, we're comparing the private lands that overlap with xyz with the private lands that do not overlap
+               na.rm = T, conf.level = 0.99)
+  
+  diffs[[i]] <- data.frame("LTcateg" = paste0(ovl_list[i]),
+                           "cohen_d_R" = r$estimate, 
+                           "sig_R" = r$magnitude,
+                           "cohen_d_E" = e$estimate, 
+                           "sig_E" = e$magnitude)
+}
+diffs <- do.call(rbind, diffs)
+diffs
+
+
+
+
+# rerun of entire first-figure analysis excluding the overlaps ----
 dataNoOverlaps <- data %>% 
   mutate(ovlExists = rowSums(select(., starts_with("ovl_")), na.rm = TRUE) > 0) %>% # note there's a small classification mistake here, which means that it excludes some PA sust use bc they overlap w rural settlemtns (instead of the other way around)
   filter(ovlExists == FALSE)
@@ -356,18 +385,18 @@ currentRichness <- myBiome_boxplots(biomeData, tenureCategory = LTcateg3, BDvari
 currentRichness + facet_wrap(~biome2, nrow = 3, scales = "fixed") 
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentRichness_perBiomes.png", width = 2450, height = 5000, units = "px", res = 300)
+png("CurrentRichness_perBiomes.png", width = 3500, height = 4000, units = "px", res = 300)
 currentRichness + facet_wrap(~biome2, nrow = 3, scales = "fixed") 
 dev.off()
 
 currentEndemism <- myBiome_boxplots(biomeData, tenureCategory = LTcateg3, BDvariable =  Endemism_2020, 
-                              BDvariableTitle = "Endemism 2020 (per"~km^2~")", 
+                              BDvariableTitle = "Endemism 2020", 
                               fill = LTcateg3, sample_sizes = sample_sizes)
-currentEndemism + facet_wrap(~biome2, nrow = 2, scales = "fixed")
+currentEndemism + facet_wrap(~biome2, nrow = 3, scales = "fixed")
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentEndemism_perBiomes.png", width = 3300, height = 3000, units = "px", res = 300)
-currentEndemism + facet_wrap(~biome2, nrow = 2, scales = "fixed")
+png("CurrentEndemism_perBiomes.png", width = 3500, height = 4000, units = "px", res = 300)
+currentEndemism + facet_wrap(~biome2, nrow = 3, scales = "fixed")
 dev.off()
 
 # disaggregated plot show that the pattern holds throughout biomes
@@ -394,58 +423,36 @@ biome_summary <- list()
 for(j in 1:length(biomeData2))
 {
   # for every biome, create a list of the tenure categories (which will vary)
-  richness_summary <- list()
+  summary <- list()
   tenure_categories <- unique(biomeData2[[j]]$LTcateg)
-for(i in 1:length(tenure_categories))
-{
-  effsize <- cohen.d(data$Richness_2020[data2$LTcateg3 == paste0(tenure_categories[i])], data$Richness_2020[data2$LTcateg3 != paste0(tenure_categories[i])], na.rm = T, 
-                     conf.level = 0.99)
-  richness_summary[[i]] <- data.frame("LTcateg" = paste0(tenure_categories[i]),
-                                      "biome" = paste0(names(biomeData2[j])),
-                                      "cohen_d_R" = effsize$estimate, 
-                                      "sig_R" = effsize$magnitude)
-}
-richness_summary <- do.call(rbind, richness_summary)
-
-biome_summary[[j]] <- richness_summary
-}
-biome_summary_richness <- do.call(rbind, biome_summary)
-
-biome_summary <- list()
-for(j in 1:length(biomeData2))
-{
-  # for every biome, create a list of the tenure categories (which will vary)
-  endemism_summary <- list()
-  tenure_categories <- unique(biomeData2[[j]]$LTcateg)
-  for(i in 1:length(category_list))
+  for(i in 1:length(tenure_categories))
   {
-    effsize <- cohen.d(data$Endemism_2020[data$LTcateg3 == paste0(category_list[i])], data$Endemism_2020[data2$LTcateg3 != paste0(category_list[i])], na.rm = T, 
-                       conf.level = 0.99)
-    endemism_summary[[i]] <- data.frame("LTcateg" = paste0(category_list[i]),
+    r <- cohen.d(biomeData2[[j]]$Richness_2020[biomeData2[[j]]$LTcateg3 == paste0(tenure_categories[i])], 
+                       biomeData2[[j]]$Richness_2020[biomeData2[[j]]$LTcateg3 != paste0(tenure_categories[i])], 
+                       na.rm = T, conf.level = 0.99)
+    e <- cohen.d(biomeData2[[j]]$Endemism_2020[biomeData2[[j]]$LTcateg3 == paste0(tenure_categories[i])], 
+                      biomeData2[[j]]$Endemism_2020[biomeData2[[j]]$LTcateg3 != paste0(tenure_categories[i])], 
+                      na.rm = T, conf.level = 0.99)
+    
+    summary[[i]] <- data.frame("LTcateg" = paste0(tenure_categories[i]),
                                         "biome" = paste0(names(biomeData2[j])),
-                                        "cohen_d_E" = effsize$estimate, 
-                                        "sig_E" = effsize$magnitude)
+                                        "cohen_d_R" = r$estimate, 
+                                        "sig_R" = r$magnitude,
+                                        "cohen_d_E" = e$estimate, 
+                                        "sig_E" = e$magnitude)
   }
+  summary <- do.call(rbind, summary)
 
-endemism_summary <- do.call(rbind, endemism_summary)
-biome_summary[[j]] <- endemism_summary
+biome_summary[[j]] <- summary
 }
-biome_summary_endemism <- do.call(rbind, biome_summary)
+biome_summary <- do.call(rbind, biome_summary)
 
-# summarize into one df
-bdDiffs_summary <- left_join(biome_summary_richness, biome_summary_endemism, by = c("LTcateg", "biome"))
-bdDiffs_summary
 # write out
+setwd(paste0(wdmain, "/output"))
+write.csv(biome_summary, "cohensD_biomes.csv", row.names = F)
 
 
-
-
-
-
-
-
-
-# 2) how much biomes BD varies
+# 2) how much biomes BD varies?
 diffsBiomes <- list()
 biomes <- unique(biomeData$biome2)
 for(i in 1:length(biomes))
