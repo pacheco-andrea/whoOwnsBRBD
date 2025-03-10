@@ -212,6 +212,55 @@ setwd(paste0(wdmain, "/output"))
 png("CurrentRichness_overlapsPrivate.png",  width = 2450, height = 970, units = "px", res = 300)
 currentRichness3 + coord_cartesian(ylim = c(400,1000)) + coord_flip()
 dev.off()
+
+# another try at the plot i really want
+data <- data %>%
+  mutate(ovlExists = rowSums(select(., starts_with("ovl_")), na.rm = TRUE) > 0)
+
+ggplot() +
+  geom_violin(data = data[which(data$LTcateg3 == "Private lands"),], aes(x = LTcateg3, y = Richness_2020, fill = LTcateg3), alpha = 0.2) +
+  geom_boxplot(data = data[which(data$LTcateg3 == "Private lands"),], aes(x = LTcateg3, y = Richness_2020, fill = LTcateg3), width=0.5, color="grey20", alpha = 0.7) +
+  scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
+  coord_flip() +
+  theme(panel.background = element_blank(), 
+        panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
+        legend.title = element_blank(), 
+        legend.position = "none", 
+        axis.title.y = element_blank(),
+        text = element_text(size = 10)) +
+  
+  
+# ok, i would indeed need to make data the same df with the ovl categories - which is technically easy
+# pick up here
+  
+  
+  
+  geom_violin(data = data[which(data$ovlExists == "TRUE"),], aes(x = LTcateg3, y = Richness_2020, fill = LTcateg3), alpha = 0.2) +
+  # geom_boxplot(data = data[which(data$LTcateg3 == "Private lands"),], aes(x = LTcateg3, y = Richness_2020, fill = LTcateg3), width=0.5, color="grey20", alpha = 0.7) +
+  
+  labs(y = "Richness 2020") +
+  # expand_limits(y = max(data$Richness_2020 * data$areakm2)) + 
+  # expand_limits(y = mean(data$Richness_2020 * data$areakm2)) + 
+  
+  # geom_text(data = sample_sizes, aes(x = {{tenureCategory}}, y = Inf, label = paste("n =", n)), hjust = 6,
+  #           vjust = -2, size = 2.5, inherit.aes = F) +
+  # geom_text(data = medianBD, aes(x = {{tenureCategory}}, y = medianBD + (0.03 * max(medianBD)), label = paste(medianBD)), 
+  #           hjust = 0.6, vjust = 0, size = 2.5, inherit.aes = FALSE)
+
+
+
+
+
+
+sample_sizes <- data %>%
+  group_by(LTcateg3) %>%
+  filter(LTcateg3 == "Private lands") %>%
+  summarize(n = n())
+medianBD <- data %>%
+  group_by(LTcateg3) %>%
+  filter(LTcateg3 == "Private lands") %>%
+  summarize(medianBD = round(median(Richness_2020, na.rm = T),0))
+
 # rural settlement overlaps 
 currentRichness3 <- myboxplots(data2[which(data2$LTcateg != "Private lands"),], tenureCategory = ovlWith2, BDvariable = Richness_2020, 
                                BDvariableTitle = "Species richness 2020", 
@@ -239,31 +288,6 @@ setwd(paste0(wdmain, "/output"))
 png("CurrentEndemism_overlapsFocus_20250226.png", width = 1250, height = 2000, units = "px", res = 300)
 currentEndemism3 + coord_cartesian(ylim = c(100,230))
 dev.off()
-
-# check cohen's d of overlapping areas compared to non-overlapping private lands ----
-ovl_list <- unique(data2$ovlWith2)
-diffs <- list()
-for(i in 1:length(ovl_list)) # for each overlap
-{
-  # compare richness
-  r <- cohen.d(data2$Richness_2020[data2$ovlWith2 == paste0(ovl_list[i])], # remember, data2 is the data that DOES overlap
-                dataNoOverlaps$Richness_2020[dataNoOverlaps$LTcateg3 == "Private lands"], # so, we're comparing the private lands that overlap with xyz with the private lands that do not overlap
-                na.rm = T, conf.level = 0.99)
-  # compare endemism
-  e <- cohen.d(data2$Endemism_2020[data2$ovlWith2 == paste0(ovl_list[i])], # remember, data2 is the data that DOES overlap
-               dataNoOverlaps$Endemism_2020[dataNoOverlaps$LTcateg3 == "Private lands"], # so, we're comparing the private lands that overlap with xyz with the private lands that do not overlap
-               na.rm = T, conf.level = 0.99)
-  
-  diffs[[i]] <- data.frame("LTcateg" = paste0(ovl_list[i]),
-                           "cohen_d_R" = r$estimate, 
-                           "sig_R" = r$magnitude,
-                           "cohen_d_E" = e$estimate, 
-                           "sig_E" = e$magnitude)
-}
-diffs <- do.call(rbind, diffs)
-diffs
-
-
 
 
 # rerun of entire first-figure analysis excluding the overlaps ----
@@ -303,46 +327,50 @@ dev.off()
 # do the summaries change?
 # summarize standardized differences between LT categories
 category_list <- unique(dataNoOverlaps$LTcateg)
-richness_summary <- list()
+s <- list()
 for(i in 1:length(category_list))
 {
-  effsize <- cohen.d(dataNoOverlaps$Richness_2020[dataNoOverlaps$LTcateg3 == paste0(category_list[i])], dataNoOverlaps$Richness_2020[dataNoOverlaps$LTcateg3 != paste0(category_list[i])], na.rm = T, 
-                     conf.level = 0.99)
-  richness_summary[[i]] <- data.frame("LTcateg" = paste0(category_list[i]),
-                                      "cohen_d_R" = effsize$estimate, 
-                                      "sig_R" = effsize$magnitude)
+  r <- cohen.d(dataNoOverlaps$Richness_2020[dataNoOverlaps$LTcateg3 == paste0(category_list[i])], 
+               dataNoOverlaps$Richness_2020[dataNoOverlaps$LTcateg3 != paste0(category_list[i])], 
+               na.rm = T, conf.level = 0.99)
+  e <- cohen.d(dataNoOverlaps$Endemism_2020[dataNoOverlaps$LTcateg3 == paste0(category_list[i])], 
+               dataNoOverlaps$Endemism_2020[dataNoOverlaps$LTcateg3 != paste0(category_list[i])], 
+               na.rm = T, conf.level = 0.99)
+  s[[i]] <- data.frame("LTcateg" = paste0(category_list[i]),
+                       "cohen_d_R" = r$estimate, 
+                       "sig_R" = r$magnitude,
+                       "cohen_d_E" = e$estimate, 
+                       "sig_E" = e$magnitude)
 }
-richness_summary <- do.call(rbind, richness_summary)
-endemism_summary <- list()
-for(i in 1:length(category_list))
-{
-  effsize <- cohen.d(dataNoOverlaps$Endemism_2020[dataNoOverlaps$LTcateg3 == paste0(category_list[i])], dataNoOverlaps$Endemism_2020[dataNoOverlaps$LTcateg3 != paste0(category_list[i])], na.rm = T, 
-                     conf.level = 0.99)
-  endemism_summary[[i]] <- data.frame("LTcateg" = paste0(category_list[i]),
-                                      "cohen_d_E" = effsize$estimate, 
-                                      "sig_E" = effsize$magnitude)
-}
-endemism_summary <- do.call(rbind, endemism_summary)
-bdDiffs_summary <- left_join(richness_summary, endemism_summary, by = "LTcateg")
-bdDiffs_summary
+s <- do.call(rbind, s)
+s
+
 # write out this table
 setwd(paste0(wdmain, "/output"))
-write.csv(bdDiffs_summary, "cohensD_withoutOverlaps.csv", row.names = F)
+write.csv(s, "cohensD_withoutOverlaps.csv", row.names = F)
 
-
-
-# deforestation ----
-
-# # plot current forest cover
-# currentForest <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = p_for23, 
-#                             BDvariableTitle = "% forest cover 2023 (per property)", 
-#                             fill = LTcateg3, sample_sizes = sample_sizes)
-# currentForest
-# 
-# setwd(paste0(wdmain, "/output"))
-# png("Forest-2023_flippedboxplot_20241202.png", width = 2450, height = 970,   units = "px", res = 300)
-# currentForest
-# dev.off()
+# check cohen's d of overlapping areas compared to non-overlapping private lands ----
+ovl_list <- unique(data2$ovlWith2)
+diffs <- list()
+for(i in 1:length(ovl_list)) # for each overlap
+{
+  # compare richness
+  r <- cohen.d(data2$Richness_2020[data2$ovlWith2 == paste0(ovl_list[i])], # remember, data2 is the data that DOES overlap
+               dataNoOverlaps$Richness_2020[dataNoOverlaps$LTcateg3 == "Private lands"], # so, we're comparing the private lands that overlap with xyz with the private lands that do not overlap
+               na.rm = T, conf.level = 0.99)
+  # compare endemism
+  e <- cohen.d(data2$Endemism_2020[data2$ovlWith2 == paste0(ovl_list[i])], # remember, data2 is the data that DOES overlap
+               dataNoOverlaps$Endemism_2020[dataNoOverlaps$LTcateg3 == "Private lands"], # so, we're comparing the private lands that overlap with xyz with the private lands that do not overlap
+               na.rm = T, conf.level = 0.99)
+  
+  diffs[[i]] <- data.frame("LTcateg" = paste0(ovl_list[i]),
+                           "cohen_d_R" = r$estimate, 
+                           "sig_R" = r$magnitude,
+                           "cohen_d_E" = e$estimate, 
+                           "sig_E" = e$magnitude)
+}
+diffs <- do.call(rbind, diffs)
+diffs
 
 
 # Are results different for Brazil's different biomes? ----
@@ -399,17 +427,38 @@ png("CurrentEndemism_perBiomes.png", width = 3500, height = 4000, units = "px", 
 currentEndemism + facet_wrap(~biome2, nrow = 3, scales = "fixed")
 dev.off()
 
-# disaggregated plot show that the pattern holds throughout biomes
-# i.e., amazonia does not dominate - whereas this is likely different for forest 2023
-# is this the same for Forest 2023?
-currentForest <- myBiome_boxplots(biomeData, tenureCategory = LTcateg3, BDvariable = p_for23, 
-                            BDvariableTitle = "% forest cover 2023 (per property)", 
+# disaggregated plot shows that the pattern holds throughout biomes
+
+
+# deforestation ----
+
+# plot current forest cover
+sample_sizes <- data %>%
+  group_by(LTcateg3) %>%
+  summarize(n = n())
+currentForest <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = p_for23,
+                            BDvariableTitle = "% forest cover 2023 (per property)",
                             fill = LTcateg3, sample_sizes = sample_sizes)
-currentForest + facet_wrap(~biome2, nrow = 2, scales = "fixed")
+currentForest
+
+# DO NOT OVERWRITE bc the original one i made remains correct and the new boxplot function messes with the median label 
+# setwd(paste0(wdmain, "/output"))
+# png("Forest-2023_flippedboxplot_20241202.png", width = 2450, height = 970,   units = "px", res = 300)
+# currentForest
+# dev.off()
+
+# biomes disag for forest 2023?
+sample_sizes <- biomeData %>%
+  group_by(LTcateg3, biome2) %>%
+  summarize(n = n(), .groups = 'drop')
+currentForest <- myBiome_boxplots(biomeData, tenureCategory = LTcateg3, BDvariable = p_for23, 
+                            BDvariableTitle = "% forest cover 2023", 
+                            fill = LTcateg3, sample_sizes = sample_sizes)
+currentForest + facet_wrap(~biome2, nrow = 3, scales = "fixed")
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentForest_perBiomes.png", width = 3300, height = 3000, units = "px", res = 300)
-currentForest + facet_wrap(~biome2, nrow = 2, scales = "fixed")
+png("CurrentForest_perBiomes.png", width = 3500, height = 4000, units = "px", res = 300)
+currentForest + facet_wrap(~biome2, nrow = 3, scales = "fixed")
 dev.off()
 
 # add cohen's d for biome disaggregation ----
