@@ -49,6 +49,14 @@ data$LTcateg2 <- data$LTcateg2 <- factor(data$LTcateg, levels = c("Private lands
                                                                   "Quilombola lands"))
 data$LTcateg3 <- factor(data$LTcateg2, levels = rev(levels(data$LTcateg2)))
 data$LTcateg3 <- droplevels(data$LTcateg3)
+# there's a small issue where the overlap between sust use and rural setts is flipped:
+# the main category should be rural settlements
+data$LTcateg3[which(data$ovl_ruralSett > 0)] <- "Rural settlements" # replace category 
+# and the overlap category should be the PA sust use
+data$ovl_PA_sustuse[which(data$ovl_ruralSett > 0)] # replace value which is currently 0
+data$ovl_PA_sustuse[which(data$ovl_ruralSett > 0)] <- data$ovl_ruralSett[which(data$ovl_ruralSett > 0)] # which the overlapping value
+
+
 # create variable with amount of observations per category to include as a label in my plots
 
 myboxplots <- function(data, tenureCategory, BDvariable, BDvariableTitle = NULL, fill, sample_sizes) {
@@ -144,19 +152,13 @@ tukey_rich
 tukey_ende
 
 
-# setwd(paste0(wdmain, "/output"))
-# png("comparisonBD_mean-and-perArea.png", width = 2450, height = 2000, units = "px", res = 300)
-# plot_grid(currentRichness, currentEndemism, currentRichness2, currentEndemism2, nrow = 2)
-# dev.off()
-
-# version accounting for the overlaps  ----
+# data wrangling for id'ing overlaps  ----
 # this is essentially to see whether there is a difference in the private lands that overlap with conservation areas
 # create a column that flags all the overlaps
 data2 <- data %>%
   mutate(ovlExists = rowSums(select(., starts_with("ovl_")), na.rm = TRUE) > 0)
 head(as.data.frame(data2))
-# data2 <- data2[which(data2$ovlExists == "TRUE"),]
-# summary(data2)
+
 # i looked into the percentage of overlapping area, and as in the overlapping analysis, the majority of overlaps are in undesignated lands
 # but ultimately, since i dont think i can completely rely on these exact numbers, i dont incorporate this into calculations
 # instead, i just want to verify the amount of BD in properties with overlaps in PAs/undesignated lands
@@ -171,9 +173,7 @@ data2$ovlWith[which(data2$ovl_undesignated > 0 & data2$ovl_PA_strict == 0 & data
 data2$ovlWith[which(data2$ovl_undesignated == 0 & (data2$ovl_PA_strict > 0 & data2$ovl_PA_sustuse > 0))] <- "Both PAs"
 data2$ovlWith[which(data2$ovl_undesignated > 0 & 
                       (data2$ovl_PA_strict > 0 | data2$ovl_PA_sustuse > 0))] <- "PAs & Undesignated lands"
-# i have to switch the tenure and rural sett categories here
-data2$LTcateg3[which(data2$ovl_ruralSett > 0)] <- "Rural settlements"
-data2$ovlWith[which(data2$ovl_ruralSett > 0)] <- "PA sustainable use"
+
 # fill in the NAs to indicate no overlaps
 data2$ovlWith[is.na(data2$ovlWith)] <- paste0(data2$LTcateg3[is.na(data2$ovlWith)], " (no ovlp)")
 summary(data2)
@@ -193,6 +193,7 @@ data2$ovlWith2 <- factor(data2$ovlWith, levels = c("Undesignated lands", # remem
                                                   "Private lands (no ovlp)"))
 summary(data2)
 
+# plot overlaps ----
 overlapColors <- c("Rural settlements (no ovlp)"= "#FC8D62",
                    "Private lands (no ovlp)" = "#8DA0CB",
                    "PA strict protection" = "#1B9E77",
@@ -201,19 +202,17 @@ overlapColors <- c("Rural settlements (no ovlp)"= "#FC8D62",
                    "Undesignated lands" ="#1d6c7d",
                    "PAs & Undesignated lands" = "#397D73")
 
-# plot overlaps ----
-# label the n of the overlaps
-sample_sizes <- data2 %>%
-  # filter(LTcateg3 == "Private lands") %>%
-  group_by(ovlWith2) %>%
-  summarize(n = n())
-medianBD <- data2 %>%
-  # filter(LTcateg3 == "Private lands") %>%
-  group_by(ovlWith2) %>%
-  summarize(medianBD = round(median(Richness_2020, na.rm = T),0))
 
 # richness
 # private land overlaps
+sample_sizes <- data2 %>%
+  filter(LTcateg3 == "Private lands") %>%
+  group_by(ovlWith2) %>%
+  summarize(n = n())
+medianBD <- data2 %>%
+  filter(LTcateg3 == "Private lands") %>%
+  group_by(ovlWith2) %>%
+  summarize(medianBD = round(median(Richness_2020, na.rm = T),0))
 currentRichness3 <- myboxplots(data2[which(data2$LTcateg == "Private lands"),], tenureCategory = ovlWith2, BDvariable = Richness_2020, 
                               BDvariableTitle = "Species richness 2020", 
                               fill = ovlWith2, sample_sizes) +
@@ -226,6 +225,14 @@ currentRichness3 + coord_cartesian(ylim = c(400,1000)) + coord_flip()
 dev.off()
 
 # rural settlement overlaps 
+sample_sizes <- data2 %>%
+  filter(LTcateg3 == "Rural settlements") %>%
+  group_by(ovlWith2) %>%
+  summarize(n = n())
+medianBD <- data2 %>%
+  filter(LTcateg3 == "Rural settlements") %>%
+  group_by(ovlWith2) %>%
+  summarize(medianBD = round(median(Richness_2020, na.rm = T),0))
 
 currentRichness3 <- myboxplots(data2[which(data2$LTcateg3 == "Rural settlements"),], tenureCategory = ovlWith2, BDvariable = Richness_2020, 
                                BDvariableTitle = "Species richness 2020", 
@@ -234,15 +241,22 @@ currentRichness3 <- myboxplots(data2[which(data2$LTcateg3 == "Rural settlements"
 currentRichness3 + coord_cartesian(ylim = c(400,1000)) + coord_flip()
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentRichness_overlapsRurSetts.png",  width = 2450, height = 970, units = "px", res = 300)
+png("CurrentRichness_overlapsRurSetts.png",  width = 2450, height = 400, units = "px", res = 300, bg = "transparent")
 currentRichness3 + coord_cartesian(ylim = c(400,1000)) + coord_flip()
 dev.off()
 
 
 # endemism
+# private lands
+sample_sizes <- data2 %>%
+  filter(LTcateg3 == "Private lands") %>%
+  group_by(ovlWith2) %>%
+  summarize(n = n())
 medianBD <- data2 %>%
+  filter(LTcateg3 == "Private lands") %>%
   group_by(ovlWith2) %>%
   summarize(medianBD = round(median(Endemism_2020, na.rm = T),0))
+
 currentEndemism3 <- myboxplots(data2[which(data2$LTcateg == "Private lands"),], tenureCategory = ovlWith2, BDvariable = Endemism_2020, 
                               BDvariableTitle = "Endemism 2020", 
                               fill = ovlWith2, sample_sizes = sample_sizes) +
@@ -253,11 +267,53 @@ setwd(paste0(wdmain, "/output"))
 png("CurrentEndemism_overlapsFocus_20250226.png", width = 2450, height = 970, units = "px", res = 300, bg = "transparent")
 currentEndemism3 + coord_cartesian(ylim = c(100,230)) + coord_flip()
 dev.off()
+# rural setts
+sample_sizes <- data2 %>%
+  filter(LTcateg3 == "Rural settlements") %>%
+  group_by(ovlWith2) %>%
+  summarize(n = n())
+medianBD <- data2 %>%
+  filter(LTcateg3 == "Rural settlements") %>%
+  group_by(ovlWith2) %>%
+  summarize(medianBD = round(median(Endemism_2020, na.rm = T),0))
+
+currentEndemism3 <- myboxplots(data2[which(data2$LTcateg3 == "Rural settlements"),], tenureCategory = ovlWith2, BDvariable = Endemism_2020, 
+                               BDvariableTitle = "Endemism 2020", 
+                               fill = ovlWith2, sample_sizes) +
+  scale_colour_manual(values = overlapColors, aesthetics = c("color", "fill"))
+currentEndemism3 + coord_cartesian(ylim = c(100,230)) + coord_flip()
+
+setwd(paste0(wdmain, "/output"))
+png("CurrentEndemism_overlapsRurSetts.png",  width = 2450, height = 400, units = "px", res = 300, bg = "transparent")
+currentEndemism3 + coord_cartesian(ylim = c(100,230)) + coord_flip()
+dev.off()
+
+# cohen's d of overlaps ----
+category_list <- unique(data2$ovlWith2)[grep("no ovlp", unique(data2$ovlWith2))]
+
+s <- list()
+for(i in 1:length(category_list)) # for the 2 no overlapping categs
+{
+  # test whether no overlapping private lands are different than the overlapping
+  r <- cohen.d(data2$Richness_2020[data2$ovlWith2 == paste0(category_list[i])], # this will be the "no ovl"
+               data2$Richness_2020[!grepl("\\(no ovlp\\)", data2$ovlWith2)], # this needs to be neither of "no ovl"
+               na.rm = T, conf.level = 0.99)
+  e <- cohen.d(data2$Endemism_2020[data2$ovlWith2 == paste0(category_list[i])], 
+               data2$Endemism_2020[!grepl("\\(no ovlp\\)", data2$ovlWith2)],
+               na.rm = T, conf.level = 0.99)
+  s[[i]] <- data.frame("LTcateg" = paste0(category_list[i]),
+                       "cohen_d_R" = r$estimate, 
+                       "sig_R" = r$magnitude,
+                       "cohen_d_E" = e$estimate, 
+                       "sig_E" = e$magnitude)
+}
+s <- do.call(rbind, s)
+s
 
 
 # rerun of entire first-figure analysis excluding the overlaps ----
 dataNoOverlaps <- data %>% 
-  mutate(ovlExists = rowSums(select(., starts_with("ovl_")), na.rm = TRUE) > 0) %>% # note there's a small classification mistake here, which means that it excludes some PA sust use bc they overlap w rural settlemtns (instead of the other way around)
+  mutate(ovlExists = rowSums(select(., starts_with("ovl_")), na.rm = TRUE) > 0) %>% 
   filter(ovlExists == FALSE)
 sample_sizes <- dataNoOverlaps %>% 
   group_by(LTcateg3) %>%
@@ -289,7 +345,8 @@ setwd(paste0(wdmain, "/output"))
 png("CurrentEndemism_20250226_noOverlaps.png", width = 2450, height = 970, units = "px", res = 300)
 currentEndemism2 
 dev.off()
-# do the summaries change?
+
+# do the Cohen's d summaries change?
 # summarize standardized differences between LT categories
 category_list <- unique(dataNoOverlaps$LTcateg)
 s <- list()
@@ -313,30 +370,6 @@ s
 # write out this table
 setwd(paste0(wdmain, "/output"))
 write.csv(s, "cohensD_withoutOverlaps.csv", row.names = F)
-
-# check cohen's d of overlapping areas compared to non-overlapping private lands ----
-ovl_list <- unique(data2$ovlWith2)
-diffs <- list()
-for(i in 1:length(ovl_list)) # for each overlap
-{
-  # compare richness
-  r <- cohen.d(data2$Richness_2020[data2$ovlWith2 == paste0(ovl_list[i])], # remember, data2 is the data that DOES overlap
-               dataNoOverlaps$Richness_2020[dataNoOverlaps$LTcateg3 == "Private lands"], # so, we're comparing the private lands that overlap with xyz with the private lands that do not overlap
-               na.rm = T, conf.level = 0.99)
-  # compare endemism
-  e <- cohen.d(data2$Endemism_2020[data2$ovlWith2 == paste0(ovl_list[i])], # remember, data2 is the data that DOES overlap
-               dataNoOverlaps$Endemism_2020[dataNoOverlaps$LTcateg3 == "Private lands"], # so, we're comparing the private lands that overlap with xyz with the private lands that do not overlap
-               na.rm = T, conf.level = 0.99)
-  
-  diffs[[i]] <- data.frame("LTcateg" = paste0(ovl_list[i]),
-                           "cohen_d_R" = r$estimate, 
-                           "sig_R" = r$magnitude,
-                           "cohen_d_E" = e$estimate, 
-                           "sig_E" = e$magnitude)
-}
-diffs <- do.call(rbind, diffs)
-diffs
-
 
 # Are results different for Brazil's different biomes? ----
 # repeat boxplots - but distinguish across biomes 
@@ -394,38 +427,6 @@ dev.off()
 
 # disaggregated plot shows that the pattern holds throughout biomes
 
-
-# deforestation ----
-
-# plot current forest cover
-sample_sizes <- data %>%
-  group_by(LTcateg3) %>%
-  summarize(n = n())
-currentForest <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = p_for23,
-                            BDvariableTitle = "% forest cover 2023 (per property)",
-                            fill = LTcateg3, sample_sizes = sample_sizes)
-currentForest
-
-# DO NOT OVERWRITE bc the original one i made remains correct and the new boxplot function messes with the median label 
-# setwd(paste0(wdmain, "/output"))
-# png("Forest-2023_flippedboxplot_20241202.png", width = 2450, height = 970,   units = "px", res = 300)
-# currentForest
-# dev.off()
-
-# biomes disag for forest 2023?
-sample_sizes <- biomeData %>%
-  group_by(LTcateg3, biome2) %>%
-  summarize(n = n(), .groups = 'drop')
-currentForest <- myBiome_boxplots(biomeData, tenureCategory = LTcateg3, BDvariable = p_for23, 
-                            BDvariableTitle = "% forest cover 2023", 
-                            fill = LTcateg3, sample_sizes = sample_sizes)
-currentForest + facet_wrap(~biome2, nrow = 3, scales = "fixed")
-
-setwd(paste0(wdmain, "/output"))
-png("CurrentForest_perBiomes.png", width = 3500, height = 4000, units = "px", res = 300)
-currentForest + facet_wrap(~biome2, nrow = 3, scales = "fixed")
-dev.off()
-
 # add cohen's d for biome disaggregation ----
 colnames(biomeData)
 # 1) add how much tenure categories differ from each other within biomes
@@ -479,9 +480,39 @@ for(i in 1:length(biomes))
                                  "cohen_d_E" = e$estimate, 
                                  "sig_E" = e$magnitude)
 }
-do.call(rbind, diffsBiomes) # this is interesting because some things flip, but it doesnt get at the magnitude of differences   
+do.call(rbind, diffsBiomes) # this is interesting because some things flip, but it doesnt get at the magnitude of differences of bd among biomes - which is in any case not so relevant   
     
 
+# deforestation ----
+
+# plot current forest cover
+sample_sizes <- data %>%
+  group_by(LTcateg3) %>%
+  summarize(n = n())
+currentForest <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = p_for23,
+                            BDvariableTitle = "% forest cover 2023 (per property)",
+                            fill = LTcateg3, sample_sizes = sample_sizes)
+currentForest
+
+# DO NOT OVERWRITE bc the original one i made remains correct and the new boxplot function messes with the median label 
+# setwd(paste0(wdmain, "/output"))
+# png("Forest-2023_flippedboxplot_20241202.png", width = 2450, height = 970,   units = "px", res = 300)
+# currentForest
+# dev.off()
+
+# biomes disag for forest 2023?
+sample_sizes <- biomeData %>%
+  group_by(LTcateg3, biome2) %>%
+  summarize(n = n(), .groups = 'drop')
+currentForest <- myBiome_boxplots(biomeData, tenureCategory = LTcateg3, BDvariable = p_for23, 
+                                  BDvariableTitle = "% forest cover 2023", 
+                                  fill = LTcateg3, sample_sizes = sample_sizes)
+currentForest + facet_wrap(~biome2, nrow = 3, scales = "fixed")
+
+setwd(paste0(wdmain, "/output"))
+png("CurrentForest_perBiomes.png", width = 3500, height = 4000, units = "px", res = 300)
+currentForest + facet_wrap(~biome2, nrow = 3, scales = "fixed")
+dev.off()
 
 # biodiversity and FC compliance ----
 # combine this cleaned bd+tenure data with forest deficit information 
