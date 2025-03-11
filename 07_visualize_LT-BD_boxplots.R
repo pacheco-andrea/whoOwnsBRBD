@@ -155,7 +155,7 @@ tukey_ende
 data2 <- data %>%
   mutate(ovlExists = rowSums(select(., starts_with("ovl_")), na.rm = TRUE) > 0)
 head(as.data.frame(data2))
-data2 <- data2[which(data2$ovlExists == "TRUE"),]
+# data2 <- data2[which(data2$ovlExists == "TRUE"),]
 # summary(data2)
 # i looked into the percentage of overlapping area, and as in the overlapping analysis, the majority of overlaps are in undesignated lands
 # but ultimately, since i dont think i can completely rely on these exact numbers, i dont incorporate this into calculations
@@ -174,18 +174,28 @@ data2$ovlWith[which(data2$ovl_undesignated > 0 &
 # i have to switch the tenure and rural sett categories here
 data2$LTcateg3[which(data2$ovl_ruralSett > 0)] <- "Rural settlements"
 data2$ovlWith[which(data2$ovl_ruralSett > 0)] <- "PA sustainable use"
-# check there's nothing missing
-data2[is.na(data2$ovlWith),]
+# fill in the NAs to indicate no overlaps
+data2$ovlWith[is.na(data2$ovlWith)] <- paste0(data2$LTcateg3[is.na(data2$ovlWith)], " (no ovlp)")
+summary(data2)
 unique(data2$ovlWith)
-# make factor
-data2$ovlWith2 <- factor(data2$ovlWith, levels = c("PA strict protection",
-                                                  "PA sustainable use",
+
+data2 <- data2 %>%
+  filter(LTcateg3 == "Private lands" | LTcateg3 == "Rural settlements") # i'm only plotting these two
+summary(data2)
+unique(data2$ovlWith)
+# make into factor
+data2$ovlWith2 <- factor(data2$ovlWith, levels = c("Undesignated lands", # remember this goes in reverse
+                                                  "PAs & Undesignated lands",
                                                   "Both PAs",
-                                                  "Undesignated lands",
-                                                  "PAs & Undesignated lands"))
+                                                  "PA sustainable use",
+                                                  "PA strict protection",
+                                                  "Rural settlements (no ovlp)",
+                                                  "Private lands (no ovlp)"))
 summary(data2)
 
-overlapColors <- c("PA strict protection" = "#1B9E77",
+overlapColors <- c("Rural settlements (no ovlp)"= "#FC8D62",
+                   "Private lands (no ovlp)" = "#8DA0CB",
+                   "PA strict protection" = "#1B9E77",
                    "PA sustainable use" = "#8C7E5B",
                    "Both PAs" = "#548E69",
                    "Undesignated lands" ="#1d6c7d",
@@ -194,9 +204,11 @@ overlapColors <- c("PA strict protection" = "#1B9E77",
 # plot overlaps ----
 # label the n of the overlaps
 sample_sizes <- data2 %>%
+  # filter(LTcateg3 == "Private lands") %>%
   group_by(ovlWith2) %>%
   summarize(n = n())
 medianBD <- data2 %>%
+  # filter(LTcateg3 == "Private lands") %>%
   group_by(ovlWith2) %>%
   summarize(medianBD = round(median(Richness_2020, na.rm = T),0))
 
@@ -209,60 +221,13 @@ currentRichness3 <- myboxplots(data2[which(data2$LTcateg == "Private lands"),], 
 currentRichness3 + coord_cartesian(ylim = c(400,1000)) + coord_flip()
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentRichness_overlapsPrivate.png",  width = 2450, height = 970, units = "px", res = 300)
+png("CurrentRichness_overlapsPrivate.png",  width = 2450, height = 970, units = "px", res = 300, bg = "transparent")
 currentRichness3 + coord_cartesian(ylim = c(400,1000)) + coord_flip()
 dev.off()
 
-# another try at the plot i really want
-data <- data %>%
-  mutate(ovlExists = rowSums(select(., starts_with("ovl_")), na.rm = TRUE) > 0)
-
-ggplot() +
-  geom_violin(data = data[which(data$LTcateg3 == "Private lands"),], aes(x = LTcateg3, y = Richness_2020, fill = LTcateg3), alpha = 0.2) +
-  geom_boxplot(data = data[which(data$LTcateg3 == "Private lands"),], aes(x = LTcateg3, y = Richness_2020, fill = LTcateg3), width=0.5, color="grey20", alpha = 0.7) +
-  scale_colour_manual(values = tenureColors, aesthetics = c("color", "fill")) +
-  coord_flip() +
-  theme(panel.background = element_blank(), 
-        panel.grid.major = element_line(size = 0.5, linetype = 'solid', colour = "gray70"),
-        legend.title = element_blank(), 
-        legend.position = "none", 
-        axis.title.y = element_blank(),
-        text = element_text(size = 10)) +
-  
-  
-# ok, i would indeed need to make data the same df with the ovl categories - which is technically easy
-# pick up here
-  
-  
-  
-  geom_violin(data = data[which(data$ovlExists == "TRUE"),], aes(x = LTcateg3, y = Richness_2020, fill = LTcateg3), alpha = 0.2) +
-  # geom_boxplot(data = data[which(data$LTcateg3 == "Private lands"),], aes(x = LTcateg3, y = Richness_2020, fill = LTcateg3), width=0.5, color="grey20", alpha = 0.7) +
-  
-  labs(y = "Richness 2020") +
-  # expand_limits(y = max(data$Richness_2020 * data$areakm2)) + 
-  # expand_limits(y = mean(data$Richness_2020 * data$areakm2)) + 
-  
-  # geom_text(data = sample_sizes, aes(x = {{tenureCategory}}, y = Inf, label = paste("n =", n)), hjust = 6,
-  #           vjust = -2, size = 2.5, inherit.aes = F) +
-  # geom_text(data = medianBD, aes(x = {{tenureCategory}}, y = medianBD + (0.03 * max(medianBD)), label = paste(medianBD)), 
-  #           hjust = 0.6, vjust = 0, size = 2.5, inherit.aes = FALSE)
-
-
-
-
-
-
-sample_sizes <- data %>%
-  group_by(LTcateg3) %>%
-  filter(LTcateg3 == "Private lands") %>%
-  summarize(n = n())
-medianBD <- data %>%
-  group_by(LTcateg3) %>%
-  filter(LTcateg3 == "Private lands") %>%
-  summarize(medianBD = round(median(Richness_2020, na.rm = T),0))
-
 # rural settlement overlaps 
-currentRichness3 <- myboxplots(data2[which(data2$LTcateg != "Private lands"),], tenureCategory = ovlWith2, BDvariable = Richness_2020, 
+
+currentRichness3 <- myboxplots(data2[which(data2$LTcateg3 == "Rural settlements"),], tenureCategory = ovlWith2, BDvariable = Richness_2020, 
                                BDvariableTitle = "Species richness 2020", 
                                fill = ovlWith2, sample_sizes) +
   scale_colour_manual(values = overlapColors, aesthetics = c("color", "fill"))
@@ -278,15 +243,15 @@ dev.off()
 medianBD <- data2 %>%
   group_by(ovlWith2) %>%
   summarize(medianBD = round(median(Endemism_2020, na.rm = T),0))
-currentEndemism3 <- myboxplots(data2, tenureCategory = ovlWith2, BDvariable = Endemism_2020, 
+currentEndemism3 <- myboxplots(data2[which(data2$LTcateg == "Private lands"),], tenureCategory = ovlWith2, BDvariable = Endemism_2020, 
                               BDvariableTitle = "Endemism 2020", 
                               fill = ovlWith2, sample_sizes = sample_sizes) +
   scale_colour_manual(values = overlapColors, aesthetics = c("color", "fill"))
-currentEndemism3 + coord_cartesian(ylim = c(100,230))
+currentEndemism3 + coord_cartesian(ylim = c(100,230)) + coord_flip()
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentEndemism_overlapsFocus_20250226.png", width = 1250, height = 2000, units = "px", res = 300)
-currentEndemism3 + coord_cartesian(ylim = c(100,230))
+png("CurrentEndemism_overlapsFocus_20250226.png", width = 2450, height = 970, units = "px", res = 300, bg = "transparent")
+currentEndemism3 + coord_cartesian(ylim = c(100,230)) + coord_flip()
 dev.off()
 
 
