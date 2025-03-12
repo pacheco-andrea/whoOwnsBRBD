@@ -483,27 +483,46 @@ for(i in 1:length(biomes))
 do.call(rbind, diffsBiomes) # this is interesting because some things flip, but it doesnt get at the magnitude of differences of bd among biomes - which is in any case not so relevant   
     
 
-# deforestation ----
+# Forest cover ----
 
 # plot current forest cover
 sample_sizes <- data %>%
   group_by(LTcateg3) %>%
   summarize(n = n())
+medianBD <- data %>%
+  group_by(LTcateg3) %>%
+  summarize(medianBD = round(median(p_for23, na.rm = T),0))
+
 currentForest <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = p_for23,
                             BDvariableTitle = "% forest cover 2023 (per property)",
                             fill = LTcateg3, sample_sizes = sample_sizes)
 currentForest
 
-# DO NOT OVERWRITE bc the original one i made remains correct and the new boxplot function messes with the median label 
-# setwd(paste0(wdmain, "/output"))
-# png("Forest-2023_flippedboxplot_20241202.png", width = 2450, height = 970,   units = "px", res = 300)
-# currentForest
-# dev.off()
+setwd(paste0(wdmain, "/output"))
+png("Forest-2023_boxplot.png", width = 2450, height = 970,   units = "px", res = 300)
+currentForest
+dev.off()
 
-# biomes disag for forest 2023?
+# cohen's d of forest cover
+category_list <- unique(data$LTcateg)
+s <- list()
+for(i in 1:length(category_list))
+{
+  r <- cohen.d(data$p_for23[data$LTcateg3 == paste0(category_list[i])], 
+               data$p_for23[data$LTcateg3 != paste0(category_list[i])], 
+               na.rm = T, conf.level = 0.99)
+  s[[i]] <- data.frame("LTcateg" = paste0(category_list[i]),
+                       "cohen_d_for" = r$estimate, 
+                       "sig_for" = r$magnitude)
+}
+s <- do.call(rbind, s)
+s
+
+# biomes disag for forest 2023 ----
 sample_sizes <- biomeData %>%
   group_by(LTcateg3, biome2) %>%
   summarize(n = n(), .groups = 'drop')
+
 currentForest <- myBiome_boxplots(biomeData, tenureCategory = LTcateg3, BDvariable = p_for23, 
                                   BDvariableTitle = "% forest cover 2023", 
                                   fill = LTcateg3, sample_sizes = sample_sizes)
@@ -513,6 +532,36 @@ setwd(paste0(wdmain, "/output"))
 png("CurrentForest_perBiomes.png", width = 3500, height = 4000, units = "px", res = 300)
 currentForest + facet_wrap(~biome2, nrow = 3, scales = "fixed")
 dev.off()
+
+# cohens d for forest cover x biomes ----
+names(biomeData2)
+biome_summary <- list()
+for(j in 1:length(biomeData2))
+{
+  # for every biome, create a list of the tenure categories (which will vary)
+  summary <- list()
+  tenure_categories <- unique(biomeData2[[j]]$LTcateg)
+  # for each of these categories, make the comparisons of forest cover
+  for(i in 1:length(tenure_categories))
+  {
+    r <- cohen.d(biomeData2[[j]]$p_for23[biomeData2[[j]]$LTcateg3 == paste0(tenure_categories[i])], 
+                 biomeData2[[j]]$p_for23[biomeData2[[j]]$LTcateg3 != paste0(tenure_categories[i])], 
+                 na.rm = T, conf.level = 0.99)
+    summary[[i]] <- data.frame("LTcateg" = paste0(tenure_categories[i]),
+                               "biome" = paste0(names(biomeData2[j])),
+                               "cohen_d_for" = r$estimate, 
+                               "sig_for" = r$magnitude)
+  }
+  summary <- do.call(rbind, summary)
+  
+  biome_summary[[j]] <- summary
+}
+biome_summary <- do.call(rbind, biome_summary)
+biome_summary
+# write out
+setwd(paste0(wdmain, "/output"))
+write.csv(biome_summary, "cohensD_biomes_forest.csv", row.names = F)
+
 
 # biodiversity and FC compliance ----
 # combine this cleaned bd+tenure data with forest deficit information 
