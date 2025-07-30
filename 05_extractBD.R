@@ -58,20 +58,31 @@ extractBD <- function(listOfShapes, directoryIn, directoryOut, crsBD, biodiv, ou
     # get areas
     s <- st_transform(s, crsBD) 
     s$areakm2 <- as.numeric(st_area(s)/1000000)
-    # only conduct extraction for properties over 900m2
-    s <- s[which(s$areakm2 >= .9),]
-    # add the biome, but avoid false duplicates
-    s <- st_join(s, biomes, join = st_intersects)
-    s <- s %>%
-      group_by(LTcateg, id) %>%
-      summarize(areakm2 = first(areakm2), biome = first(name_biome))
-    # extract
-    bd <- exactextractr::exact_extract(biodiv, s, "mean")
-    # join data
-    s2 <- cbind(st_drop_geometry(s), bd)
-    # write out table
-    setwd(directoryOut)
-    write.csv(s2, file = paste0(outNamePrefix, name, ".csv"), row.names = FALSE)
+    
+    # MASK
+    # mask the biodiversity with the respective tenure category for pixel-based analysis
+    BDmask <- mask(biodiv, s)
+    mask_df <- as.data.frame(BDmask)
+    mask_df$LTcateg <- paste0(name)
+    # head(mask_df)
+    setwd(paste0(wdmain,"/data/processed/BD_perPixel_tenureMasks/"))
+    write.csv(mask_df, file = paste0(outNamePrefix, name, ".csv"), row.names = F)
+    
+    # EXTRACT (temporarily comment out to not have to re-run this analysis)
+    # # only conduct extraction for properties over 900m2
+    # s <- s[which(s$areakm2 >= .9),]
+    # # add the biome, but avoid false duplicates
+    # s <- st_join(s, biomes, join = st_intersects)
+    # s <- s %>%
+    #   group_by(LTcateg, id) %>%
+    #   summarize(areakm2 = first(areakm2), biome = first(name_biome))
+    # # extract
+    # bd <- exactextractr::exact_extract(biodiv, s, "mean")
+    # # join data
+    # s2 <- cbind(st_drop_geometry(s), bd)
+    # # write out table
+    # setwd(directoryOut)
+    # write.csv(s2, file = paste0(outNamePrefix, name, ".csv"), row.names = FALSE)
   }
 }
 

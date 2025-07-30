@@ -117,51 +117,53 @@ d3$overlapkm2 <- base::round(d3$overlapkm2, digits = 0)
 d4 <- rbind(d2,d3)
 unique(d4$categ)
 # fix labels categ variable
-d4$categ[which(d4$categ == "ruralProperties")] <- "Private lands"
+d4$categ[which(d4$categ == "ruralProperties")] <- "Private lands & claims"
 d4$categ[which(d4$categ == "undesignated")] <- "Undesignated lands"
 d4$categ[which(d4$categ ==  "ruralSettlements")] <- "Rural settlements"
 d4$categ[which(d4$categ == "PA_strict")] <- "PA strict protection"
 d4$categ[which(d4$categ == "PA_sustuse")] <- "PA sustainable use"
-d4$categ[which(d4$categ == "indigenous")] <- "Indigenous"
+d4$categ[which(d4$categ == "indigenous")] <- "Indigenous lands"
 d4$categ[which(d4$categ == "privatePAs")] <- "Private PA"
 d4$categ[which(d4$categ == "quilombola")] <- "Quilombola lands"
-d4$categ <- factor(d4$categ, levels = c("Private lands",
-                                        "Undesignated lands",
+d4$categ <- factor(d4$categ, levels = c("Private lands & claims",
+                                        
                                         "Rural settlements",
                                         "PA strict protection",
                                         "PA sustainable use",
-                                        "Indigenous" ,
+                                        "Indigenous lands" ,
+                                        "Undesignated lands",
                                         "Private PA",
                                         "Quilombola lands"))
 # fix labels overlap variable
 unique(d4$overlap)
-d4$overlap[which(d4$overlap == "ruralProperties")] <- "Private lands"
+d4$overlap[which(d4$overlap == "ruralProperties")] <- "Private lands & claims"
 d4$overlap[which(d4$overlap == "undesignated")] <- "Undesignated lands"
 d4$overlap[which(d4$overlap ==  "ruralSettlements")] <- "Rural settlements"
 d4$overlap[which(d4$overlap == "PA_strict")] <- "PA strict protection"
 d4$overlap[which(d4$overlap == "PA_sustuse")] <- "PA sustainable use"
-d4$overlap[which(d4$overlap == "indigenous")] <- "Indigenous"
+d4$overlap[which(d4$overlap == "indigenous")] <- "Indigenous lands"
 d4$overlap[which(d4$overlap == "privatePAs")] <- "Private PA"
 d4$overlap[which(d4$overlap == "quilombola")] <- "Quilombola lands"
-d4$overlap <- factor(d4$overlap, levels = c("Private lands",
-                                        "Undesignated lands",
+d4$overlap <- factor(d4$overlap, levels = c("Private lands & claims",
+                                        
                                         "Rural settlements",
                                         "PA strict protection",
                                         "PA sustainable use",
-                                        "Indigenous" ,
+                                        "Indigenous lands" ,
+                                        "Undesignated lands",
                                         "Private PA",
                                         "Quilombola lands",
                                         "non-overlapped"))
 
 # make barplot to visualize magnitude of overlaps compared to total area under different tenure categories
 
-tenureColors <- c("Indigenous" = "#E78AC3",
+tenureColors <- c("Indigenous lands" = "#E78AC3",
                   "non-overlapped" = "gray80",   
                   "PA strict protection" = "#1B9E77",       
                   "PA sustainable use" =  "#8C7E5B",
                   "Private PA" = "#99d8c9",  
                   "Quilombola lands" =  "#FFD700",
-                  "Private lands" = "#8DA0CB",
+                  "Private lands & claims" = "#8DA0CB",
                   "Rural settlements" = "#FC8D62",
                   "Undesignated lands" ="#1d6c7d")
 

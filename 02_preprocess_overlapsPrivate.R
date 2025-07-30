@@ -22,14 +22,19 @@ setwd(paste0(wdmain,"/data/processed/"))
 
 # A) UPON FIRST RUN, Read and standardize data: ----
 # # private PAs
-# rppn <- st_read("landTenure_RPPN/landTenure_RPPN_20231212_SAalbers.shp")
-# rppn <- st_transform(rppn, my_crs_SAaea) # fix projection
-# rppn$id <- paste0("RPPN-", 1:nrow(rppn))
-# rppn <- select(rppn, c("LTcateg", "id", "geometry"))
-# setwd(paste0(wdmain,"/data/processed/processed2/private"))
-# st_write(rppn, "private_protectedAreas.shp", append = F)
-# # rppn.selfOVerlaps <- st_intersection(rppn)
-# 
+rppn <- st_read("landTenure_RPPN/landTenure_RPPN_20231212_SAalbers.shp")
+rppn <- st_transform(rppn, my_crs_SAaea) # fix projection
+rppn$id <- paste0("RPPN-", 1:nrow(rppn))
+rppn <- select(rppn, c("LTcateg", "id", "geometry"))
+setwd(paste0(wdmain,"/data/processed/processed2/private"))
+st_write(rppn, "private_protectedAreas.shp", append = F)
+rppn$area <- as.numeric(st_area(rppn)/1000000)
+summary(rppn)
+sum(rppn$area)
+rppn2 <- rppn[which(rppn$area >= 1),]
+summary(rppn2)
+# rppn.selfOVerlaps <- st_intersection(rppn)
+
 # # sigef properties (around 1M)
 # setwd(paste0(wdmain,"/data/processed/"))
 # sigef <- st_read("landTenure_SIGEF/landTenure_SIGEF_20231312_SAalbers.shp")

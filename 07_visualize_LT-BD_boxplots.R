@@ -23,15 +23,79 @@ setwd(paste0(wdmain, "/output/"))
 data <- read.csv("finalTenure&BD&ForestDatasetforPlotting.csv")
 head(data)
 
-# PLOTS ----
+# clean pixel-based data ----
+setwd(paste0(wdmain, "/data/processed/BD_perPixel_tenureMasks/"))
+l <- list.files()
+data_pixel <- lapply(l, read.csv)
+data_pixel <- do.call(rbind, data_pixel)
+summary(data_pixel)
+unique(data_pixel$LTcateg)
 
-tenureColors <- c("Indigenous" = "#E78AC3",
+# PLOTS ----
+# edit labels of categories:
+unique(data$LTcateg)
+unique(data$LTcateg2) 
+data$LTcateg <- gsub("Private lands", "Private lands & claims", data$LTcateg)
+data$LTcateg <- gsub("Indigenous", "Indigenous lands", data$LTcateg)
+data$LTcateg2 <- data$LTcateg
+
+# repeat renaming for pixel data
+data_pixel$LTcateg[which(data_pixel$LTcateg == "ruralProperties")] <- "Private lands"
+data_pixel$LTcateg[which(data_pixel$LTcateg == "undesignated")] <- "Undesignated lands"
+data_pixel$LTcateg[which(data_pixel$LTcateg ==  "ruralSettlements")] <- "Rural settlements"
+data_pixel$LTcateg[which(data_pixel$LTcateg == "PA_strict")] <- "PA strict protection"
+data_pixel$LTcateg[which(data_pixel$LTcateg == "PA_strict_selfOverlaps")] <- "PA strict protection"
+data_pixel$LTcateg[which(data_pixel$LTcateg == "PA_sustuse_selfOverlaps")] <- "PA sustainable use"
+data_pixel$LTcateg[which(data_pixel$LTcateg == "PA_sustuse")] <- "PA sustainable use"
+data_pixel$LTcateg[which(data_pixel$LTcateg == "sustUsePAs-ruralSettlements")] <- "PA sustainable use"
+data_pixel$LTcateg[which(data_pixel$LTcateg == "indigenous")] <- "Indigenous"
+data_pixel$LTcateg[which(data_pixel$LTcateg == "indigenous_selfOverlaps")] <- "Indigenous"
+data_pixel$LTcateg[which(data_pixel$LTcateg == "PA_strict-indigenous")] <- "Indigenous"
+data_pixel$LTcateg[which(data_pixel$LTcateg == "PA_sustuse-indigenous")] <- "Indigenous"
+data_pixel$LTcateg[which(data_pixel$LTcateg == "privatePAs")] <- "Private PA"
+data_pixel$LTcateg[which(data_pixel$LTcateg == "quilombola")] <- "Quilombola lands"
+data_pixel$LTcateg[which(data_pixel$LTcateg == "quilombola_selfOverlaps")] <- "Quilombola lands"
+data_pixel$LTcateg[which(data_pixel$LTcateg == "quilombola-ruralProperties")] <- "Quilombola lands" # otherwise we'd lose a bunch of quilombola observations
+data_pixel$LTcateg[which(data_pixel$LTcateg == "ruralProperties-PA_strict")] <- "Private overlapping PA strict"
+data_pixel$LTcateg[which(data_pixel$LTcateg == "ruralProperties-PA_sustuse")] <- "Private overlapping PA sustainable use"
+data_pixel$LTcateg[which(data_pixel$LTcateg == "ruralProperties-undesignated")] <- "Private overlapping undesignated"
+unique(data_pixel$LTcateg)
+# drop observations of self overlaps i dont need
+data_pixel <- data_pixel %>%
+  filter(LTcateg != "indPAoverlap-ruralSettlements" &
+           LTcateg != "privatePAs-ruralProperties" &
+           LTcateg != "privatePAs_selfOverlaps" &
+           LTcateg != "undesignated-ruralSettlements" &
+           LTcateg != "Private PA")
+unique(data_pixel$LTcateg)
+
+data_pixel$LTcateg <- gsub("Private lands", "Private lands & claims", data_pixel$LTcateg)
+data_pixel$LTcateg <- gsub("Indigenous", "Indigenous lands", data_pixel$LTcateg)
+
+# make into factor?
+data_pixel$LTcateg2 <- factor(data_pixel$LTcateg, levels = c("Private lands & claims",
+                                                 "Undesignated lands",
+                                                 "Rural settlements",
+                                                 "PA strict protection",
+                                                 "PA sustainable use",
+                                                 "Indigenous lands" ,
+                                                 "Private PA",
+                                                 "Quilombola lands",
+                                                 "Private overlapping PA strict",
+                                                 "Private overlapping PA sustainable use",
+                                                 "Private overlapping undesignated"))
+
+summary(data_pixel)
+
+
+# establish colors
+tenureColors <- c("Indigenous lands" = "#E78AC3",
                   "non-overlapped" = "gray70",   
                   "PA strict protection" = "#1B9E77",       
                   "PA sustainable use" =  "#8C7E5B",
                   # "Private PA" = "#99d8c9",  
                   "Quilombola lands" =  "#FFD700",
-                  "Private lands" = "#8DA0CB",
+                  "Private lands & claims" = "#8DA0CB",
                   "Rural settlements" = "#FC8D62",
                   "Undesignated lands" ="#1d6c7d")
 
@@ -39,12 +103,13 @@ tenureColors <- c("Indigenous" = "#E78AC3",
 
 # current biodiversity under different tenure categories ----
 # including all observations
-data$LTcateg2 <- data$LTcateg2 <- factor(data$LTcateg, levels = c("Private lands",
-                                                                  "Undesignated lands",
+data$LTcateg2 <- data$LTcateg2 <- factor(data$LTcateg, levels = c("Private lands & claims",
+                                                                  
                                                                   "Rural settlements",
                                                                   "PA strict protection",
                                                                   "PA sustainable use",
-                                                                  "Indigenous" ,
+                                                                  "Indigenous lands" ,
+                                                                  "Undesignated lands",
                                                                   "Private PA",
                                                                   "Quilombola lands"))
 data$LTcateg3 <- factor(data$LTcateg2, levels = rev(levels(data$LTcateg2)))
@@ -112,12 +177,12 @@ currentEndemism2
 
 # save plot
 setwd(paste0(wdmain, "/output"))
-png("CurrentRichness_20250226.png", width = 2450, height = 970, units = "px", res = 300)
+png("CurrentRichness_20250701.png", width = 2450, height = 970, units = "px", res = 300)
 currentRichness2
 dev.off()
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentEndemism_20250226.png", width = 2450, height = 970, units = "px", res = 300)
+png("CurrentEndemism_20250701.png", width = 2450, height = 970, units = "px", res = 300)
 currentEndemism2 
 dev.off()
 
@@ -151,6 +216,21 @@ tukey_ende <- TukeyHSD(anova_ende)
 tukey_rich
 tukey_ende
 
+# checking what the boxplot looks like when based on the pixel counts
+sample_sizes <- data_pixel %>%
+  group_by(LTcateg2) %>%
+  summarize(n = n())
+medianBD <- data %>%
+  group_by(LTcateg2) %>%
+  summarize(medianBD = round(median(Richness_2020, na.rm = T),0))
+currentRichness2 <- myboxplots(data, tenureCategory = LTcateg2, BDvariable = Richness_2020, 
+                               BDvariableTitle = "Species richness 2020", 
+                               fill = LTcateg2, sample_sizes = sample_sizes)
+currentRichness2 
+
+
+
+
 
 # data wrangling for id'ing overlaps  ----
 # this is essentially to see whether there is a difference in the private lands that overlap with conservation areas
@@ -159,68 +239,67 @@ data2 <- data %>%
   mutate(ovlExists = rowSums(select(., starts_with("ovl_")), na.rm = TRUE) > 0)
 head(as.data.frame(data2))
 
-# i looked into the percentage of overlapping area, and as in the overlapping analysis, the majority of overlaps are in undesignated lands
+# i looked into the percentage of overlapping AREA, and as in the overlapping analysis, the majority of overlaps are in undesignated lands
 # but ultimately, since i dont think i can completely rely on these exact numbers, i dont incorporate this into calculations
 # instead, i just want to verify the amount of BD in properties with overlaps in PAs/undesignated lands
 
 # create another column to summarize which categories overlap
 data2$ovlWith <- NA 
 # one by one, overwrite this "overlaps with" column to flag which other category it overlaps with 
-data2$ovlWith[which(data2$ovl_PA_strict > 0 & data2$ovl_PA_sustuse == 0 & data2$ovl_undesignated == 0)] <- "PA strict protection"
-data2$ovlWith[which(data2$ovl_PA_sustuse > 0 & data2$ovl_PA_strict == 0 & data2$ovl_undesignated == 0)] <- "PA sustainable use"
+data2$ovlWith[which(data2$ovl_PA_strict > 0 & data2$ovl_PA_sustuse == 0 & data2$ovl_undesignated == 0)] <- "PAs"
+data2$ovlWith[which(data2$ovl_PA_sustuse > 0 & data2$ovl_PA_strict == 0 & data2$ovl_undesignated == 0)] <- "PAs"
 data2$ovlWith[which(data2$ovl_undesignated > 0 & data2$ovl_PA_strict == 0 & data2$ovl_PA_sustuse == 0)] <- "Undesignated lands"
 # also flag cases where there are multiple overlaps
-data2$ovlWith[which(data2$ovl_undesignated == 0 & (data2$ovl_PA_strict > 0 & data2$ovl_PA_sustuse > 0))] <- "Both PAs"
+data2$ovlWith[which(data2$ovl_undesignated == 0 & (data2$ovl_PA_strict > 0 & data2$ovl_PA_sustuse > 0))] <- "PAs"
 data2$ovlWith[which(data2$ovl_undesignated > 0 & 
-                      (data2$ovl_PA_strict > 0 | data2$ovl_PA_sustuse > 0))] <- "PAs & Undesignated lands"
+                      (data2$ovl_PA_strict > 0 | data2$ovl_PA_sustuse > 0))] <- "Both"
 
 # fill in the NAs to indicate no overlaps
-data2$ovlWith[is.na(data2$ovlWith)] <- paste0(data2$LTcateg3[is.na(data2$ovlWith)], " (no ovlp)")
-summary(data2)
+# but still indicate another column with no overlaps bc i need it later
+data2$ovlWith3 <- data2$ovlWith
+data2$ovlWith3[is.na(data2$ovlWith3)] <- paste0(data2$LTcateg3[is.na(data2$ovlWith)], " (no ovl)")
+data2$ovlWith[is.na(data2$ovlWith)] <- paste0(data2$LTcateg3[is.na(data2$ovlWith)])
 unique(data2$ovlWith)
+# but still indicate another column with no overlaps bc i need it later
 
 data2 <- data2 %>%
-  filter(LTcateg3 == "Private lands" | LTcateg3 == "Rural settlements") # i'm only plotting these two
+  filter(LTcateg3 == "Private lands & claims" | LTcateg3 == "Rural settlements") # i'm only plotting these two
 summary(data2)
 unique(data2$ovlWith)
 # make into factor
-data2$ovlWith2 <- factor(data2$ovlWith, levels = c("Undesignated lands", # remember this goes in reverse
-                                                  "PAs & Undesignated lands",
-                                                  "Both PAs",
-                                                  "PA sustainable use",
-                                                  "PA strict protection",
-                                                  "Rural settlements (no ovlp)",
-                                                  "Private lands (no ovlp)"))
+data2$ovlWith2 <- factor(data2$ovlWith, levels = c("Both",
+                                                   "Undesignated lands", # remember this goes in reverse
+                                                   "PAs",
+                                                   "Rural settlements",
+                                                   "Private lands & claims"))
 summary(data2)
-
+unique(data2$ovlWith2)
 # plot overlaps ----
-overlapColors <- c("Rural settlements (no ovlp)"= "#FC8D62",
-                   "Private lands (no ovlp)" = "#8DA0CB",
-                   "PA strict protection" = "#1B9E77",
-                   "PA sustainable use" = "#8C7E5B",
-                   "Both PAs" = "#548E69",
-                   "Undesignated lands" ="#1d6c7d",
-                   "PAs & Undesignated lands" = "#397D73")
+overlapColors <- c("Rural settlements"= "#FC8D62",
+                   "Private lands & claims" = "#8DA0CB",
+                   "PAs" = "#1B9E77",
+                   "Both" = "#548E69",
+                   "Undesignated lands" ="#1d6c7d")
 
 
 # richness
 # private land overlaps
 sample_sizes <- data2 %>%
-  filter(LTcateg3 == "Private lands") %>%
+  filter(LTcateg3 == "Private lands & claims") %>%
   group_by(ovlWith2) %>%
   summarize(n = n())
 medianBD <- data2 %>%
-  filter(LTcateg3 == "Private lands") %>%
+  filter(LTcateg3 == "Private lands & claims") %>%
   group_by(ovlWith2) %>%
   summarize(medianBD = round(median(Richness_2020, na.rm = T),0))
-currentRichness3 <- myboxplots(data2[which(data2$LTcateg == "Private lands"),], tenureCategory = ovlWith2, BDvariable = Richness_2020, 
+currentRichness3 <- myboxplots(data2[which(data2$LTcateg == "Private lands & claims"),], tenureCategory = ovlWith2, BDvariable = Richness_2020, 
                               BDvariableTitle = "Species richness 2020", 
                               fill = ovlWith2, sample_sizes) +
   scale_colour_manual(values = overlapColors, aesthetics = c("color", "fill"))
 currentRichness3 + coord_cartesian(ylim = c(400,1000)) + coord_flip()
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentRichness_overlapsPrivate.png",  width = 2450, height = 970, units = "px", res = 300, bg = "transparent")
+png("CurrentRichness_overlapsPrivate.png",  width = 2000, height = 750, units = "px", res = 300, bg = "transparent")
 currentRichness3 + coord_cartesian(ylim = c(400,1000)) + coord_flip()
 dev.off()
 
@@ -241,7 +320,7 @@ currentRichness3 <- myboxplots(data2[which(data2$LTcateg3 == "Rural settlements"
 currentRichness3 + coord_cartesian(ylim = c(400,1000)) + coord_flip()
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentRichness_overlapsRurSetts.png",  width = 2450, height = 400, units = "px", res = 300, bg = "transparent")
+png("CurrentRichness_overlapsRurSetts.png",  width = 2000, height = 400, units = "px", res = 300, bg = "transparent")
 currentRichness3 + coord_cartesian(ylim = c(400,1000)) + coord_flip()
 dev.off()
 
@@ -249,22 +328,22 @@ dev.off()
 # endemism
 # private lands
 sample_sizes <- data2 %>%
-  filter(LTcateg3 == "Private lands") %>%
+  filter(LTcateg3 == "Private lands & claims") %>%
   group_by(ovlWith2) %>%
   summarize(n = n())
 medianBD <- data2 %>%
-  filter(LTcateg3 == "Private lands") %>%
+  filter(LTcateg3 == "Private lands & claims") %>%
   group_by(ovlWith2) %>%
   summarize(medianBD = round(median(Endemism_2020, na.rm = T),0))
 
-currentEndemism3 <- myboxplots(data2[which(data2$LTcateg == "Private lands"),], tenureCategory = ovlWith2, BDvariable = Endemism_2020, 
+currentEndemism3 <- myboxplots(data2[which(data2$LTcateg == "Private lands & claims"),], tenureCategory = ovlWith2, BDvariable = Endemism_2020, 
                               BDvariableTitle = "Endemism 2020", 
                               fill = ovlWith2, sample_sizes = sample_sizes) +
   scale_colour_manual(values = overlapColors, aesthetics = c("color", "fill"))
 currentEndemism3 + coord_cartesian(ylim = c(100,230)) + coord_flip()
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentEndemism_overlapsFocus_20250226.png", width = 2450, height = 970, units = "px", res = 300, bg = "transparent")
+png("CurrentEndemism_overlapsFocus_20250226.png", width = 2000, height = 750, units = "px", res = 300, bg = "transparent")
 currentEndemism3 + coord_cartesian(ylim = c(100,230)) + coord_flip()
 dev.off()
 # rural setts
@@ -284,22 +363,22 @@ currentEndemism3 <- myboxplots(data2[which(data2$LTcateg3 == "Rural settlements"
 currentEndemism3 + coord_cartesian(ylim = c(100,230)) + coord_flip()
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentEndemism_overlapsRurSetts.png",  width = 2450, height = 400, units = "px", res = 300, bg = "transparent")
+png("CurrentEndemism_overlapsRurSetts.png",  width = 2000, height = 400, units = "px", res = 300, bg = "transparent")
 currentEndemism3 + coord_cartesian(ylim = c(100,230)) + coord_flip()
 dev.off()
 
 # cohen's d of overlaps ----
-category_list <- unique(data2$ovlWith2)[grep("no ovlp", unique(data2$ovlWith2))]
+category_list <- unique(data2$ovlWith3)[grep("no ovl", unique(data2$ovlWith3))]
 
 s <- list()
 for(i in 1:length(category_list)) # for the 2 no overlapping categs
 {
   # test whether no overlapping private lands are different than the overlapping
-  r <- cohen.d(data2$Richness_2020[data2$ovlWith2 == paste0(category_list[i])], # this will be the "no ovl"
-               data2$Richness_2020[!grepl("\\(no ovlp\\)", data2$ovlWith2)], # this needs to be neither of "no ovl"
+  r <- cohen.d(data2$Richness_2020[data2$ovlWith3 == paste0(category_list[i])], # this will be the "no ovl"
+               data2$Richness_2020[!grepl("\\(no ovl\\)", data2$ovlWith3)], # this needs to be neither of "no ovl"
                na.rm = T, conf.level = 0.99)
-  e <- cohen.d(data2$Endemism_2020[data2$ovlWith2 == paste0(category_list[i])], 
-               data2$Endemism_2020[!grepl("\\(no ovlp\\)", data2$ovlWith2)],
+  e <- cohen.d(data2$Endemism_2020[data2$ovlWith3 == paste0(category_list[i])], 
+               data2$Endemism_2020[!grepl("\\(no ovl\\)", data2$ovlWith3)],
                na.rm = T, conf.level = 0.99)
   s[[i]] <- data.frame("LTcateg" = paste0(category_list[i]),
                        "cohen_d_R" = r$estimate, 
@@ -310,6 +389,11 @@ for(i in 1:length(category_list)) # for the 2 no overlapping categs
 s <- do.call(rbind, s)
 s
 
+# and where are these overlaps found?
+data2 %>%
+  group_by(biome) %>%
+  summarize(n = n(),
+            area = sum(areakm2))
 
 # rerun of entire first-figure analysis excluding the overlaps ----
 dataNoOverlaps <- data %>% 
@@ -337,12 +421,12 @@ currentEndemism2
 
 # save plot
 setwd(paste0(wdmain, "/output"))
-png("CurrentRichness_20250226_noOverlaps.png", width = 2450, height = 970, units = "px", res = 300)
+png("CurrentRichness_20250703_noOverlaps.png", width = 2450, height = 970, units = "px", res = 300)
 currentRichness2
 dev.off()
 
 setwd(paste0(wdmain, "/output"))
-png("CurrentEndemism_20250226_noOverlaps.png", width = 2450, height = 970, units = "px", res = 300)
+png("CurrentEndemism_20250703_noOverlaps.png", width = 2450, height = 970, units = "px", res = 300)
 currentEndemism2 
 dev.off()
 
@@ -561,7 +645,6 @@ biome_summary
 # write out
 setwd(paste0(wdmain, "/output"))
 write.csv(biome_summary, "cohensD_biomes_forest.csv", row.names = F)
-
 
 # biodiversity and FC compliance ----
 # combine this cleaned bd+tenure data with forest deficit information 

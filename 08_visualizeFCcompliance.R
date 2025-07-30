@@ -82,6 +82,10 @@ biomes <- read_biomes(year=2019)
 biomes <- biomes[-7,]$geom
 biomes <- st_transform(biomes, crs = my_crs_SAaea)
 plot(biomes)
+# add states for more specific descriptions
+states <- read_state()
+states <- states$geom
+states <- st_transform(states, crs = my_crs_SAaea)
 
 # (before mapping) what is the distribution of surplus and deficit with these two categories? ----
 data <- FC_data2
@@ -507,6 +511,27 @@ ggplot(deficitData) +
     legend.position = c(0.2, 0.2)
   ) +
   geom_sf(data = biomes, fill = NA, color = "black", size = 1)
+dev.off()
+
+setwd(paste0(wdmain, "/output/maps"))
+png("MapDeficitAreas_richnessRestore_proportional_withStates.png", width = 2400, height = 2400, units = "px", res = 300)
+ggplot(deficitData) + 
+  geom_sf(data = biomes, fill = "grey90", color = NA, size = 1) +
+  geom_sf(aes(fill = restor_rich), color = NA) +
+  scale_fill_gradientn(
+    colors = colors, 
+    values = scales::rescale(breaks), 
+    limits = range(breaks), 
+    oob = scales::squish 
+  ) +
+  theme(
+    panel.background = element_blank(), 
+    legend.title = element_blank(), 
+    axis.text = element_blank(), 
+    axis.ticks = element_blank(), 
+    legend.position = c(0.2, 0.2)
+  ) +
+  geom_sf(data = states, fill = NA, color = "black", size = 1)
 dev.off()
 
 # svg version for the legend - figure out better way to do this
