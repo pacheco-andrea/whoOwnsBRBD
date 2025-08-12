@@ -174,7 +174,7 @@ st_write(und_no.overlaps, "undesignated.shp", append = F)
 # B.4) Clean self-overlaps within AST? ----
 # I determined this was unnecessary bc while i could never get the self-intersection (st_intersection) to work with this huge dataset,
 # I tested the intersections with all other categories and they worked fine - which is the main reason to run the self-intersection anyway
-# in theory these should be clean from imaflora/CSR anyway
+# these data should be clean from imaflora/CSR anyway
 # therefore, i  should re-write these to the LT_no-overlaps folder to continue the established workflow
 setwd(paste0(wdmain,"/data/processed/processed2/public"))
 ruset <- st_read("ruralSettlements.shp")

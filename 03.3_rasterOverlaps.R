@@ -185,6 +185,6 @@ png("OverlapsAreakm2_barplot.png", width = 16, height = 6, units = "cm", res = 3
 overlapsBarplot
 dev.off()
 
-# can i get the table of this, so that I can report these numbers?
+# get the table of this, so that I can report these numbers
 setwd(paste0(wdmain, "/output"))
 write.csv(d4, "OverlapsTenureCategorieskm2.csv", row.names = F)

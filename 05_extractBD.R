@@ -34,12 +34,6 @@ biodiv <- terra::project(biodiv, biomes)
 
 # make extraction function ----
 
-# ACTUALLY, ANOTHER EDIT WOULD BE TO SOMEHOW PUT BACK TOGETHER THE PIECES OF POLYGONS THAT HAVE BEEN SPLIT APART FROM THE OVERLAPS ANALYSIS
-# AND THEN CONDUCT THE EXTRACTIONS ON THESE "ENTIRE" POLYGONS AGAIN
-# BUT TO DO THIS, I WOULD NEED TO ACTUALLY PUT AAAAALLLL THE DATA TOGETHER
-# ST_UNION BY THEIR ID
-# AND THEN CONDUCT THE EXTRACTION
-
 extractBD <- function(listOfShapes, directoryIn, directoryOut, crsBD, biodiv, outNamePrefix){
   
   # make loop to conduct extraction for list of shapes
@@ -49,7 +43,7 @@ extractBD <- function(listOfShapes, directoryIn, directoryOut, crsBD, biodiv, ou
     setwd(directoryIn)
     s <- st_read(listOfShapes[i])
     name <- gsub(".shp", "", listOfShapes[i])
-    # i think there should be an if condition here - if the dataset has more ids than rows, then these need to be summarized first
+    # if the dataset has more ids than rows, then these need to be summarized first
     # by unioning i'm ensuring there are no duplicate ids within the overlapping categories (i.e. one property overlapping with multiple others)
     # AND then i calculate the area of the property itself, not the smaller fragments resulting from this division
     if(length(unique(s$id)) > nrow(s)){
@@ -90,7 +84,7 @@ extractBD <- function(listOfShapes, directoryIn, directoryOut, crsBD, biodiv, ou
 #  extractions for PUBLIC lands with no overlaps ----
 # just remember, not as simple as no actual overlaps...
 # in the case of IRU + AST, IRU + undesignated i didn't identify the areas that didn't overlap and write these out individually
-# however, from my calculations 
+# however, from my calculations: 
 setwd(paste0(wdmain,"/data/processed/LT_no-overlaps/"))
 f <- grep(".shp", list.files())
 

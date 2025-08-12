@@ -23,7 +23,7 @@ setwd(paste0(wdmain, "/output/"))
 data <- read.csv("finalTenure&BD&ForestDatasetforPlotting.csv")
 head(data)
 
-# clean pixel-based data ----
+# clean pixel-based data for double checking analysis using the pixels (versus polygon extractions)----
 setwd(paste0(wdmain, "/data/processed/BD_perPixel_tenureMasks/"))
 l <- list.files()
 data_pixel <- lapply(l, read.csv)
@@ -55,7 +55,7 @@ data_pixel$LTcateg[which(data_pixel$LTcateg == "PA_sustuse-indigenous")] <- "Ind
 data_pixel$LTcateg[which(data_pixel$LTcateg == "privatePAs")] <- "Private PA"
 data_pixel$LTcateg[which(data_pixel$LTcateg == "quilombola")] <- "Quilombola lands"
 data_pixel$LTcateg[which(data_pixel$LTcateg == "quilombola_selfOverlaps")] <- "Quilombola lands"
-data_pixel$LTcateg[which(data_pixel$LTcateg == "quilombola-ruralProperties")] <- "Quilombola lands" # otherwise we'd lose a bunch of quilombola observations
+data_pixel$LTcateg[which(data_pixel$LTcateg == "quilombola-ruralProperties")] <- "Quilombola lands" # important bc otherwise we'd "lose" a bunch of quilombola observations
 data_pixel$LTcateg[which(data_pixel$LTcateg == "ruralProperties-PA_strict")] <- "Private overlapping PA strict"
 data_pixel$LTcateg[which(data_pixel$LTcateg == "ruralProperties-PA_sustuse")] <- "Private overlapping PA sustainable use"
 data_pixel$LTcateg[which(data_pixel$LTcateg == "ruralProperties-undesignated")] <- "Private overlapping undesignated"
@@ -166,15 +166,6 @@ currentEndemism2 <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = End
                               fill = LTcateg3, sample_sizes = sample_sizes)
 currentEndemism2
 
-# if i divide by area, then i have the artifice effect: it appears that private lands have more BD than others bc they're smaller properties
-# currentRichness <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = (Richness_2020/areakm2), 
-#                               BDvariableTitle = "Species richness 2020 (per"~km^2~")", 
-#                               fill = LTcateg3, sample_sizes = sample_sizes)
-# currentEndemism <- myboxplots(data, tenureCategory = LTcateg3, BDvariable = Endemism_2020/areakm2, 
-#                               BDvariableTitle = "Endemism 2020 (per"~km^2~")",
-#                               fill = LTcateg3, sample_sizes = sample_sizes)
-# plot_grid(currentRichness, currentEndemism, nrow = 2)
-
 # save plot
 setwd(paste0(wdmain, "/output"))
 png("CurrentRichness_20250701.png", width = 2450, height = 970, units = "px", res = 300)
@@ -233,7 +224,7 @@ currentRichness2
 
 
 # data wrangling for id'ing overlaps  ----
-# this is essentially to see whether there is a difference in the private lands that overlap with conservation areas
+# this is  to see whether there is a difference in the private lands that overlap with conservation areas
 # create a column that flags all the overlaps
 data2 <- data %>%
   mutate(ovlExists = rowSums(select(., starts_with("ovl_")), na.rm = TRUE) > 0)

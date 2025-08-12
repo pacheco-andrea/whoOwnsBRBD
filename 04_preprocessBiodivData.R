@@ -3,7 +3,7 @@
 # this script pre-processes biodiversity indicator data produced by Ubirajara Oliveira at CSR
 # outputs are:
 # 1. maps of biodiversity in south america equal albers
-# 2. re-proected version of the data i will actually use: richness, endemisms, and the losses of these
+# 2. re-projected version of the data i will actually use: richness, endemism, and the losses of these
 
 
 # libraries
@@ -155,4 +155,3 @@ terra::plot(phylogenetic[[3]],
 terra::lines(v, lwd=.001, col = "gray80")
 dev.off()
 
-# writing out re-projected data to use for extractions never worked, so this is unnecessary

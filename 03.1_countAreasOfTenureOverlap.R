@@ -5,8 +5,8 @@
 # 1) summarizes their area in a table
 # 2) intersects the areas of overlap across public and private categories
 # 3) writes them out in a file format this is easy to handle for further BD extractions
-# KEEP IN MIND: THE WHOLE POINT OF THIS WAS TO TREAT THE OVERLAPS AS SEPARATE CATEGORIES
-# (which was the point of all the public and private preprocessing i did in step 02 so the folder structure should reflect these distinct categories)
+
+
 
 # libraries
 library(sf)
@@ -60,7 +60,7 @@ for(i in 1:length(shps))
 df_noOverlapsPrivate
 
 df_noOverlaps <- rbind(df_noOverlapsPublic, df_noOverlapsPrivate)
-sum(df_noOverlaps$areakm2) # yes, 7,932,964 km2 seems right, as all BR is ~8,500,000 km2
+sum(df_noOverlaps$areakm2) 
 # quick visualization:
 ggplot(df_noOverlaps, aes(x=categ, y=areakm2)) +
   geom_bar(stat = "identity")
@@ -126,7 +126,7 @@ df_across
 #   nameOverlap <- colnames(df_across)[i]
 #   rowPlace <- grep(df_across[i])
 # }
-# OK - adding the df_across gets quite complicated, and unnecessary energy right now... so i just inputted these manually in an excel table
+# inputted these manually in an excel table
 # just remember the important ones are 1) PAs-indigenous and 2) sustUse PAs and rural settlements
 setwd(paste0(wdmain, "output/"))
 write.csv(df, "OverlapsAcrossCategs_20240806.csv", row.names = F)
@@ -180,7 +180,7 @@ for(i in 1:length(priList))
     print(overlap_matrix)
     
     # depending on how much they overlap, i can decide whether it's worth actually analyzing the overlap
-    # it turns out the overlaps between IRU and 1) PA_strict, 2) PA_sustuse, 3) undesignated are so significant
+    # the overlaps between IRU and 1) PA_strict, 2) PA_sustuse, 3) undesignated are so significant
     # i need to write these out in the folder LT_pubxpri_overlaps
     
     if(priList[i] == "ruralProperties.shp" & pubList[j] == "PA_strict.shp" | pubList[j] == "PA_sustuse.shp"| pubList[j] == "undesignated.shp"){
@@ -230,8 +230,7 @@ setwd(paste0(wdmain, "data/processed/LT_pubxpri_overlaps"))
 overlapped <- st_read("ruralProperties-undesignated.shp")
 overlapped <- st_transform(overlapped, my_crs_SAaea)
 
-# try the st_difference: ran over 30 hours didn't work
-# index spatially? thought this should already be the case
+# the st_difference doesn't work 
 # relevant_overlapped <- overlapped[st_intersects(undesignated, overlapped),] # didnt work
 # simplify the overlaps
 overlapped <- st_union(overlapped)
@@ -241,7 +240,7 @@ simple_overlapped
 undesignated_noOVerlapIRU <- st_difference(undesignated, simple_overlapped) # parts of x that don't overlap with y
 a <- sum(st_area(undesignated_noOVerlapIRU))/1000000
 b <- sum(st_area(undesignated))/1000000
-# alright, around half of the area of these features overlap
+# around half of the area of these features overlap
 unique(st_geometry_type(undesignated_noOVerlapIRU))
 # extract the polygons from here
 extract.pgeometries <- st_collection_extract(undesignated_noOVerlapIRU, "POLYGON")

@@ -21,7 +21,7 @@ source("N:/eslu/priv/pacheco/whoOwnsBRBD/code/000_gettingStarted.R")
 setwd(paste0(wdmain,"/data/processed/landTenure_IRU-AST-PCT/"))
 # need to bind all the state sfs into one in order to:
 # 1. rasterize without raster changing categories across states
-# 2. generate a unique ID for each polygon...?
+
 # s <- list()
 # for (i in 1:length(grep(".shp",list.files()))) # approx runtime on the server = 20min
 # {
@@ -219,11 +219,5 @@ plot(t$indigenous,
 plot(biomes, add = T, lwd=.3)
 
 # terra::lines(v, lwd=.3)
-dev.off()
-
-# i really don't understand why R is splicing off this little tip off of the amazon... 
-setwd(paste0(wdmain, "output/maps/"))
-svg("test.svg", width = 6, height = 8)
-plot(biomes, lwd=.3)
 dev.off()
 

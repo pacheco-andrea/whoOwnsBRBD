@@ -38,13 +38,13 @@ colnames(data1) <- gsub("mean.", "", colnames(data1))
 
 
 # Deal with duplicated id's  ----
-# duplicates stem from splitting up properties across the overlaps, which is a problem bc my boxplots show biodiversity/property area
+# duplicates stem from splitting up properties across the overlaps, which is a problem bc boxplots show biodiversity/property 
 # at the same time, i want to keep the info on whether a property has overlaps
 # but if i don't summarize per id, this biases the boxplots (particularly evident for quilombola lands) 
 nrow(data1)
 length(unique(data1$id))
 
-# 08.01.2025: so here, instead of summarizing with dplyr, FIRST i need to account for the areas of overlap  ---
+# so here, instead of summarizing with dplyr, FIRST i need to account for the areas of overlap  ----
 # filter out these undesignated categories 
 data <- data1
 data <- data[which(data$LTcateg != "OUTROS USOS"),]

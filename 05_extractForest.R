@@ -87,9 +87,7 @@ extractFor <- function(listOfShapes, directoryIn, directoryOut, crsBD, forest, o
 
 
 #  extractions for PUBLIC lands with no overlaps ----
-# just remember, not as simple as no actual overlaps...
-# in the case of IRU + AST, IRU + undesignated i didn't identify the areas that didn't overlap and write these out individually
-# however, from my calculations 
+
 setwd(paste0(wdmain,"/data/processed/LT_no-overlaps/"))
 f <- grep(".shp", list.files())
 

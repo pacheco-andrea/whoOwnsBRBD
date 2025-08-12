@@ -2,7 +2,7 @@
 
 # this script pre-processes the mapbiomas land-cover data for 1985 and 2023
 # classifying them into forest, agriculture and other
-# i sum these rasters to get a raster of deforestation from 1985-2023 (as well as remaining forest in 2023 
+# i sum these rasters to get a raster of deforestation from 1985-2023 (as well as remaining forest in 2023) 
 # outputs are these reclassified rasters and the map of deforestation/remaining forest in 2023
 # libraries
 library(terra)

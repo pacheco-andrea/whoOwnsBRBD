@@ -66,7 +66,7 @@ uc_mma <- uc_mma[-grep("ATOL DAS ROCAS", uc_mma$NOME_UC1),]
 # plot(uc_mma$geometry)
 uc_mma2 <- select(uc_mma, c("GRUPO4", "CATEGORI3", "ANO_CRIA6"))
 # should separately consider RPPN because these are private - but these are better sourced from ICMBIO
-# should NOT include APAs because they have no real protection
+# should NOT include APAs because they have no real protection (and as per CSR's advice)
 uc_mma2 <- uc_mma2[-grep("^Reserva Particular do", uc_mma2$CATEGORI3),]
 uc_mma2 <- uc_mma2[-grep("rea de Prote", uc_mma2$CATEGORI3),]
 # colnames(uc_mma2) <- c("group", "LTcateg", "yearCreat", "geometry")
@@ -201,7 +201,7 @@ st_write(flp2, "landTenure_UND-OTH_SAalbers.shp", append=FALSE)
 # NOTE: ALTERNATIVE DATA SOURCES ----
 # I also explored the harmonized dataset produced by Camara et al 2023 (ERL) 
 # the data is only for the amazon, and not very reproducible in the sense that their scripts do not show the raw data from start to finish
-# their prioritization levels could provide a justifiable basis for us that could be repeated, however
+
 # setwd(paste0(wdmain, "data/raw/landTenure/amz_fc/zip"))
 # l <- list.files()
 # lapply(l, unzip)

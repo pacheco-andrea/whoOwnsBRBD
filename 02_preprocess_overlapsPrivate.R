@@ -147,7 +147,7 @@ st_write(qui.selfOverlaps, "quilombola_selfOverlaps.shp", append = F)
 # do not need cleaning for self-overlaps - so they should just be placed in the right folder... 
 
 
-# (don't further process SIGEF or SNCI because unneeded and burdensome) ----
+# (don't further process SIGEF or SNCI because unneeded) ----
 
 # private PAs vs quilombola lands 
 priPAs <- st_read("privatePAs.shp")
@@ -156,13 +156,9 @@ qui <- st_read("quilombola.shp")
 # but i first check how much overlap there is to begin with by doing:
 priPAs_x_qui_overlaps <- st_intersection(priPAs, qui)
 plot(priPAs_x_qui_overlaps[,"LTcateg"]) # doesn't seem to be much overlap in any case (15km2) 
-sum(st_area(priPAs_x_qui_overlaps)) # essentially 15km2
+sum(st_area(priPAs_x_qui_overlaps)) # 15km2
 # this means it doesn't make much sense to write out the overlapping polygons
 
-# in theory, i would also carry on by finding the private PAs and quilombos that do not (and do) 
-# overlap with rural properties (IRU). 
-# the problem is that this is computationally a lot more challenging 
-# Hence:
 
 
 # D) Find overlapping polygons across 3 categories ----
@@ -176,7 +172,7 @@ iru <- st_transform(iru, my_crs_SAaea)
 qui <- st_read("quilombolaLands.shp")
 qui <- st_transform(qui, my_crs_SAaea)
 # remember, intersecting them as one object is my only way of getting the parts that don't intersect with each other
-# i always doubt this again, and make myself think that i could get this using st_difference. but no. i need to intersect.
+# st_difference does not yield the result i need
 # just to check how much *area* actually intersects I can run the intersection with the two as separate objects
 # test_intersection <- st_intersection(qui, iru) 
 # sum(st_area(test_intersection))/1000000 # this is 8,000 km2, which is significant

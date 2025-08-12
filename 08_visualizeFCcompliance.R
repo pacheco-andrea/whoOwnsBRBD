@@ -28,7 +28,6 @@ head(data_extra)
 FC_data <- data_extra[which(!is.na(data_extra$area_conv)),]
 summary(FC_data)
 # get geometry data that corresponds to these data above
-# in which directories would i find IRU and AST?
 # AST
 setwd(paste0(wdmain, "data/processed/LT_no-overlaps"))
 ast <- st_read("ruralSettlements.shp")
@@ -41,7 +40,7 @@ head(s)
 s <- s %>% select(id)
 FC_data2 <- left_join(FC_data, s, by = c("id"))
 FC_data2 <- st_as_sf(FC_data2) 
-# check for empty geometries?
+# check for empty geometries
 FC_data2[which(st_is_empty(FC_data2)),]
 # transform to AEA
 FC_data2 <- st_transform(FC_data2, my_crs_SAaea)
@@ -135,7 +134,7 @@ deficitTotals
 # ~83% of deforestation post 2008 is in largeholders (73% in private lands, specifically) 
 # BUT the properties are many more than those reported in the original paper
 # almost 400,000 properties are larger than 4 FM and responsible for 73% deforestation after 2008...
-# the paper reported 17,557. is this because they only considered amazon and cerrado?
+# the paper reported 17,557. perhaps because they only considered amazon and cerrado?
 deficitTotals_AMCE <- data %>% 
   st_drop_geometry() %>%
   filter(biome %in% c("Amazonia", "Cerrado"))  %>%
@@ -581,12 +580,4 @@ ggplot(deficitData) +
   ) +
   geom_sf(data = biomes, fill = NA, color = "black", size = 1)
 dev.off()
-
-
-
-
-
-
-
-
 
